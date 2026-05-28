@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     # Storage
     db_path: str = Field(default="./db/copilot.db", alias="DB_PATH")
 
+    # Supabase (optional — enables dashboard sync; leave blank to run SQLite-only)
+    supabase_url: str = Field(default="", alias="SUPABASE_URL")
+    supabase_service_key: str = Field(default="", alias="SUPABASE_SERVICE_KEY")
+
     # Server
     server_host: str = Field(default="0.0.0.0", alias="SERVER_HOST")
     server_port: int = Field(default=8000, alias="SERVER_PORT")

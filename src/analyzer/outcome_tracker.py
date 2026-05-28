@@ -82,6 +82,17 @@ async def _do_check(
     finally:
         conn.close()
 
+    # Sync to Supabase (fire-and-forget)
+    from src.common import supabase_sync as sb
+    asyncio.create_task(sb.coin_outcome(
+        token_mint=token_mint,
+        check_offset_h=offset_h,
+        checked_at=outcome.checked_at,
+        mc_usd=outcome.mc_usd,
+        price_change_pct=outcome.price_change_pct,
+        classified=outcome.classified,
+    ))
+
     logger.info(
         "outcome %dh — $%s  mc=$%.0f  change=%.0f%%  → %s",
         offset_h,

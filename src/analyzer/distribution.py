@@ -144,6 +144,18 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
             signal.value,
         )
 
+        # Sync to Supabase (fire-and-forget)
+        import asyncio
+        from src.common import supabase_sync as sb
+        asyncio.create_task(sb.post_grad_behavior(
+            token_mint=token_mint,
+            check_offset_h=offset_h,
+            checked_at=behavior.checked_at,
+            holders_remaining_count=behavior.holders_remaining_count,
+            team_sold_pct=behavior.team_sold_pct,
+            distribution_signal=signal.value,
+        ))
+
         # At 4h update the funder reputation using coin_outcomes if available
         if offset_h == 4:
             await _update_funder_reputation_from_distribution(token_mint, conn)

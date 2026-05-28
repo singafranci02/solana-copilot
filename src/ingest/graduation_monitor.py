@@ -175,13 +175,16 @@ async def _handle_graduation(
                 meta = await helius.get_token_metadata(mint)
             symbol = (meta.get("symbol") or "UNKNOWN") if meta else "UNKNOWN"
             name = (meta.get("name") or "Unknown") if meta else "Unknown"
+            created_at = int(time.time())
             conn.execute(
                 """INSERT OR IGNORE INTO tokens
                    (mint, symbol, name, launchpad, created_at, narrative_tags)
                    VALUES (?, ?, ?, 'pump.fun', ?, '[]')""",
-                (mint, symbol, name, int(time.time())),
+                (mint, symbol, name, created_at),
             )
             conn.commit()
+            from src.common import supabase_sync as sb
+            asyncio.create_task(sb.token(mint, symbol, name, created_at))
         else:
             symbol = token_row["symbol"] or "?"
 
@@ -304,7 +307,38 @@ async def analyse_graduation(
     }
     read = structural_read(ctx)
 
+    # Persist verdict to SQLite so it's available for local queries
+    conn.execute(
+        """UPDATE graduation_events
+           SET structural_verdict = ?, verdict_confidence = ?
+           WHERE token_mint = ?""",
+        (read.verdict, read.confidence, event.token_mint),
+    )
+    conn.commit()
+
     _print_graduation_alert(event, symbol, team_cluster, sm_buyers, funder_rep, read)
+
+    # Sync to Supabase (fire-and-forget — never blocks analysis)
+    from src.common import supabase_sync as sb
+    asyncio.create_task(sb.graduation_event(
+        token_mint=event.token_mint,
+        graduated_at=event.graduated_at,
+        detection_lag_seconds=event.detection_lag_seconds,
+        structural_verdict=read.verdict,
+        verdict_confidence=read.confidence,
+        pumpswap_pool_address=event.pumpswap_pool_address,
+        bc_top_holders_json=event.bc_top_holders,
+    ))
+    if team_cluster:
+        asyncio.create_task(sb.team_cluster(
+            cluster_id=team_cluster.cluster_id,
+            token_mint=team_cluster.token_mint,
+            funding_source=team_cluster.funding_source,
+            member_addresses=team_cluster.member_addresses,
+            supply_pct_at_graduation=team_cluster.supply_pct_at_graduation,
+            first_buy_offset_seconds=team_cluster.first_buy_offset_seconds,
+            is_bc_sniper=team_cluster.is_bc_sniper,
+        ))
 
     # Close the learning loop — distribution checks update wallet_stats + funder_reputation
     await schedule_distribution_checks(event.token_mint, event.graduated_at)
