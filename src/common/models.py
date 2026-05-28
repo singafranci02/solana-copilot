@@ -169,6 +169,36 @@ class PostGradBehavior:
 
 
 @dataclass
+class WalletGraphHit:
+    """A wallet in the new cluster that previously co-appeared with a known wallet."""
+    connected_wallet: str       # member of the new cluster
+    known_wallet: str           # the previously seen co-occurring wallet
+    co_appearances: int
+    rug_co_appearances: int
+    last_seen_together: int
+
+
+@dataclass
+class FingerprintMatch:
+    """Closest structural fingerprint match from known rug-pattern funders."""
+    funding_source: str
+    distance: float             # 0.0 = identical, 1.0 = fully different
+    rug_rate: float
+    sample_count: int
+
+
+@dataclass
+class MemorySignals:
+    """All memory-system signals assembled at graduation analysis time."""
+    graph_hits: list[WalletGraphHit]
+    fingerprint_match: Optional["FingerprintMatch"]
+    launches_24h: int
+    launches_7d: int
+    expected_dump_start_h: Optional[float]  # None until dump_start_count >= 3
+    dump_start_count: int
+
+
+@dataclass
 class StructuralRead:
     """Verdict produced by the graduation analysis pipeline."""
     verdict: str                    # "SKIP" | "WATCH" | "STRUCTURALLY_SOUND"

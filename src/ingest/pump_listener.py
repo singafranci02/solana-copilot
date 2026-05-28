@@ -156,9 +156,15 @@ def _parse_coin(raw: dict[str, Any]) -> NewCoin | None:
     if not mint:
         return None
 
+    # PumpPortal sends marketCapSol; legacy/test data may send usd_market_cap directly
+    mc_usd_direct = raw.get("usd_market_cap") or raw.get("market_cap")
     mc_sol = raw.get("marketCapSol")
-    # Rough USD estimate for display only — outcome_tracker uses real price snapshots
-    mc_usd = float(mc_sol) * 150 if mc_sol else None
+    if mc_usd_direct:
+        mc_usd: float | None = float(mc_usd_direct)
+    elif mc_sol:
+        mc_usd = float(mc_sol) * 150  # rough estimate for display
+    else:
+        mc_usd = None
 
     meta = raw.get("metadata") or {}
 
@@ -183,11 +189,22 @@ def _parse_trade(raw: dict[str, Any]) -> EarlyTrade | None:
     if not mint or not user:
         return None
 
+    # PumpPortal sends solAmount in SOL; legacy/test data sends sol_amount in lamports
+    sol_raw = raw.get("solAmount")
+    if sol_raw is not None:
+        sol = float(sol_raw)
+    else:
+        sol = float(raw.get("sol_amount") or 0) / 1_000_000_000
+
+    # PumpPortal uses txType for buy/sell; legacy data has is_buy bool
+    is_buy_legacy = raw.get("is_buy")
+    is_buy = (raw.get("txType") == "buy") if is_buy_legacy is None else bool(is_buy_legacy)
+
     return EarlyTrade(
         mint=str(mint),
         user=str(user),
-        sol_amount=float(raw.get("solAmount") or 0),
-        token_amount=float(raw.get("tokenAmount") or 0),
-        is_buy=raw.get("txType") == "buy",
+        sol_amount=sol,
+        token_amount=float(raw.get("tokenAmount") or raw.get("token_amount") or 0),
+        is_buy=is_buy,
         timestamp=int(raw.get("timestamp") or 0),
     )

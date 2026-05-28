@@ -290,6 +290,9 @@ async def analyse_graduation(
     if team_cluster and team_cluster.funding_source:
         funder_rep = get_funder_reputation(team_cluster.funding_source, conn)
 
+    from src.analyzer.team_memory import gather_memory_signals
+    memory_signals = gather_memory_signals(team_cluster, conn)
+
     ctx = {
         "token_mint": event.token_mint,
         "team_cluster": team_cluster,
@@ -298,6 +301,7 @@ async def analyse_graduation(
         "bc_top_holders": event.bc_top_holders,
         "distribution_signal": None,
         "bundle_pct": getattr(team_cluster, "supply_pct_at_graduation", 0.0) if team_cluster else 0.0,
+        "memory_signals": memory_signals,
     }
     read = structural_read(ctx)
 

@@ -30,6 +30,15 @@ def migrate() -> None:
         conn.commit()
         _add_column_if_missing(conn, "graduation_events", "smart_money_count", "INTEGER NOT NULL DEFAULT 0")
         _add_column_if_missing(conn, "graduation_events", "dominant_factors_json", "TEXT NOT NULL DEFAULT '[]'")
+        # Memory system columns
+        _add_column_if_missing(conn, "funder_reputation", "launches_24h", "INTEGER NOT NULL DEFAULT 0")
+        _add_column_if_missing(conn, "funder_reputation", "launches_7d", "INTEGER NOT NULL DEFAULT 0")
+        _add_column_if_missing(conn, "funder_reputation", "velocity_updated", "INTEGER")
+        _add_column_if_missing(conn, "funder_reputation", "avg_dump_start_h", "REAL")
+        _add_column_if_missing(conn, "funder_reputation", "dump_start_count", "INTEGER NOT NULL DEFAULT 0")
+        _add_column_if_missing(conn, "team_fingerprints", "avg_first_buy_offset_s", "REAL NOT NULL DEFAULT 0.0")
+        _add_column_if_missing(conn, "team_fingerprints", "avg_sniper_rate", "REAL NOT NULL DEFAULT 0.0")
+        _add_column_if_missing(conn, "team_fingerprints", "sample_count", "INTEGER NOT NULL DEFAULT 0")
         conn.commit()
     finally:
         conn.close()

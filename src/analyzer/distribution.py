@@ -156,7 +156,11 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
             distribution_signal=signal.value,
         ))
 
-        # At 4h update the funder reputation using coin_outcomes if available
+        # Record first DISTRIBUTING signal for dump timing memory
+        if signal == DistributionSignal.DISTRIBUTING:
+            _record_first_dump(token_mint, offset_h, conn)
+
+        # At 4h: update funder reputation + fingerprint + wallet graph with outcome
         if offset_h == 4:
             await _update_funder_reputation_from_distribution(token_mint, conn)
 
@@ -165,10 +169,35 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
         conn.close()
 
 
+def _record_first_dump(token_mint: str, offset_h: int, conn) -> None:
+    """Record dump timing for the funder if this is the first DISTRIBUTING signal."""
+    from src.analyzer.team_memory import record_dump_start
+
+    # Only record once per token (check previous checks at lower offsets)
+    if offset_h > 1:
+        prev = conn.execute(
+            """SELECT 1 FROM post_grad_behavior
+               WHERE token_mint = ? AND check_offset_h < ?
+                 AND distribution_signal = 'DISTRIBUTING' LIMIT 1""",
+            (token_mint, offset_h),
+        ).fetchone()
+        if prev:
+            return  # already recorded at an earlier check
+
+    funder_row = conn.execute(
+        """SELECT tc.funding_source FROM team_clusters tc
+           WHERE tc.token_mint = ? AND tc.funding_source IS NOT NULL
+             AND tc.funding_source != 'cex' LIMIT 1""",
+        (token_mint,),
+    ).fetchone()
+    if funder_row:
+        record_dump_start(funder_row["funding_source"], offset_h, conn)
+
+
 async def _update_funder_reputation_from_distribution(
     token_mint: str, conn
 ) -> None:
-    """After 4h distribution check, update funder_reputation with outcome."""
+    """After 4h distribution check, update funder_reputation + fingerprint + wallet graph."""
     from src.analyzer.smart_money import update_funder_reputation
 
     outcome_row = conn.execute(
@@ -205,6 +234,32 @@ async def _update_funder_reputation_from_distribution(
         dev_pct,
         conn,
     )
+
+    # Memory: update wallet graph with outcome + update structural fingerprint
+    from src.analyzer.team_memory import update_wallet_graph, update_fingerprint
+    from src.common.models import TeamCluster
+
+    cluster_row = conn.execute(
+        """SELECT cluster_id, member_addresses, supply_pct_at_graduation,
+                  first_buy_offset_seconds, is_bc_sniper
+           FROM team_clusters WHERE token_mint = ? LIMIT 1""",
+        (token_mint,),
+    ).fetchone()
+
+    if cluster_row:
+        members = json.loads(cluster_row["member_addresses"] or "[]")
+        update_wallet_graph(members, outcome=outcome_row["classified"], conn=conn)
+
+        tc = TeamCluster(
+            cluster_id=cluster_row["cluster_id"],
+            token_mint=token_mint,
+            funding_source=funder_row["funding_source"],
+            member_addresses=members,
+            supply_pct_at_graduation=float(cluster_row["supply_pct_at_graduation"] or 0),
+            first_buy_offset_seconds=float(cluster_row["first_buy_offset_seconds"] or 0),
+            is_bc_sniper=bool(cluster_row["is_bc_sniper"]),
+        )
+        update_fingerprint(tc, outcome=outcome_row["classified"], conn=conn)
 
 
 def _classify(

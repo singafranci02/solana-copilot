@@ -251,6 +251,23 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_post_grad_mint_offset
     ON post_grad_behavior(token_mint, check_offset_h);
 CREATE INDEX IF NOT EXISTS idx_post_grad_checked_at ON post_grad_behavior(checked_at);
 
+-- ── wallet_graph ──────────────────────────────────────────────────────────────
+-- Co-occurrence graph: wallets that habitually appear together in team clusters.
+-- Survives wallet rotation — recycling even 1-2 wallets across launches exposes
+-- the same team. Pairs stored with wallet_a < wallet_b (canonical ordering).
+CREATE TABLE IF NOT EXISTS wallet_graph (
+    wallet_a           TEXT NOT NULL,
+    wallet_b           TEXT NOT NULL,
+    co_appearances     INTEGER NOT NULL DEFAULT 1,
+    rug_co_appearances INTEGER NOT NULL DEFAULT 0,   -- co-appearances in rug outcomes
+    last_seen_together INTEGER NOT NULL,              -- unix epoch
+    PRIMARY KEY (wallet_a, wallet_b),
+    CHECK (wallet_a < wallet_b)
+);
+
+CREATE INDEX IF NOT EXISTS idx_wg_a ON wallet_graph(wallet_a);
+CREATE INDEX IF NOT EXISTS idx_wg_b ON wallet_graph(wallet_b);
+
 -- ── cex_hotwallets ────────────────────────────────────────────────────────────
 -- Known CEX hot wallet addresses on Solana. Seeded from cex_wallets.py;
 -- extended over time via Solscan/Arkham verification.

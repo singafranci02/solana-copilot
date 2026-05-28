@@ -18,7 +18,7 @@ Design principles:
 from dataclasses import dataclass
 from typing import Any
 
-from src.common.models import StructuralRead
+from src.common.models import MemorySignals, StructuralRead
 
 
 @dataclass
@@ -158,6 +158,7 @@ def structural_read(ctx: dict[str, Any]) -> StructuralRead:
     sm_count = int(ctx.get("smart_money_count") or 0)
     dist_signal = ctx.get("distribution_signal")
     bundle_pct = float(ctx.get("bundle_pct") or 0.0)
+    mem: MemorySignals | None = ctx.get("memory_signals")
 
     # ── Hard SKIP conditions ──────────────────────────────────────────────────
 
@@ -196,6 +197,22 @@ def structural_read(ctx: dict[str, Any]) -> StructuralRead:
             bundle_pct=team_cluster.supply_pct_at_graduation,
             smart_money_count=sm_count,
         )
+
+    # Memory: wallet graph hard SKIP — member appeared 2+ times in rug clusters
+    if mem and mem.graph_hits:
+        rug_hits = [h for h in mem.graph_hits if h.rug_co_appearances >= 2]
+        if rug_hits:
+            best = max(rug_hits, key=lambda h: h.rug_co_appearances)
+            return StructuralRead(
+                verdict="SKIP",
+                confidence=0.85,
+                dominant_factors=[
+                    f"wallet {best.connected_wallet[:6]}.. co-appeared "
+                    f"{best.rug_co_appearances}x in rug clusters with {best.known_wallet[:6]}.."
+                ],
+                what_would_change="wallet history clears over time with clean launches",
+                smart_money_count=sm_count,
+            )
 
     # ── Positive signals ──────────────────────────────────────────────────────
 
@@ -237,6 +254,48 @@ def structural_read(ctx: dict[str, Any]) -> StructuralRead:
             f"funder partial rugger: {funder_rep.rug_rate*100:.0f}% rug rate "
             f"({len(funder_rep.graduated_mints)} launches, below significance threshold)"
         )
+
+    # ── Memory signals ────────────────────────────────────────────────────────
+
+    if mem:
+        # Soft graph warning: co-appeared wallets but no confirmed rug link yet
+        soft_graph_hits = [h for h in mem.graph_hits if h.co_appearances >= 2 and h.rug_co_appearances < 2]
+        if soft_graph_hits:
+            score -= 1
+            best = max(soft_graph_hits, key=lambda h: h.co_appearances)
+            factors.append(
+                f"wallet {best.connected_wallet[:6]}.. previously seen with "
+                f"{best.known_wallet[:6]}.. ({best.co_appearances}x, no confirmed rug yet)"
+            )
+
+        # Pump ring velocity
+        if mem.launches_24h >= 3:
+            score -= 1
+            factors.append(
+                f"funder launched {mem.launches_24h} tokens in 24h — pump ring signal"
+            )
+        elif mem.launches_7d >= 7:
+            score -= 1
+            factors.append(
+                f"funder launched {mem.launches_7d} tokens in 7d — high velocity"
+            )
+
+        # Structural fingerprint match
+        if mem.fingerprint_match:
+            score -= 1
+            fp = mem.fingerprint_match
+            factors.append(
+                f"structure matches known rug pattern "
+                f"(distance={fp.distance:.2f}, funder {fp.funding_source[:6]}.. "
+                f"{fp.rug_rate*100:.0f}% rug rate, n={fp.sample_count})"
+            )
+
+        # Distribution timing hint (informational only — no score impact)
+        if mem.expected_dump_start_h is not None:
+            factors.append(
+                f"funder historically dumps at ~{mem.expected_dump_start_h:.1f}h "
+                f"(n={mem.dump_start_count})"
+            )
 
     # ── Verdict ───────────────────────────────────────────────────────────────
 
