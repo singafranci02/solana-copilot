@@ -1,19 +1,24 @@
 """Cross-reference token buyers against the smart money wallet database.
 
 Scoring formula (all factors in [0, 1]):
-  60% — 90-day win rate           (from GMGN)
+  60% — 90-day win rate           (from local coin_outcomes — self-learning)
   25% — trade volume signal        (log-scaled, saturates at 500 trades)
   15% — recency of last activity   (decays to 0 after 90 days idle in our DB)
 
 The score is written back to wallets.smart_money_score on every call so the
 DB always reflects the freshest calculation.
+
+Minimum sample sizes (enforced in code, not schema):
+  wallet win_rate   — requires total_calls >= 15 in wallet_stats
+  funder_reputation — requires len(graduated_mints) >= 8 for is_known_rugger
 """
 
+import json
 import sqlite3
 import time
 from typing import TYPE_CHECKING
 
-from src.common.models import TokenBuyer, Wallet
+from src.common.models import FunderReputation, TokenBuyer, Wallet, WalletStats
 
 if TYPE_CHECKING:
     from src.ingest.gmgn import GMGNClient
@@ -149,9 +154,6 @@ async def enrich_wallet(
 ) -> Wallet:
     """Fetch GMGN profile, compute score, and upsert the wallet into the DB.
 
-    This is the primary async entry point that wires GMGN data into the
-    scoring + persistence pipeline.
-
     Args:
         address: Solana wallet address.
         gmgn: Authenticated GMGNClient instance.
@@ -171,3 +173,169 @@ async def enrich_wallet(
     wallet.smart_money_score = score_wallet(wallet, conn)
     # score_wallet writes the score; sync the in-memory object
     return wallet
+
+
+# ── Graduation-context: incremental wallet_stats ──────────────────────────────
+
+_MIN_WALLET_SAMPLE = 15   # minimum calls before win_rate is considered significant
+
+
+def update_wallet_stats(
+    address: str,
+    outcome: str,       # "moon" | "ok" | "rug"
+    is_graduated: bool,
+    conn: sqlite3.Connection,
+) -> None:
+    """Increment wallet_stats counters after a 4h outcome is recorded.
+
+    Never fully recomputes — only increments counters.
+    win_rate is set to NULL until total_calls >= 15.
+    """
+    conn.execute(
+        """INSERT INTO wallet_stats (address, graduated_calls, wins, losses, total_calls, last_updated)
+           VALUES (?, ?, ?, ?, 1, ?)
+           ON CONFLICT(address) DO UPDATE SET
+               graduated_calls = graduated_calls + excluded.graduated_calls,
+               wins            = wins  + excluded.wins,
+               losses          = losses + excluded.losses,
+               total_calls     = total_calls + 1,
+               last_updated    = excluded.last_updated""",
+        (
+            address,
+            1 if is_graduated else 0,
+            1 if outcome == "moon" else 0,
+            1 if outcome == "rug" else 0,
+            int(time.time()),
+        ),
+    )
+    # Recompute win_rate only when sample is sufficient
+    conn.execute(
+        """UPDATE wallet_stats
+           SET win_rate = CASE
+               WHEN total_calls >= ? THEN CAST(wins AS REAL) / MAX(wins + losses, 1)
+               ELSE NULL
+           END
+           WHERE address = ?""",
+        (_MIN_WALLET_SAMPLE, address),
+    )
+    conn.commit()
+
+
+def get_wallet_stats(
+    address: str, conn: sqlite3.Connection
+) -> WalletStats | None:
+    """Return wallet_stats for address, or None if not found."""
+    row = conn.execute(
+        "SELECT * FROM wallet_stats WHERE address = ?", (address,)
+    ).fetchone()
+    if row is None:
+        return None
+    return WalletStats(
+        address=row["address"],
+        graduated_calls=int(row["graduated_calls"] or 0),
+        wins=int(row["wins"] or 0),
+        losses=int(row["losses"] or 0),
+        total_calls=int(row["total_calls"] or 0),
+        win_rate=row["win_rate"],
+        last_updated=int(row["last_updated"] or 0),
+    )
+
+
+# ── Graduation-context: funder_reputation ────────────────────────────────────
+
+_MIN_FUNDER_SAMPLE = 8    # minimum graduated mints before is_known_rugger can be set
+_KNOWN_RUGGER_THRESHOLD = 0.65
+
+
+def update_funder_reputation(
+    funding_source: str,
+    token_mint: str,
+    outcome: str,         # "moon" | "ok" | "rug"
+    bundle_pct: float,
+    dev_pct: float,
+    conn: sqlite3.Connection,
+) -> None:
+    """Incrementally update funder_reputation after a 4h outcome is known."""
+    existing = conn.execute(
+        "SELECT * FROM funder_reputation WHERE funding_source = ?", (funding_source,)
+    ).fetchone()
+
+    now = int(time.time())
+
+    if existing is None:
+        mints = [token_mint]
+        rug_count = 1 if outcome == "rug" else 0
+        moon_count = 1 if outcome == "moon" else 0
+        ok_count = 1 if outcome == "ok" else 0
+        n = 1
+        rug_rate = rug_count / n
+        is_rugger = 0
+        conn.execute(
+            """INSERT INTO funder_reputation
+               (funding_source, graduated_mints, rug_count, moon_count, ok_count,
+                rug_rate, avg_bundle_pct, avg_dev_pct, last_seen, is_known_rugger)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                funding_source, json.dumps(mints),
+                rug_count, moon_count, ok_count,
+                rug_rate, bundle_pct, dev_pct, now, is_rugger,
+            ),
+        )
+    else:
+        mints = json.loads(existing["graduated_mints"])
+        if token_mint not in mints:
+            mints.append(token_mint)
+        rug_count = int(existing["rug_count"]) + (1 if outcome == "rug" else 0)
+        moon_count = int(existing["moon_count"]) + (1 if outcome == "moon" else 0)
+        ok_count = int(existing["ok_count"]) + (1 if outcome == "ok" else 0)
+        n = len(mints)
+        rug_rate = rug_count / n
+        # Rolling average for bundle and dev pct
+        prev_n = n - 1 or 1
+        avg_bundle = (float(existing["avg_bundle_pct"]) * prev_n + bundle_pct) / n
+        avg_dev = (float(existing["avg_dev_pct"]) * prev_n + dev_pct) / n
+        is_rugger = int(n >= _MIN_FUNDER_SAMPLE and rug_rate >= _KNOWN_RUGGER_THRESHOLD)
+        conn.execute(
+            """UPDATE funder_reputation SET
+               graduated_mints = ?, rug_count = ?, moon_count = ?, ok_count = ?,
+               rug_rate = ?, avg_bundle_pct = ?, avg_dev_pct = ?,
+               last_seen = ?, is_known_rugger = ?
+               WHERE funding_source = ?""",
+            (
+                json.dumps(mints), rug_count, moon_count, ok_count,
+                rug_rate, round(avg_bundle, 2), round(avg_dev, 2),
+                now, is_rugger, funding_source,
+            ),
+        )
+    conn.commit()
+
+
+def get_funder_reputation(
+    funding_source: str, conn: sqlite3.Connection
+) -> FunderReputation | None:
+    """Return the FunderReputation for a known funder, or None.
+
+    Note: is_known_rugger is only True when len(graduated_mints) >= 8
+    and rug_rate >= 0.65. Below that threshold the data is treated as
+    insufficient — patterns.py returns it as 'hypothesis, insufficient data'.
+    """
+    row = conn.execute(
+        "SELECT * FROM funder_reputation WHERE funding_source = ?", (funding_source,)
+    ).fetchone()
+    if row is None:
+        return None
+    mints = json.loads(row["graduated_mints"])
+    n = len(mints) or 1
+    return FunderReputation(
+        funding_source=row["funding_source"],
+        graduated_mints=mints,
+        rug_count=int(row["rug_count"]),
+        moon_count=int(row["moon_count"]),
+        ok_count=int(row["ok_count"]),
+        rug_rate=float(row["rug_rate"]),
+        moon_rate=int(row["moon_count"]) / n,
+        avg_bundle_pct=float(row["avg_bundle_pct"]),
+        avg_dev_pct=float(row["avg_dev_pct"]),
+        last_seen=row["last_seen"],
+        is_known_rugger=bool(row["is_known_rugger"]),
+    )

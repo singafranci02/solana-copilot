@@ -160,3 +160,100 @@ CREATE INDEX IF NOT EXISTS idx_fingerprints_funding_source
     ON team_fingerprints (funding_source);
 CREATE INDEX IF NOT EXISTS idx_fingerprints_rug_rate
     ON team_fingerprints (rug_rate DESC);
+
+-- ── graduation_events ─────────────────────────────────────────────────────────
+-- Records the moment a token completes its bonding curve and migrates to PumpSwap.
+-- Only graduated tokens (~0.7-0.8% of all launches) receive structural analysis.
+CREATE TABLE IF NOT EXISTS graduation_events (
+    token_mint              TEXT PRIMARY KEY REFERENCES tokens(mint),
+    graduated_at            INTEGER NOT NULL,             -- unix epoch
+    graduation_mc_usd       REAL,                         -- MC at graduation (~$69K)
+    sol_raised              REAL,                         -- SOL raised on BC (~85 SOL)
+    detection_lag_seconds   INTEGER NOT NULL DEFAULT 0,   -- our latency vs event
+    pumpswap_pool_address   TEXT,
+    bc_top_holders_json     TEXT NOT NULL DEFAULT '[]'    -- JSON [{wallet, pct}] top-20 at grad
+);
+
+CREATE INDEX IF NOT EXISTS idx_grad_events_graduated_at ON graduation_events(graduated_at);
+
+-- ── wallet_stats ──────────────────────────────────────────────────────────────
+-- Incremental win/loss counters per wallet, updated after each 4h outcome.
+-- Never fully recomputed — only incremented. win_rate is NULL until
+-- total_calls >= 15 (enforced at query time, not in DB).
+CREATE TABLE IF NOT EXISTS wallet_stats (
+    address             TEXT PRIMARY KEY REFERENCES wallets(address),
+    graduated_calls     INTEGER NOT NULL DEFAULT 0,   -- BC purchases of graduated tokens
+    wins                INTEGER NOT NULL DEFAULT 0,   -- moon outcomes at 4h
+    losses              INTEGER NOT NULL DEFAULT 0,   -- rug outcomes at 4h
+    total_calls         INTEGER NOT NULL DEFAULT 0,
+    win_rate            REAL,                          -- NULL until total_calls >= 15
+    last_updated        INTEGER NOT NULL DEFAULT 0
+);
+
+-- ── funder_reputation ────────────────────────────────────────────────────────
+-- Track record of a funding wallet across graduated launches it funded.
+-- is_known_rugger is only set when rug_rate > 0.65 AND COUNT(graduated_mints) >= 8.
+CREATE TABLE IF NOT EXISTS funder_reputation (
+    funding_source      TEXT PRIMARY KEY,
+    graduated_mints     TEXT NOT NULL DEFAULT '[]',   -- JSON array of mints
+    rug_count           INTEGER NOT NULL DEFAULT 0,
+    moon_count          INTEGER NOT NULL DEFAULT 0,
+    ok_count            INTEGER NOT NULL DEFAULT 0,
+    rug_rate            REAL NOT NULL DEFAULT 0.0,
+    avg_bundle_pct      REAL NOT NULL DEFAULT 0.0,
+    avg_dev_pct         REAL NOT NULL DEFAULT 0.0,
+    last_seen           INTEGER,
+    is_known_rugger     INTEGER NOT NULL DEFAULT 0
+                        CHECK (is_known_rugger IN (0, 1))
+);
+
+CREATE INDEX IF NOT EXISTS idx_funder_rep_rug_rate ON funder_reputation(rug_rate DESC);
+CREATE INDEX IF NOT EXISTS idx_funder_rep_last_seen ON funder_reputation(last_seen);
+
+-- ── team_clusters ─────────────────────────────────────────────────────────────
+-- Per-token team cluster detected from BC-phase buyers at graduation.
+-- Richer than wallet_clusters: tracks supply_pct at the moment of graduation.
+CREATE TABLE IF NOT EXISTS team_clusters (
+    cluster_id               TEXT PRIMARY KEY,
+    token_mint               TEXT NOT NULL REFERENCES tokens(mint),
+    funding_source           TEXT,
+    member_addresses         TEXT NOT NULL DEFAULT '[]', -- JSON array
+    supply_pct_at_graduation REAL NOT NULL DEFAULT 0.0,  -- % supply at graduation
+    first_buy_offset_seconds REAL NOT NULL DEFAULT 0.0,  -- seconds after launch
+    is_bc_sniper             INTEGER NOT NULL DEFAULT 0   -- bought within first 30s
+                             CHECK (is_bc_sniper IN (0, 1))
+);
+
+CREATE INDEX IF NOT EXISTS idx_team_clusters_token_mint     ON team_clusters(token_mint);
+CREATE INDEX IF NOT EXISTS idx_team_clusters_funding_source ON team_clusters(funding_source);
+
+-- ── post_grad_behavior ────────────────────────────────────────────────────────
+-- Selling/holding behavior of team cluster + early snipers post-graduation.
+-- Checked at graduation_time + 1h / 4h / 24h.
+CREATE TABLE IF NOT EXISTS post_grad_behavior (
+    id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_mint               TEXT NOT NULL REFERENCES tokens(mint),
+    checked_at               INTEGER NOT NULL,
+    check_offset_h           INTEGER NOT NULL,             -- 1, 4, or 24
+    holders_remaining_count  INTEGER,
+    team_sold_pct            REAL,                         -- % of team position sold
+    snipers_sold_pct         REAL,
+    liquidity_usd            REAL,
+    distribution_signal      TEXT NOT NULL DEFAULT 'HOLDING'
+                             CHECK (distribution_signal IN ('ACCUMULATING','HOLDING','DISTRIBUTING','DUMPED'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_post_grad_mint_offset
+    ON post_grad_behavior(token_mint, check_offset_h);
+CREATE INDEX IF NOT EXISTS idx_post_grad_checked_at ON post_grad_behavior(checked_at);
+
+-- ── cex_hotwallets ────────────────────────────────────────────────────────────
+-- Known CEX hot wallet addresses on Solana. Seeded from cex_wallets.py;
+-- extended over time via Solscan/Arkham verification.
+CREATE TABLE IF NOT EXISTS cex_hotwallets (
+    address     TEXT PRIMARY KEY,
+    exchange    TEXT NOT NULL,
+    label       TEXT,
+    confirmed   INTEGER NOT NULL DEFAULT 0 CHECK (confirmed IN (0, 1)),
+    added_at    INTEGER NOT NULL
+);

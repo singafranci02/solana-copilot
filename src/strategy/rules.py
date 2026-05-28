@@ -1,17 +1,24 @@
-"""Entry and exit rules — the file you edit between sessions.
+"""Rules engine — launch-time rules and graduation-context structural reads.
 
-Each rule is a function that takes a structured context dict and returns
-a bool (should I act?) plus an optional reason string.
+Launch-time rules (ENTRY_RULES / EXIT_RULES):
+  Pure functions, take a context dict, return RuleResult.
+  Used by pump_monitor for the 60-second BC-phase analysis.
+
+Graduation-context verdict (structural_read):
+  Returns a StructuralRead with verdict SKIP / WATCH / STRUCTURALLY_SOUND.
+  Hard SKIP conditions are checked first; remaining factors are scored.
+  Used by graduation_monitor for post-graduation analysis.
 
 Design principles:
-  - Rules are pure functions: no IO, no side effects.
-  - Add new rules by writing a new function and registering it in ENTRY_RULES
-    or EXIT_RULES at the bottom of this file.
-  - backtest.py replays these rules against my_trades to measure their PnL.
+  - All functions are pure: no IO, no side effects.
+  - structural_read never auto-triggers warnings based on patterns below
+    minimum sample size (is_significant=False from patterns.py).
 """
 
 from dataclasses import dataclass
 from typing import Any
+
+from src.common.models import StructuralRead
 
 
 @dataclass
@@ -112,7 +119,7 @@ def evaluate_rules(
     return results
 
 
-# ── Rule registries ────────────────────────────────────────────────────────────
+# ── Rule registries ───────────────────────────────────────────────────────────
 
 ENTRY_RULES = [
     rule_smart_money_early,
@@ -124,3 +131,136 @@ ENTRY_RULES = [
 EXIT_RULES = [
     rule_exit_dev_dump,
 ]
+
+
+# ── Graduation-context structural verdict ─────────────────────────────────────
+
+def structural_read(ctx: dict[str, Any]) -> StructuralRead:
+    """Produce a StructuralRead verdict for a graduated token.
+
+    Context keys (all optional — missing keys score 0):
+      team_cluster      — TeamCluster | None
+      funder_rep        — FunderReputation | None
+      smart_money_count — int
+      distribution_signal — str | None ("ACCUMULATING"/"HOLDING"/"DISTRIBUTING"/"DUMPED")
+      bundle_pct        — float (supply_pct_at_graduation for team cluster)
+      bc_top_holders    — list[dict]
+
+    Verdict logic:
+      SKIP             — any hard skip condition met
+      STRUCTURALLY_SOUND — positive score >= 2 points with no negatives
+      WATCH            — everything else (insufficient signal or mixed)
+    """
+    factors: list[str] = []
+    score: int = 0
+    team_cluster = ctx.get("team_cluster")
+    funder_rep = ctx.get("funder_rep")
+    sm_count = int(ctx.get("smart_money_count") or 0)
+    dist_signal = ctx.get("distribution_signal")
+    bundle_pct = float(ctx.get("bundle_pct") or 0.0)
+
+    # ── Hard SKIP conditions ──────────────────────────────────────────────────
+
+    if funder_rep and funder_rep.is_known_rugger:
+        return StructuralRead(
+            verdict="SKIP",
+            confidence=0.90,
+            dominant_factors=[
+                f"known rugger: {funder_rep.rug_rate*100:.0f}% rug rate "
+                f"across {len(funder_rep.graduated_mints)} launches"
+            ],
+            what_would_change="funder reputation improves with new clean launches",
+            funder_is_known_rugger=True,
+            smart_money_count=sm_count,
+        )
+
+    if dist_signal == "DUMPED":
+        return StructuralRead(
+            verdict="SKIP",
+            confidence=0.95,
+            dominant_factors=["token already DUMPED — liquidity gone"],
+            what_would_change="n/a — irreversible",
+            distribution_signal=dist_signal,
+            smart_money_count=sm_count,
+        )
+
+    if team_cluster and team_cluster.supply_pct_at_graduation >= 50 and team_cluster.is_bc_sniper:
+        return StructuralRead(
+            verdict="SKIP",
+            confidence=0.80,
+            dominant_factors=[
+                f"team holds {team_cluster.supply_pct_at_graduation:.1f}% "
+                "as BC snipers — high distribution risk"
+            ],
+            what_would_change="team reduces position significantly before next check",
+            bundle_pct=team_cluster.supply_pct_at_graduation,
+            smart_money_count=sm_count,
+        )
+
+    # ── Positive signals ──────────────────────────────────────────────────────
+
+    if sm_count >= 2:
+        score += 2
+        factors.append(f"{sm_count} smart money wallets")
+    elif sm_count == 1:
+        score += 1
+        factors.append("1 smart money wallet")
+
+    if dist_signal == "HOLDING":
+        score += 1
+        factors.append("team cluster holding post-graduation")
+    elif dist_signal == "ACCUMULATING":
+        score += 2
+        factors.append("team cluster accumulating post-graduation")
+
+    if team_cluster and team_cluster.supply_pct_at_graduation < 20:
+        score += 1
+        factors.append(f"team supply pct low ({team_cluster.supply_pct_at_graduation:.1f}%) — low dump risk")
+
+    if funder_rep and not funder_rep.is_known_rugger and len(funder_rep.graduated_mints) >= 8:
+        if funder_rep.moon_rate >= 0.4:
+            score += 1
+            factors.append(
+                f"funder has {funder_rep.moon_rate*100:.0f}% moon rate "
+                f"({len(funder_rep.graduated_mints)} launches)"
+            )
+
+    # ── Negative signals ──────────────────────────────────────────────────────
+
+    if dist_signal == "DISTRIBUTING":
+        score -= 2
+        factors.append("team cluster distributing — selling accelerating")
+
+    if funder_rep and len(funder_rep.graduated_mints) >= 4 and funder_rep.rug_rate >= 0.5:
+        score -= 1
+        factors.append(
+            f"funder partial rugger: {funder_rep.rug_rate*100:.0f}% rug rate "
+            f"({len(funder_rep.graduated_mints)} launches, below significance threshold)"
+        )
+
+    # ── Verdict ───────────────────────────────────────────────────────────────
+
+    if score >= 2 and dist_signal not in ("DISTRIBUTING", "DUMPED"):
+        verdict = "STRUCTURALLY_SOUND"
+        confidence = min(0.85, 0.5 + score * 0.1)
+        what_would_change = "team starts distributing or smart money exits"
+    elif score <= -1:
+        verdict = "SKIP"
+        confidence = min(0.85, 0.5 + abs(score) * 0.1)
+        what_would_change = "distribution signal improves to HOLDING with no further selling"
+    else:
+        verdict = "WATCH"
+        confidence = 0.50
+        what_would_change = "smart money entry or confirmed holding pattern"
+
+    return StructuralRead(
+        verdict=verdict,
+        confidence=round(confidence, 2),
+        dominant_factors=factors or ["insufficient signal"],
+        what_would_change=what_would_change,
+        bundle_pct=bundle_pct,
+        dev_pct=getattr(team_cluster, "supply_pct_at_graduation", 0.0) if team_cluster else 0.0,
+        distribution_signal=dist_signal,
+        funder_is_known_rugger=bool(funder_rep and funder_rep.is_known_rugger),
+        smart_money_count=sm_count,
+    )

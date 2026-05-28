@@ -1,0 +1,132 @@
+# solana-copilot — project context for Claude
+
+## What this is
+
+A self-learning Solana memecoin analyst that silently tracks teams, funders, and
+early buyer clusters. It produces structural reads on tokens — never trades.
+
+**Do NOT implement trade execution. This is analysis only.**
+
+## Core strategic focus: graduation-first analysis
+
+~99.3% of Pump.fun tokens never complete their bonding curve. The system focuses
+exclusively on the ~0.7% that **graduate** (raise ~85 SOL → auto-migrate to PumpSwap
+at ~$69K market cap). Graduation is the primary quality filter.
+
+The core question at graduation: **is the team/early cluster about to distribute,
+or does the structure support continuation?**
+
+## Data flow
+
+```
+Pump.fun WebSocket
+    ├── newCoinCreated → pump_monitor.py    (60s collection, BC-phase analysis)
+    └── migrate        → graduation_monitor.py  (structural analysis, this is primary)
+
+graduation_monitor.py:
+    → fetch top holders from Helius at graduation moment
+    → build team cluster (who accumulated during BC + still holds at graduation)
+    → identify funder wallet (one hop back from team members)
+    → produce StructuralRead verdict (SKIP / WATCH / STRUCTURALLY_SOUND)
+    → schedule distribution checks at +1h / +4h / +24h
+    → update funder_reputation and wallet_stats after 4h outcome
+```
+
+## Self-learning loop
+
+The system learns purely from its own observations — no external APIs for win rates.
+
+1. Outcome tracker checks price at 1h / 4h / 24h from graduation
+2. Classifies: moon (≥3× graduation MC) / ok (0.5-3×) / rug/dead (<0.5×)
+3. Updates `wallet_stats` incrementally (wins/losses/total_calls)
+4. Updates `funder_reputation` incrementally (rug_rate, moon_rate)
+5. `is_known_rugger` is set ONLY when funder has ≥8 graduated mints AND rug_rate ≥ 0.65
+
+## Verdict rules (structural_read in rules.py)
+
+Hard SKIP (checked first):
+- Funder is a known rugger (is_known_rugger=True, requires n≥8 sample)
+- Distribution signal is DUMPED
+- Team holds ≥50% supply at graduation AND is a BC sniper
+
+STRUCTURALLY_SOUND: positive score ≥2 with no negative overrides
+  +2 smart money count ≥2
+  +1 smart money count = 1
+  +2 distribution signal = ACCUMULATING
+  +1 distribution signal = HOLDING
+  +1 team supply_pct < 20%
+  +1 funder has moon_rate ≥ 40% with ≥8 sample
+
+WATCH: everything else (insufficient signal or mixed)
+
+## Pattern significance thresholds
+
+Every PatternResult carries `sample_size` and `is_significant` (True only when n≥30).
+Patterns below threshold must NOT feed automated warnings. They are hypothesis-level
+output only. Enforce in code — never assert significance without checking the flag.
+
+## Classification thresholds (outcome_tracker.py)
+
+| Label | Condition                          |
+|-------|------------------------------------|
+| moon  | MC ≥ 3× graduation snapshot        |
+| ok    | MC 0.5–3× graduation snapshot      |
+| rug   | MC < 0.5× graduation snapshot      |
+
+Distribution signal thresholds (distribution.py):
+- DUMPED:       holders < 5
+- DISTRIBUTING: team sold > 30% of graduation-time position
+- ACCUMULATING: team grew position by > 10%
+- HOLDING:      everything else (including unknown)
+
+## Key constants (verify before trusting)
+
+```
+PUMPSWAP_PROGRAM_ID = "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"  # TODO: verify
+GRADUATION_EVENT    = "migrate"    # Pump.fun WebSocket event name — TODO: verify
+GRADUATION_SOL      = ~85 SOL      # raised on bonding curve
+GRADUATION_MC_USD   = ~$69,000     # at migration
+```
+
+## Database tables
+
+| Table                | Purpose                                             |
+|----------------------|-----------------------------------------------------|
+| tokens               | All analysed tokens                                 |
+| wallets              | Wallet registry with smart_money_score              |
+| wallet_stats         | Incremental win/loss counters (min 15 for win_rate) |
+| token_buyers         | BC-phase purchase records                           |
+| wallet_clusters      | Legacy BC-phase funding clusters                    |
+| team_clusters        | Graduation-context team clusters with supply_pct    |
+| coin_outcomes        | Price snapshots at 1h / 4h / 24h                   |
+| graduation_events    | Graduation records with BC top holders              |
+| post_grad_behavior   | Distribution checks at 1h / 4h / 24h               |
+| funder_reputation    | Funder track record (min 8 for is_known_rugger)     |
+| team_fingerprints    | Legacy team fingerprints (pump_monitor era)         |
+| cex_hotwallets       | Known CEX hot wallets (seeded + DB-extended)        |
+| narratives           | Active narrative tracking                           |
+
+## Services (launchd on Mac mini)
+
+| Service             | Entry point                          |
+|---------------------|--------------------------------------|
+| pump_monitor        | src/services/pump_monitor.py         |
+| graduation_monitor  | src/ingest/graduation_monitor.py     |
+| wallet_watcher      | src/services/wallet_watcher.py       |
+| narrative_tracker   | src/services/narrative_tracker.py    |
+| analyzer_server     | src/services/analyzer_server.py      |
+
+## CEX wallet handling
+
+CEX-funded wallets are excluded from clustering. Seed list is in
+`src/common/cex_wallets.py`. Extended via `cex_hotwallets` DB table.
+Use `is_cex_wallet(address, conn)` everywhere — never hardcode CEX checks.
+
+## Development rules
+
+- Read the current file state before editing — never assume content from memory
+- Match existing code style (type hints, docstrings only for non-obvious WHY)
+- No trade execution — analysis output only
+- Run `uv run pytest` before committing
+- Schema migrations go in db/schema.sql only (CREATE TABLE IF NOT EXISTS throughout)
+- `uv` binary at: `/Users/francescotomatis/Library/Python/3.13/bin/uv`
