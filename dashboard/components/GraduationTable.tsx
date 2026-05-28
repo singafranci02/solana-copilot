@@ -2,18 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { supabase, isConfigured } from "@/lib/supabase";
-import type { GraduationRow } from "@/lib/types";
+import type { GraduationRow, Verdict } from "@/lib/types";
 import { formatMint, formatDate } from "@/lib/types";
 import { VerdictBadge } from "./VerdictBadge";
 import { OutcomeChip } from "./OutcomeChip";
 import { SignalPip } from "./SignalPip";
 import { StatsBar } from "./StatsBar";
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 12;
+
+type Filter = "all" | "STRUCTURALLY_SOUND" | "WATCH" | "SKIP" | "resolved";
 
 export function GraduationTable() {
   const [rows, setRows] = useState<GraduationRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [page, setPage] = useState(1);
 
   if (!isConfigured) {
     return (
@@ -31,8 +35,7 @@ export function GraduationTable() {
       .from("graduation_feed")
       .select("*")
       .order("graduated_at", { ascending: false })
-      .limit(PAGE_SIZE);
-
+      .limit(200);
     if (!error && data) setRows(data as GraduationRow[]);
     setLoading(false);
   }
@@ -49,11 +52,7 @@ export function GraduationTable() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-48 text-zinc-600">
-        connecting to feed…
-      </div>
-    );
+    return <div className="flex items-center justify-center h-48 text-zinc-600">connecting…</div>;
   }
 
   if (rows.length === 0) {
@@ -61,102 +60,124 @@ export function GraduationTable() {
       <div className="flex flex-col items-center justify-center h-48 gap-2 text-center">
         <p className="text-zinc-400 text-lg">No graduations yet</p>
         <p className="text-zinc-600 text-sm max-w-md">
-          The bot is running on the Mac mini and monitoring Pump.fun.
-          Tokens appear here the moment they graduate (~85 SOL raised).
+          The bot is running on the Mac mini. Tokens appear here the moment they graduate (~85 SOL raised).
         </p>
       </div>
     );
   }
 
+  const filtered = rows.filter((r) => {
+    if (filter === "all") return true;
+    if (filter === "resolved") return r.outcome_24h !== null;
+    return r.verdict === filter;
+  });
+
+  const visible = filtered.slice(0, page * PAGE_SIZE);
+  const hasMore = visible.length < filtered.length;
+
   return (
     <div>
       <StatsBar rows={rows} />
-      <div className="overflow-x-auto rounded-lg border border-zinc-800">
-        <table className="w-full text-sm min-w-[900px]">
-          <thead>
-            <tr className="border-b border-zinc-800 text-zinc-500 text-xs uppercase tracking-wide bg-zinc-900/50">
-              <th className="text-left px-4 py-3 w-32">Time</th>
-              <th className="text-left px-4 py-3 w-40">Token</th>
-              <th className="text-left px-4 py-3">Algorithm signals</th>
-              <th className="text-left px-4 py-3 w-32">Verdict</th>
-              <th className="text-left px-4 py-3">Why</th>
-              <th className="text-center px-3 py-3 w-16">1h</th>
-              <th className="text-center px-3 py-3 w-16">4h</th>
-              <th className="text-center px-3 py-3 w-24">24h</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <Row key={row.token_mint} row={row} />
-            ))}
-          </tbody>
-        </table>
+
+      {/* Filter tabs */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        {(["all", "STRUCTURALLY_SOUND", "WATCH", "SKIP", "resolved"] as Filter[]).map((f) => {
+          const count = f === "all" ? rows.length
+            : f === "resolved" ? rows.filter((r) => r.outcome_24h !== null).length
+            : rows.filter((r) => r.verdict === f).length;
+          const labels: Record<Filter, string> = {
+            all: "All",
+            STRUCTURALLY_SOUND: "Sound",
+            WATCH: "Watch",
+            SKIP: "Skip",
+            resolved: "Resolved",
+          };
+          const activeColors: Record<Filter, string> = {
+            all: "bg-zinc-700 text-white",
+            STRUCTURALLY_SOUND: "bg-green-800 text-green-200",
+            WATCH: "bg-yellow-800 text-yellow-200",
+            SKIP: "bg-red-800 text-red-200",
+            resolved: "bg-purple-800 text-purple-200",
+          };
+          const isActive = filter === f;
+          return (
+            <button
+              key={f}
+              onClick={() => { setFilter(f); setPage(1); }}
+              className={`px-3 py-1 rounded-full text-xs font-mono transition-colors ${
+                isActive ? activeColors[f] : "bg-zinc-900 text-zinc-500 hover:text-zinc-300 border border-zinc-800"
+              }`}
+            >
+              {labels[f]} <span className="opacity-60">{count}</span>
+            </button>
+          );
+        })}
       </div>
+
+      {/* Cards */}
+      <div className="space-y-3">
+        {visible.map((row) => <TokenCard key={row.token_mint} row={row} />)}
+      </div>
+
+      {hasMore && (
+        <button
+          onClick={() => setPage((p) => p + 1)}
+          className="mt-4 w-full py-2 rounded-lg border border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 text-sm transition-colors"
+        >
+          Load more ({filtered.length - visible.length} remaining)
+        </button>
+      )}
     </div>
   );
 }
 
-function Row({ row }: { row: GraduationRow }) {
-  const isMatch = row.verdict !== null && row.outcome_24h !== null;
+
+// ── Token Journey Card ────────────────────────────────────────────────────────
+
+function TokenCard({ row }: { row: GraduationRow }) {
+  const isResolved = row.outcome_24h !== null;
+  const isMatch = isResolved && row.verdict !== null;
   const correct = isMatch && (
     (row.verdict === "SKIP" && row.outcome_24h === "rug") ||
     (row.verdict !== "SKIP" && row.outcome_24h !== "rug")
   );
-  const rowBg = isMatch
-    ? correct ? "bg-green-950/20" : "bg-red-950/20"
-    : "hover:bg-zinc-900/40";
+
+  const borderColor = isResolved
+    ? correct ? "border-green-900" : "border-red-900"
+    : "border-zinc-800";
 
   const solscanUrl = `https://solscan.io/token/${row.token_mint}`;
 
   return (
-    <tr className={`border-b border-zinc-900 transition-colors ${rowBg}`}>
+    <div className={`rounded-lg border ${borderColor} bg-zinc-900/60 overflow-hidden`}>
 
-      {/* Time */}
-      <td className="px-4 py-3 text-zinc-500 font-mono text-xs whitespace-nowrap align-top pt-4">
-        {formatDate(row.graduated_at)}
-        <div className="text-zinc-700 text-xs mt-0.5">{row.detection_lag_seconds}s lag</div>
-      </td>
-
-      {/* Token */}
-      <td className="px-4 py-3 align-top pt-4">
-        <div className="flex flex-col gap-0.5">
-          <a
-            href={solscanUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-white font-semibold hover:text-zinc-300 transition-colors"
-          >
-            {row.symbol ? `$${row.symbol}` : formatMint(row.token_mint)}
-          </a>
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-3">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <div className="flex items-center gap-2">
+            <a
+              href={solscanUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white font-bold text-base hover:text-zinc-300 transition-colors"
+            >
+              {row.symbol ? `$${row.symbol}` : formatMint(row.token_mint)}
+            </a>
+            {row.is_known_rugger && (
+              <span className="text-red-500 text-xs font-mono">⚠ known rugger</span>
+            )}
+          </div>
           {row.name && row.name !== row.symbol && (
-            <span className="text-zinc-600 text-xs truncate max-w-[130px]">{row.name}</span>
+            <span className="text-zinc-500 text-xs truncate">{row.name}</span>
           )}
-          <span className="text-zinc-700 text-xs font-mono">{formatMint(row.token_mint)}</span>
-          {row.is_known_rugger && (
-            <span className="text-red-500 text-xs font-semibold">⚠ known rugger</span>
-          )}
+          <span className="text-zinc-700 text-xs font-mono">{formatDate(row.graduated_at)} · {row.detection_lag_seconds}s lag</span>
         </div>
-      </td>
 
-      {/* Algorithm signals */}
-      <td className="px-4 py-3 align-top pt-4">
-        <div className="flex flex-wrap gap-1.5">
-          <SmBadge count={row.smart_money_count} />
-          <TeamBadge pct={row.supply_pct_at_graduation} />
-          {row.is_bc_sniper && (
-            <Pill color="orange">⚡ sniper</Pill>
-          )}
-          <FunderBadge rugRate={row.funder_rug_rate} isKnownRugger={row.is_known_rugger} />
-        </div>
-      </td>
-
-      {/* Verdict */}
-      <td className="px-4 py-3 align-top pt-4">
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
           <VerdictBadge verdict={row.verdict} />
           {row.confidence !== null && (
-            <div className="w-20">
-              <div className="bg-zinc-800 rounded-full h-1">
+            <div className="flex items-center gap-1.5">
+              <div className="w-16 bg-zinc-800 rounded-full h-1">
                 <div
                   className={`h-1 rounded-full ${
                     row.verdict === "STRUCTURALLY_SOUND" ? "bg-green-500"
@@ -166,47 +187,73 @@ function Row({ row }: { row: GraduationRow }) {
                   style={{ width: `${Math.round(row.confidence * 100)}%` }}
                 />
               </div>
-              <span className="text-zinc-600 text-xs font-mono">
-                {Math.round(row.confidence * 100)}%
-              </span>
+              <span className="text-zinc-600 text-xs font-mono">{Math.round(row.confidence * 100)}%</span>
             </div>
           )}
         </div>
-      </td>
+      </div>
 
-      {/* Why — dominant factors */}
-      <td className="px-4 py-3 align-top pt-4 max-w-[220px]">
+      {/* Signals + factors */}
+      <div className="px-4 pb-3 flex flex-col gap-2">
+        {/* Signals row */}
+        <div className="flex flex-wrap gap-1.5">
+          <SmBadge count={row.smart_money_count} />
+          <TeamBadge pct={row.supply_pct_at_graduation} />
+          {row.is_bc_sniper && <Pill color="orange">⚡ sniper</Pill>}
+          <FunderBadge rugRate={row.funder_rug_rate} isKnownRugger={row.is_known_rugger} />
+        </div>
+
+        {/* Factor pills — what drove the verdict */}
         <FactorTags factors={row.dominant_factors_json} />
-      </td>
+      </div>
 
-      {/* 1h signal */}
-      <td className="px-3 py-3 text-center align-top pt-4">
-        <SignalPip signal={row.signal_1h} />
-      </td>
-
-      {/* 4h signal */}
-      <td className="px-3 py-3 text-center align-top pt-4">
-        <SignalPip signal={row.signal_4h} />
-      </td>
-
-      {/* 24h outcome */}
-      <td className="px-3 py-3 text-center align-top pt-4">
-        <div className="flex flex-col items-center gap-1">
-          <OutcomeChip outcome={row.outcome_24h} />
-          {(row.outcome_1h || row.outcome_4h) && (
-            <div className="flex gap-1 mt-0.5">
-              {row.outcome_1h && <MiniOutcome outcome={row.outcome_1h} label="1h" />}
-              {row.outcome_4h && <MiniOutcome outcome={row.outcome_4h} label="4h" />}
-            </div>
-          )}
+      {/* Journey timeline */}
+      <div className="border-t border-zinc-800 px-4 py-3">
+        <p className="text-zinc-600 text-xs uppercase tracking-wide mb-2">Journey after graduation</p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <JourneyStep label="Grad" done={true}>
+            <span className="text-zinc-400 text-xs font-mono">↗ ~$69K MC</span>
+          </JourneyStep>
+          <Arrow />
+          <JourneyStep label="1h" done={!!(row.signal_1h || row.outcome_1h)}>
+            <SignalPip signal={row.signal_1h} />
+            {row.outcome_1h && <OutcomeChip outcome={row.outcome_1h} />}
+          </JourneyStep>
+          <Arrow />
+          <JourneyStep label="4h" done={!!(row.signal_4h || row.outcome_4h)}>
+            <SignalPip signal={row.signal_4h} />
+            {row.outcome_4h && <OutcomeChip outcome={row.outcome_4h} />}
+          </JourneyStep>
+          <Arrow />
+          <JourneyStep label="24h" done={row.outcome_24h !== null}>
+            {row.outcome_24h
+              ? <OutcomeChip outcome={row.outcome_24h} />
+              : <span className="text-zinc-700 text-xs font-mono">pending</span>
+            }
+          </JourneyStep>
         </div>
-      </td>
-    </tr>
+      </div>
+    </div>
   );
 }
 
 
-// ── sub-components ────────────────────────────────────────────────────────────
+// ── small UI helpers ──────────────────────────────────────────────────────────
+
+function Arrow() {
+  return <span className="text-zinc-700 text-xs">→</span>;
+}
+
+function JourneyStep({ label, done, children }: {
+  label: string; done: boolean; children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-1 min-w-[48px]">
+      <span className={`text-xs font-mono ${done ? "text-zinc-400" : "text-zinc-700"}`}>{label}</span>
+      <div className="flex items-center gap-1">{children}</div>
+    </div>
+  );
+}
 
 function Pill({ color, children }: { color: string; children: React.ReactNode }) {
   const colors: Record<string, string> = {
@@ -245,27 +292,14 @@ function FunderBadge({ rugRate, isKnownRugger }: { rugRate: number | null; isKno
 }
 
 function FactorTags({ factors }: { factors: string[] | null }) {
-  if (!factors || factors.length === 0) {
-    return <span className="text-zinc-700 text-xs">no signal data</span>;
-  }
+  if (!factors || factors.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-1">
       {factors.map((f, i) => {
         const isPos = f.startsWith("+");
         const isNeg = f.startsWith("-") || f.includes("rugger") || f.includes("DUMPED") || f.includes("sniper");
-        const color = isPos ? "green" : isNeg ? "red" : "zinc";
-        return <Pill key={i} color={color}>{f}</Pill>;
+        return <Pill key={i} color={isPos ? "green" : isNeg ? "red" : "zinc"}>{f}</Pill>;
       })}
     </div>
-  );
-}
-
-function MiniOutcome({ outcome, label }: { outcome: string; label: string }) {
-  const color =
-    outcome === "moon" ? "text-purple-500"
-    : outcome === "rug" ? "text-red-600"
-    : "text-zinc-600";
-  return (
-    <span className={`text-xs font-mono ${color}`}>{label}</span>
   );
 }
