@@ -29,7 +29,7 @@ import logging
 import time
 from dataclasses import dataclass
 
-import socketio  # type: ignore
+import aiohttp
 
 from src.common.db import get_connection
 from src.common.models import GraduationEvent, TeamCluster, TokenBuyer
@@ -38,10 +38,8 @@ logger = logging.getLogger(__name__)
 
 # TODO: verify this program ID matches the live PumpSwap AMM deployment
 PUMPSWAP_PROGRAM_ID = "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"
-PUMP_FUN_API = "https://frontend-api.pump.fun"
-
-# TODO: verify the actual Socket.IO event name fired at graduation
-GRADUATION_EVENT = "migrate"
+PUMPPORTAL_WS = "wss://pumpportal.fun/api/data"
+PUMP_FUN_API = "https://frontend-api.pump.fun"  # REST fallback only
 
 MIN_GRADUATION_MC_USD = 50_000.0   # sanity-check lower bound
 
@@ -69,60 +67,57 @@ def _parse_migrate(raw: dict) -> _MigrateEvent | None:
 # ── monitor ───────────────────────────────────────────────────────────────────
 
 class GraduationMonitor:
-    """Connects to Pump.fun WebSocket and triggers structural analysis on graduation."""
+    """Connects to PumpPortal WebSocket and triggers structural analysis on graduation."""
 
     def __init__(self) -> None:
-        self._sio = socketio.AsyncClient(
-            reconnection=True,
-            reconnection_attempts=0,
-            reconnection_delay=2,
-            reconnection_delay_max=30,
-            logger=False,
-            engineio_logger=False,
-        )
         self._seen: set[str] = set()
-        self._setup_handlers()
-
-    def _setup_handlers(self) -> None:
-        sio = self._sio
-
-        @sio.event
-        async def connect() -> None:
-            logger.info("graduation monitor connected to pump.fun WS")
-
-        @sio.event
-        async def disconnect() -> None:
-            logger.warning("graduation monitor disconnected — reconnecting")
-
-        @sio.on(GRADUATION_EVENT)
-        async def on_migrate(raw: dict) -> None:
-            event = _parse_migrate(raw)
-            if event is None or event.mint in self._seen:
-                return
-            self._seen.add(event.mint)
-            lag = int(time.time()) - event.event_ts
-            logger.info("graduation WS: %s (lag %ds)", event.mint[:8], lag)
-            asyncio.create_task(
-                _handle_graduation(event.mint, event.pool_address, max(0, lag))
-            )
 
     async def run(self) -> None:
         """Connect and run forever; starts the REST poll fallback in background."""
         asyncio.create_task(self._poll_fallback())
         while True:
             try:
-                await self._sio.connect(
-                    PUMP_FUN_API,
-                    transports=["websocket"],
-                )
-                await self._sio.wait()
+                async with aiohttp.ClientSession() as session:
+                    async with session.ws_connect(
+                        PUMPPORTAL_WS,
+                        heartbeat=30,
+                        timeout=aiohttp.ClientTimeout(total=None, connect=15),
+                    ) as ws:
+                        logger.info("graduation monitor connected to PumpPortal WS")
+                        await ws.send_json({"method": "subscribeMigration"})
+
+                        async for msg in ws:
+                            if msg.type == aiohttp.WSMsgType.TEXT:
+                                try:
+                                    raw = json.loads(msg.data)
+                                    event = _parse_migrate(raw)
+                                    if event and event.mint not in self._seen:
+                                        self._seen.add(event.mint)
+                                        lag = max(0, int(time.time()) - event.event_ts)
+                                        logger.info(
+                                            "graduation WS: %s (lag %ds)",
+                                            event.mint[:8], lag,
+                                        )
+                                        asyncio.create_task(
+                                            _handle_graduation(
+                                                event.mint, event.pool_address, lag
+                                            )
+                                        )
+                                except Exception:
+                                    pass
+                            elif msg.type in (
+                                aiohttp.WSMsgType.CLOSED,
+                                aiohttp.WSMsgType.ERROR,
+                            ):
+                                break
+
+                        logger.warning("graduation WS closed — reconnecting")
             except Exception as exc:
                 logger.warning("graduation WS error: %s — retrying", exc)
-                await asyncio.sleep(5)
+            await asyncio.sleep(5)
 
     async def _poll_fallback(self) -> None:
         """Poll REST endpoint every 30 s to catch graduations missed by WS."""
-        import aiohttp
         url = f"{PUMP_FUN_API}/coins/recently-graduated"
         while True:
             await asyncio.sleep(30)
