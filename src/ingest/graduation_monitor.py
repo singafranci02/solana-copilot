@@ -114,7 +114,6 @@ class GraduationMonitor:
                 await self._sio.connect(
                     PUMP_FUN_API,
                     transports=["websocket"],
-                    socketio_path="/socket.io/",
                 )
                 await self._sio.wait()
             except Exception as exc:
@@ -150,7 +149,7 @@ class GraduationMonitor:
                             logger.info("graduation poll: %s (lag %ds)", mint[:8], lag)
                             asyncio.create_task(_handle_graduation(mint, pool, lag))
             except Exception as exc:
-                logger.debug("graduation poll error: %s", exc)
+                logger.warning("graduation poll error: %s", exc)
 
 
 # ── pipeline ──────────────────────────────────────────────────────────────────
