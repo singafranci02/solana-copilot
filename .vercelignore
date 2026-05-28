@@ -1,0 +1,8 @@
+src/
+db/
+tests/
+scripts/
+logs/
+pyproject.toml
+uv.lock
+*.py
