@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, isConfigured } from "@/lib/supabase";
 import type { GraduationRow } from "@/lib/types";
 import { formatMint, formatDate } from "@/lib/types";
 import { VerdictBadge } from "./VerdictBadge";
@@ -14,6 +14,17 @@ const PAGE_SIZE = 50;
 export function GraduationTable() {
   const [rows, setRows] = useState<GraduationRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  if (!isConfigured) {
+    return (
+      <div className="flex flex-col items-center justify-center h-48 gap-2 text-center">
+        <p className="text-yellow-500 text-lg">Supabase not connected</p>
+        <p className="text-zinc-600 text-sm max-w-md">
+          Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to Vercel environment variables.
+        </p>
+      </div>
+    );
+  }
 
   async function load() {
     const { data, error } = await supabase
