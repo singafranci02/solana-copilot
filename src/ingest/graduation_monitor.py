@@ -304,9 +304,14 @@ async def analyse_graduation(
     # Persist verdict to SQLite so it's available for local queries
     conn.execute(
         """UPDATE graduation_events
-           SET structural_verdict = ?, verdict_confidence = ?
+           SET structural_verdict = ?, verdict_confidence = ?,
+               smart_money_count = ?, dominant_factors_json = ?
            WHERE token_mint = ?""",
-        (read.verdict, read.confidence, event.token_mint),
+        (
+            read.verdict, read.confidence,
+            len(sm_buyers), json.dumps(read.dominant_factors),
+            event.token_mint,
+        ),
     )
     conn.commit()
 

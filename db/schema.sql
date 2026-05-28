@@ -173,7 +173,9 @@ CREATE TABLE IF NOT EXISTS graduation_events (
     pumpswap_pool_address   TEXT,
     bc_top_holders_json     TEXT NOT NULL DEFAULT '[]',   -- JSON [{wallet, pct}] top-20 at grad
     structural_verdict      TEXT CHECK (structural_verdict IN ('SKIP','WATCH','STRUCTURALLY_SOUND',NULL)),
-    verdict_confidence      REAL                          -- 0.0–1.0
+    verdict_confidence      REAL,                         -- 0.0–1.0
+    smart_money_count       INTEGER NOT NULL DEFAULT 0,
+    dominant_factors_json   TEXT NOT NULL DEFAULT '[]'    -- JSON string[] from StructuralRead
 );
 
 CREATE INDEX IF NOT EXISTS idx_grad_events_graduated_at ON graduation_events(graduated_at);

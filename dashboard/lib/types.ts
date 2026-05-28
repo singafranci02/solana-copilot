@@ -10,6 +10,8 @@ export interface GraduationRow {
   detection_lag_seconds: number;
   verdict: Verdict | null;
   confidence: number | null;
+  smart_money_count: number;
+  dominant_factors_json: string[] | null;  // Supabase returns JSONB as parsed array
   pumpswap_pool_address: string | null;
   symbol: string | null;
   name: string | null;

@@ -33,7 +33,9 @@ CREATE TABLE IF NOT EXISTS graduation_events (
     pumpswap_pool_address   TEXT,
     bc_top_holders_json     JSONB NOT NULL DEFAULT '[]',
     structural_verdict      TEXT CHECK (structural_verdict IN ('SKIP','WATCH','STRUCTURALLY_SOUND')),
-    verdict_confidence      DOUBLE PRECISION
+    verdict_confidence      DOUBLE PRECISION,
+    smart_money_count       INTEGER NOT NULL DEFAULT 0,
+    dominant_factors_json   JSONB NOT NULL DEFAULT '[]'
 );
 
 ALTER TABLE graduation_events ENABLE ROW LEVEL SECURITY;
@@ -134,8 +136,10 @@ SELECT
     ge.token_mint,
     ge.graduated_at,
     ge.detection_lag_seconds,
-    ge.structural_verdict   AS verdict,
-    ge.verdict_confidence   AS confidence,
+    ge.structural_verdict       AS verdict,
+    ge.verdict_confidence       AS confidence,
+    ge.smart_money_count,
+    ge.dominant_factors_json,
     ge.pumpswap_pool_address,
     t.symbol,
     t.name,

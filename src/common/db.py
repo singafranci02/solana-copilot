@@ -21,11 +21,21 @@ def migrate() -> None:
     """Run schema.sql against the database if tables don't already exist.
 
     Idempotent — all CREATE statements use IF NOT EXISTS.
+    Also applies ALTER TABLE additions for columns added after initial release.
     """
     sql = _SCHEMA_PATH.read_text()
     conn = get_connection()
     try:
         conn.executescript(sql)
         conn.commit()
+        _add_column_if_missing(conn, "graduation_events", "smart_money_count", "INTEGER NOT NULL DEFAULT 0")
+        _add_column_if_missing(conn, "graduation_events", "dominant_factors_json", "TEXT NOT NULL DEFAULT '[]'")
+        conn.commit()
     finally:
         conn.close()
+
+
+def _add_column_if_missing(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    if column not in existing:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
