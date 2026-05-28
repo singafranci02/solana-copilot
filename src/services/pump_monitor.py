@@ -153,7 +153,9 @@ async def analyse_launch(coin: NewCoin, trades: list[EarlyTrade]) -> None:
 
         result = await summarize(analysis, provider=settings.llm_provider)
 
-        # Persist token to DB
+        # ── Persist everything so the learning loop can close ────────────────
+
+        # 1. Token (must exist before buyers due to FK)
         conn.execute(
             """INSERT OR REPLACE INTO tokens
                (mint, symbol, name, launchpad, created_at, market_cap_usd_snapshot,
@@ -165,12 +167,41 @@ async def analyse_launch(coin: NewCoin, trades: list[EarlyTrade]) -> None:
                 bundle_pct, dev_pct, json.dumps(matched_narratives),
             ),
         )
+
+        # 2. Build wallet → funding_source map from clusters
+        wallet_funder: dict[str, str | None] = {}
+        for cluster in clusters:
+            for addr in cluster.member_addresses:
+                wallet_funder[addr] = cluster.funding_source
+
+        # 3. Upsert every buyer wallet (must exist before token_buyers due to FK)
+        for buyer in buyers:
+            funding = wallet_funder.get(buyer.wallet_address)
+            conn.execute(
+                """INSERT INTO wallets (address, funding_source)
+                   VALUES (?, ?)
+                   ON CONFLICT(address) DO UPDATE SET
+                       funding_source = COALESCE(wallets.funding_source, excluded.funding_source)""",
+                (buyer.wallet_address, funding),
+            )
+
+        # 4. Upsert every buyer's purchase — this is the raw data win-rate is computed from
+        for buyer in buyers:
+            conn.execute(
+                """INSERT INTO token_buyers
+                       (token_mint, wallet_address, bought_at, sol_amount, tokens_received)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT DO NOTHING""",
+                (buyer.token_mint, buyer.wallet_address,
+                 buyer.bought_at, buyer.sol_amount, buyer.tokens_received),
+            )
+
         conn.commit()
 
         _print_alert(coin, result, sm_buyers, bundle_pct, dev_pct, matched_narratives,
                      known_rugger=known_rugger)
 
-        # Schedule outcome checks at 1h / 4h / 24h — this is how the system learns
+        # Schedule outcome checks at 1h / 4h / 24h — closes the learning loop
         from src.analyzer.outcome_tracker import schedule_checks
         await schedule_checks(coin.mint, token.market_cap_usd_snapshot)
 
