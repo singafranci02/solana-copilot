@@ -1,0 +1,61 @@
+<!-- Partial template — rendered and returned by POST /analyze for HTMX swap -->
+<article class="analysis-card">
+  <header class="analysis-header">
+    <h2>{{ token.symbol }} <span class="mint">{{ token.mint[:8] }}…</span></h2>
+    <span class="launchpad badge">{{ token.launchpad }}</span>
+    {% if token.lp_burned %}
+      <span class="lp-burned badge green">LP Burned</span>
+    {% else %}
+      <span class="lp-not-burned badge red">LP NOT Burned</span>
+    {% endif %}
+  </header>
+
+  <div class="summary-box">
+    <p>{{ summary }}</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat">
+      <label>Bundle %</label>
+      <value>{{ "%.1f"|format(bundle_pct or 0) }}%</value>
+    </div>
+    <div class="stat">
+      <label>Dev %</label>
+      <value>{{ "%.1f"|format(dev_pct or 0) }}%</value>
+    </div>
+    <div class="stat">
+      <label>Top 10 %</label>
+      <value>{{ "%.1f"|format(top10_pct or 0) }}%</value>
+    </div>
+    <div class="stat">
+      <label>Smart Money In</label>
+      <value>{{ smart_money_count }}</value>
+    </div>
+  </div>
+
+  {% if matched_narratives %}
+  <div class="narratives">
+    <label>Narratives:</label>
+    {% for n in matched_narratives %}
+      <span class="badge narrative">{{ n }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <footer class="trade-actions">
+    <form hx-post="/journal" hx-swap="none">
+      <input type="hidden" name="mint" value="{{ token.mint }}" />
+      <input type="hidden" name="side" value="buy" />
+      <label>Conviction</label>
+      <select name="conviction">
+        <option value="1">1 — Weak</option>
+        <option value="2">2</option>
+        <option value="3" selected>3 — Medium</option>
+        <option value="4">4</option>
+        <option value="5">5 — Strong</option>
+      </select>
+      <input type="text" name="notes" placeholder="Notes…" />
+      <button type="submit">Log Trade</button>
+    </form>
+  </footer>
+</article>

@@ -1,0 +1,165 @@
+{
+  "_comment": "Pre-recorded Helius Enhanced Transaction API responses for a synthetic Pump.fun rug-pull scenario. No real API calls are made; tests load this file directly.",
+  "scenario": {
+    "description": "4-wallet coordinated team rug on Pump.fun. Team funder funded all 4 team wallets within 45 minutes before token launch. Team bought ~80% of observable supply.",
+    "token_mint":       "RUGpump1111111111111111111111111111111111111",
+    "token_launch_ts":  1705312800,
+    "deployer":         "DEPLOYERaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "team_funder":      "FUNDERaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "expected_team_size": 4,
+    "expected_team_buy_pct_min": 75.0
+  },
+  "addresses": {
+    "deployer":   "DEPLOYERaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "team1":      "TEAM1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "team2":      "TEAM2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "team3":      "TEAM3aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "retail_cex": "RETAIL1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "retail_ind": "RETAIL2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "retail_nof": "RETAIL3aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "funder":     "FUNDERaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "coinbase":   "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi",
+    "ind_funder": "INDFUNDaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "transactions_by_wallet": {
+    "DEPLOYERaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": [
+      {
+        "description": "FUNDERaaa funded DEPLOYERaaa 5 SOL",
+        "type": "TRANSFER",
+        "source": "SYSTEM_PROGRAM",
+        "fee": 5000,
+        "feePayer": "FUNDERaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "signature": "fundSig_deployer_111111111111111111111111111",
+        "slot": 249999000,
+        "timestamp": 1705311000,
+        "nativeTransfers": [
+          {
+            "fromUserAccount": "FUNDERaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "toUserAccount":   "DEPLOYERaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "amount": 5000000000
+          }
+        ],
+        "tokenTransfers": [],
+        "instructions": [
+          {"programId": "11111111111111111111111111111111", "accounts": [], "data": ""}
+        ]
+      }
+    ],
+    "TEAM1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": [
+      {
+        "description": "FUNDERaaa funded TEAM1aaa 5 SOL",
+        "type": "TRANSFER",
+        "source": "SYSTEM_PROGRAM",
+        "fee": 5000,
+        "feePayer": "FUNDERaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "signature": "fundSig_team1_1111111111111111111111111111111",
+        "slot": 249993600,
+        "timestamp": 1705309500,
+        "nativeTransfers": [
+          {
+            "fromUserAccount": "FUNDERaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "toUserAccount":   "TEAM1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "amount": 5000000000
+          }
+        ],
+        "tokenTransfers": [],
+        "instructions": [
+          {"programId": "11111111111111111111111111111111", "accounts": [], "data": ""}
+        ]
+      }
+    ],
+    "TEAM2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": [
+      {
+        "description": "FUNDERaaa funded TEAM2aaa 5 SOL",
+        "type": "TRANSFER",
+        "source": "SYSTEM_PROGRAM",
+        "fee": 5000,
+        "feePayer": "FUNDERaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "signature": "fundSig_team2_1111111111111111111111111111111",
+        "slot": 249994200,
+        "timestamp": 1705309800,
+        "nativeTransfers": [
+          {
+            "fromUserAccount": "FUNDERaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "toUserAccount":   "TEAM2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "amount": 5000000000
+          }
+        ],
+        "tokenTransfers": [],
+        "instructions": [
+          {"programId": "11111111111111111111111111111111", "accounts": [], "data": ""}
+        ]
+      }
+    ],
+    "TEAM3aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": [
+      {
+        "description": "FUNDERaaa funded TEAM3aaa 5 SOL",
+        "type": "TRANSFER",
+        "source": "SYSTEM_PROGRAM",
+        "fee": 5000,
+        "feePayer": "FUNDERaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "signature": "fundSig_team3_1111111111111111111111111111111",
+        "slot": 249995400,
+        "timestamp": 1705310700,
+        "nativeTransfers": [
+          {
+            "fromUserAccount": "FUNDERaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "toUserAccount":   "TEAM3aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "amount": 5000000000
+          }
+        ],
+        "tokenTransfers": [],
+        "instructions": [
+          {"programId": "11111111111111111111111111111111", "accounts": [], "data": ""}
+        ]
+      }
+    ],
+    "RETAIL1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": [
+      {
+        "description": "Coinbase funded RETAIL1 2 SOL",
+        "type": "TRANSFER",
+        "source": "SYSTEM_PROGRAM",
+        "fee": 5000,
+        "feePayer": "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi",
+        "signature": "fundSig_retail1_111111111111111111111111111",
+        "slot": 249990000,
+        "timestamp": 1705226400,
+        "nativeTransfers": [
+          {
+            "fromUserAccount": "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi",
+            "toUserAccount":   "RETAIL1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "amount": 2000000000
+          }
+        ],
+        "tokenTransfers": [],
+        "instructions": [
+          {"programId": "11111111111111111111111111111111", "accounts": [], "data": ""}
+        ]
+      }
+    ],
+    "RETAIL2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": [
+      {
+        "description": "INDFUNDaaa funded RETAIL2 3 SOL",
+        "type": "TRANSFER",
+        "source": "SYSTEM_PROGRAM",
+        "fee": 5000,
+        "feePayer": "INDFUNDaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "signature": "fundSig_retail2_111111111111111111111111111",
+        "slot": 249991000,
+        "timestamp": 1705305600,
+        "nativeTransfers": [
+          {
+            "fromUserAccount": "INDFUNDaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "toUserAccount":   "RETAIL2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "amount": 3000000000
+          }
+        ],
+        "tokenTransfers": [],
+        "instructions": [
+          {"programId": "11111111111111111111111111111111", "accounts": [], "data": ""}
+        ]
+      }
+    ],
+    "RETAIL3aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": []
+  }
+}

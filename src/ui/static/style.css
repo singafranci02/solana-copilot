@@ -1,0 +1,164 @@
+/* Solana Co-pilot — minimal dark UI */
+
+:root {
+  --bg: #0d0d0d;
+  --surface: #1a1a1a;
+  --border: #2a2a2a;
+  --text: #e8e8e8;
+  --muted: #888;
+  --green: #00c48c;
+  --red: #ff4d4f;
+  --purple: #9945ff;
+  --accent: #14f195;
+  --font: "SF Mono", "Fira Code", monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--border);
+}
+
+header h1 { font-size: 1.1rem; color: var(--accent); }
+
+nav { display: flex; gap: 1.5rem; }
+nav a { color: var(--muted); text-decoration: none; }
+nav a:hover { color: var(--text); }
+
+main { max-width: 860px; margin: 2rem auto; padding: 0 1rem; }
+
+.analyze-form { margin-bottom: 2rem; }
+.analyze-form h2 { font-size: 0.9rem; color: var(--muted); margin-bottom: 0.75rem; }
+
+.analyze-form form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+input[type="text"] {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-family: var(--font);
+  font-size: 13px;
+}
+
+input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+button {
+  background: var(--accent);
+  color: #000;
+  border: none;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  font-family: var(--font);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover { opacity: 0.85; }
+
+.htmx-indicator { display: none; color: var(--muted); }
+.htmx-request .htmx-indicator { display: inline; }
+
+.analysis-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.analysis-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.analysis-header h2 { font-size: 1.1rem; }
+.mint { color: var(--muted); font-size: 0.8rem; }
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  background: var(--border);
+}
+
+.badge.green { background: #003d2e; color: var(--green); }
+.badge.red { background: #2d0d0d; color: var(--red); }
+.badge.narrative { background: #1e0a3d; color: var(--purple); }
+
+.summary-box {
+  background: #111;
+  border-left: 3px solid var(--accent);
+  padding: 0.75rem 1rem;
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 1rem;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.stat {
+  background: #111;
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.stat label { display: block; font-size: 0.7rem; color: var(--muted); margin-bottom: 2px; }
+.stat value { font-size: 1.1rem; font-weight: 700; }
+
+.narratives { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.narratives label { color: var(--muted); font-size: 0.75rem; align-self: center; }
+
+.trade-actions { border-top: 1px solid var(--border); padding-top: 1rem; }
+.trade-actions form { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.trade-actions label { color: var(--muted); font-size: 0.75rem; }
+
+select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.4rem;
+  border-radius: 6px;
+  font-family: var(--font);
+}
+
+.narratives-widget {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.narratives-widget h3 { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.75rem; }

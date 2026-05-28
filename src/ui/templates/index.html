@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solana Co-pilot</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>Solana Co-pilot</h1>
+    <nav>
+      <a href="/">Analyze</a>
+      <a href="/journal">Journal</a>
+      <a href="/narratives">Narratives</a>
+      <a href="/smart-money">Smart Money</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="analyze-form">
+      <h2>Paste a token mint address</h2>
+      <form
+        hx-post="/analyze"
+        hx-target="#result"
+        hx-swap="innerHTML"
+        hx-indicator="#spinner"
+      >
+        <input
+          type="text"
+          name="mint"
+          placeholder="e.g. 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU"
+          autocomplete="off"
+          required
+        />
+        <button type="submit">Analyze</button>
+        <span id="spinner" class="htmx-indicator">Analyzing…</span>
+      </form>
+    </section>
+
+    <section id="result">
+      <!-- Analysis result injected here by HTMX -->
+    </section>
+
+    <section class="narratives-widget">
+      <h3>Hot Narratives</h3>
+      <div
+        hx-get="/narratives"
+        hx-trigger="load, every 60s"
+        hx-swap="innerHTML"
+      >
+        Loading…
+      </div>
+    </section>
+  </main>
+</body>
+</html>
