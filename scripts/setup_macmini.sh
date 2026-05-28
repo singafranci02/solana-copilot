@@ -82,11 +82,17 @@ echo "[install] Running uv sync…"
 cd "$PROJECT_DIR"
 uv sync
 
-# ── 9. Install launchd services ───────────────────────────────────────────────
+# ── 9. Run DB migration ───────────────────────────────────────────────────────
+echo "[db] Running schema migration…"
+cd "$PROJECT_DIR"
+uv run python -c "from src.common.db import migrate; migrate()"
+echo "[db] Migration complete."
+
+# ── 10. Install launchd services ──────────────────────────────────────────────
 LAUNCH_AGENTS="$HOME/Library/LaunchAgents"
 mkdir -p "$LAUNCH_AGENTS"
 
-SERVICES=(analyzer wallet_watcher pump_monitor narrative_tracker)
+SERVICES=(analyzer wallet_watcher pump_monitor narrative_tracker graduation_monitor)
 
 for svc in "${SERVICES[@]}"; do
   PLIST_SRC="$PROJECT_DIR/scripts/launchd/${svc}.plist"
@@ -113,6 +119,6 @@ echo "Services running:"
 launchctl list | grep solana-copilot || echo "  (none found — check logs/)"
 echo ""
 echo "Next steps:"
-echo "  1. Make sure .env has your HELIUS_API_KEY"
-echo "  2. Open http://localhost:8000 in a browser"
-echo "  3. Watch the monitor: tail -f $PROJECT_DIR/logs/pump_monitor.log"
+echo "  1. Make sure .env has HELIUS_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY"
+echo "  2. Watch graduation feed: tail -f $PROJECT_DIR/logs/graduation_monitor.log"
+echo "  3. Watch pump monitor:    tail -f $PROJECT_DIR/logs/pump_monitor.log"
