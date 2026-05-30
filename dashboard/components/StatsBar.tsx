@@ -27,9 +27,10 @@ export function StatsBar({ rows }: Props) {
     return (skipped.filter((r) => r.outcome_24h === "rug").length / skipped.length) * 100;
   })();
 
-  const avgLag = total > 0
-    ? Math.round(rows.reduce((a, r) => a + (r.detection_lag_seconds ?? 0), 0) / total)
-    : 0;
+  const wsRows = rows.filter((r) => r.detection_lag_seconds >= 0);
+  const avgLag = wsRows.length > 0
+    ? Math.round(wsRows.reduce((a, r) => a + r.detection_lag_seconds, 0) / wsRows.length)
+    : null;
 
   const soundPct = total > 0 ? Math.round(sound / total * 100) : 0;
   const watchPct = total > 0 ? Math.round(watch / total * 100) : 0;
@@ -82,8 +83,10 @@ export function StatsBar({ rows }: Props) {
       {/* Detection speed */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
         <p className="text-zinc-500 text-xs uppercase tracking-wide mb-1">Avg Detection</p>
-        <p className="text-3xl font-mono font-bold text-white">{avgLag}s</p>
-        <p className="text-zinc-600 text-xs mt-1">from graduation to analysis</p>
+        <p className="text-3xl font-mono font-bold text-white">{avgLag !== null ? `${avgLag}s` : "—"}</p>
+        <p className="text-zinc-600 text-xs mt-1">
+          {avgLag !== null ? "WS detection lag" : "no WS detections yet"}
+        </p>
         <p className="text-zinc-500 text-xs mt-2">
           Ruggers blocked{" "}
           <span className="text-red-400 font-mono">

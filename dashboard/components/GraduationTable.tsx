@@ -170,7 +170,9 @@ function TokenCard({ row }: { row: GraduationRow }) {
           {row.name && row.name !== row.symbol && (
             <span className="text-zinc-500 text-xs truncate">{row.name}</span>
           )}
-          <span className="text-zinc-700 text-xs font-mono">{formatDate(row.graduated_at)} · {row.detection_lag_seconds}s lag</span>
+          <span className="text-zinc-700 text-xs font-mono">
+            {formatDate(row.graduated_at)} · {row.detection_lag_seconds === -1 ? "REST poll" : `${row.detection_lag_seconds}s lag`}
+          </span>
         </div>
 
         <div className="flex flex-col items-end gap-1.5 shrink-0">

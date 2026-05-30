@@ -89,6 +89,8 @@ async def graduation_event(
     verdict_confidence: float,
     pumpswap_pool_address: str | None = None,
     bc_top_holders_json: list | None = None,
+    smart_money_count: int = 0,
+    dominant_factors_json: list | None = None,
 ) -> None:
     import json
     await _run("graduation_events", {
@@ -99,6 +101,8 @@ async def graduation_event(
         "verdict_confidence": round(verdict_confidence, 4),
         "pumpswap_pool_address": pumpswap_pool_address,
         "bc_top_holders_json": bc_top_holders_json or [],
+        "smart_money_count": smart_money_count,
+        "dominant_factors_json": dominant_factors_json or [],
     })
 
 

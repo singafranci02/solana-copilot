@@ -139,9 +139,15 @@ class GraduationMonitor:
                                 or coin.get("pumpAmmPool")
                                 or coin.get("pool")
                             )
-                            raw_ts = int(coin.get("timestamp") or time.time())
-                            lag = abs(int(time.time()) - raw_ts)
-                            logger.info("graduation poll: %s (lag %ds)", mint[:8], lag)
+                            # Try known timestamp field names; -1 = detected via REST poll
+                            # (graduation timestamp unknown — can't compute true lag)
+                            raw_ts = (
+                                coin.get("last_updated")
+                                or coin.get("created_timestamp")
+                                or coin.get("timestamp")
+                            )
+                            lag = abs(int(time.time()) - int(raw_ts)) if raw_ts else -1
+                            logger.info("graduation poll: %s (lag %s)", mint[:8], f"{lag}s" if lag >= 0 else "unknown")
                             asyncio.create_task(_handle_graduation(mint, pool, lag))
             except Exception as exc:
                 logger.warning("graduation poll error: %s", exc)
@@ -331,6 +337,8 @@ async def analyse_graduation(
         verdict_confidence=read.confidence,
         pumpswap_pool_address=event.pumpswap_pool_address,
         bc_top_holders_json=event.bc_top_holders,
+        smart_money_count=len(sm_buyers),
+        dominant_factors_json=read.dominant_factors,
     ))
     if team_cluster:
         asyncio.create_task(sb.team_cluster(
