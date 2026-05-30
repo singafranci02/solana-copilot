@@ -160,6 +160,12 @@ def structural_read(ctx: dict[str, Any]) -> StructuralRead:
     bundle_pct = float(ctx.get("bundle_pct") or 0.0)
     mem: MemorySignals | None = ctx.get("memory_signals")
 
+    # Push graduation signals
+    top_holder_pct    = float(ctx.get("top_holder_pct") or 0.0)
+    top3_holder_pct   = float(ctx.get("top3_holder_pct") or 0.0)
+    bc_duration_s     = int(ctx.get("bc_duration_seconds") or -1)
+    unique_bc_buyers  = int(ctx.get("unique_bc_buyers") or 0)
+
     # ── Hard SKIP conditions ──────────────────────────────────────────────────
 
     if funder_rep and funder_rep.is_known_rugger:
@@ -195,6 +201,31 @@ def structural_read(ctx: dict[str, Any]) -> StructuralRead:
             ],
             what_would_change="team reduces position significantly before next check",
             bundle_pct=team_cluster.supply_pct_at_graduation,
+            smart_money_count=sm_count,
+        )
+
+    # Hard SKIP: graduation push — single actor holds >50% and forced migration fast
+    if top_holder_pct > 50 and (bc_duration_s < 300 or bc_duration_s == -1):
+        return StructuralRead(
+            verdict="SKIP",
+            confidence=0.92,
+            dominant_factors=[
+                f"graduation push — top holder owns {top_holder_pct:.1f}% of supply, "
+                f"BC completed in {bc_duration_s}s"
+            ],
+            what_would_change="n/a — bundled push graduation",
+            smart_money_count=sm_count,
+        )
+
+    # Hard SKIP: top 3 holders own 75%+ — heavily bundled regardless of speed
+    if top3_holder_pct > 75:
+        return StructuralRead(
+            verdict="SKIP",
+            confidence=0.90,
+            dominant_factors=[
+                f"heavily bundled graduation — top 3 holders own {top3_holder_pct:.1f}% of supply"
+            ],
+            what_would_change="n/a — supply too concentrated at graduation",
             smart_money_count=sm_count,
         )
 
@@ -253,6 +284,42 @@ def structural_read(ctx: dict[str, Any]) -> StructuralRead:
         factors.append(
             f"funder partial rugger: {funder_rep.rug_rate*100:.0f}% rug rate "
             f"({len(funder_rep.graduated_mints)} launches, below significance threshold)"
+        )
+
+    # ── Graduation push scoring (soft signals below hard-SKIP thresholds) ────
+
+    if top_holder_pct > 35:
+        score -= 2
+        factors.append(
+            f"top holder owns {top_holder_pct:.1f}% at graduation — push risk"
+        )
+    elif top_holder_pct > 20:
+        score -= 1
+        factors.append(
+            f"top holder owns {top_holder_pct:.1f}% at graduation — elevated concentration"
+        )
+
+    if top3_holder_pct > 60:
+        score -= 1
+        factors.append(
+            f"top 3 holders own {top3_holder_pct:.1f}% — bundled graduation likely"
+        )
+
+    if 0 < bc_duration_s < 180:
+        score -= 2
+        factors.append(
+            f"BC completed in {bc_duration_s}s — forced graduation push"
+        )
+    elif 0 < bc_duration_s < 600:
+        score -= 1
+        factors.append(
+            f"BC completed in {bc_duration_s // 60}min — unusually fast graduation"
+        )
+
+    if unique_bc_buyers > 0 and unique_bc_buyers < 15:
+        score -= 1
+        factors.append(
+            f"only {unique_bc_buyers} unique BC buyers — low organic participation"
         )
 
     # ── Memory signals ────────────────────────────────────────────────────────

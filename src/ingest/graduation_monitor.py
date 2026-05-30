@@ -299,6 +299,19 @@ async def analyse_graduation(
     from src.analyzer.team_memory import gather_memory_signals
     memory_signals = gather_memory_signals(team_cluster, conn)
 
+    # ── Graduation push detection (from already-fetched data, no extra API calls) ──
+    token_created_at = conn.execute(
+        "SELECT created_at FROM tokens WHERE mint = ?", (event.token_mint,)
+    ).fetchone()
+    bc_duration_seconds = (
+        event.graduated_at - int(token_created_at["created_at"])
+        if token_created_at and token_created_at["created_at"]
+        else -1
+    )
+    top_holder_pct = float(event.bc_top_holders[0]["pct"]) if event.bc_top_holders else 0.0
+    top3_holder_pct = sum(float(h["pct"]) for h in event.bc_top_holders[:3])
+    unique_bc_buyers = len(set(b.wallet_address for b in buyers))
+
     ctx = {
         "token_mint": event.token_mint,
         "team_cluster": team_cluster,
@@ -308,6 +321,10 @@ async def analyse_graduation(
         "distribution_signal": None,
         "bundle_pct": getattr(team_cluster, "supply_pct_at_graduation", 0.0) if team_cluster else 0.0,
         "memory_signals": memory_signals,
+        "bc_duration_seconds": bc_duration_seconds,
+        "top_holder_pct": top_holder_pct,
+        "top3_holder_pct": top3_holder_pct,
+        "unique_bc_buyers": unique_bc_buyers,
     }
     read = structural_read(ctx)
 
