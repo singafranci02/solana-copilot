@@ -40,13 +40,8 @@ async def backfill_token(
     dry_run: bool,
 ) -> str:
     """Fetch current state and record as outcome. Returns classification."""
-    # Use sum of bc_top_holders as baseline (same proxy as outcome_tracker)
-    try:
-        holders = json.loads(bc_holders_json or "[]")
-    except Exception:
-        holders = []
-
-    launch_mc = sum(float(h.get("ui_amount", 0)) for h in holders[:10]) or None
+    # Pump.fun always graduates at ~$69K USD market cap
+    launch_mc = 69_000.0
 
     current_mc = await _fetch_current_mc(mint)
     outcome = _classify(mint, offset_h=24, launch_mc=launch_mc, current_mc=current_mc)

@@ -369,12 +369,10 @@ async def analyse_graduation(
         ))
 
     # Schedule price outcome checks at 1h / 4h / 24h from graduation
-    # Uses sum of top-holder balances as the baseline proxy (same method as _fetch_current_mc)
+    # Baseline: ~$69K USD — Pump.fun bonding curve always migrates near this MC
     from src.analyzer.outcome_tracker import schedule_checks
-    graduation_mc_proxy = (
-        sum(float(h.get("ui_amount", 0)) for h in event.bc_top_holders[:10]) or None
-    )
-    asyncio.create_task(schedule_checks(event.token_mint, graduation_mc_proxy))
+    GRADUATION_MC_USD = 69_000.0
+    asyncio.create_task(schedule_checks(event.token_mint, GRADUATION_MC_USD))
 
     # Schedule distribution checks (team behavior) at 1h / 4h / 24h
     await schedule_distribution_checks(event.token_mint, event.graduated_at)

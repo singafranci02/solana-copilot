@@ -106,18 +106,29 @@ async def _do_check(
 # ── MC fetching ───────────────────────────────────────────────────────────────
 
 async def _fetch_current_mc(token_mint: str) -> float | None:
-    """Fetch current market cap via Helius token-largest-accounts + supply."""
+    """Fetch current USD market cap (FDV) from DexScreener.
+
+    DexScreener is free and covers PumpSwap tokens within minutes of graduation.
+    Falls back to None if the token has no liquidity data (effectively dead).
+    """
+    import httpx
     try:
-        from src.ingest.helius import HeliusClient
-        async with HeliusClient() as helius:
-            accounts = await helius.get_token_largest_accounts(token_mint)
-        if not accounts:
+        url = f"https://api.dexscreener.com/latest/dex/tokens/{token_mint}"
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+
+        pairs = data.get("pairs") or []
+        if not pairs:
             return None
-        # Helius returns the top accounts; we use total supply as a proxy.
-        # Real MC needs a price oracle — for now we track relative change
-        # using the sum of top holder balances as a consistent proxy.
-        total_ui = sum(float(a.get("uiAmount") or 0) for a in accounts[:10])
-        return total_ui  # unitless proxy — good enough for rug detection
+
+        # Pick the highest-liquidity pair
+        pairs_with_liq = [p for p in pairs if p.get("liquidity", {}).get("usd", 0) > 0]
+        best = max(pairs_with_liq, key=lambda p: p.get("liquidity", {}).get("usd", 0)) if pairs_with_liq else pairs[0]
+
+        fdv = best.get("fdv") or best.get("marketCap")
+        return float(fdv) if fdv else None
     except Exception:
         logger.debug("could not fetch MC for %s", token_mint[:8])
         return None
