@@ -29,8 +29,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 DRY_RUN = "--dry-run" in sys.argv
-BATCH_SIZE = 20          # process N tokens concurrently
-SLEEP_BETWEEN = 0.5      # seconds between batches
+BATCH_SIZE = 5           # process N tokens concurrently
+SLEEP_BETWEEN = 2.0      # seconds between batches
 
 
 async def backfill_token(
@@ -59,11 +59,8 @@ async def backfill_token(
     conn = get_connection()
     try:
         # Only write if not already recorded
-        exists = conn.execute(
-            "SELECT 1 FROM coin_outcomes WHERE token_mint = ? AND check_offset_h = 24",
-            (mint,),
-        ).fetchone()
-        if not exists:
+        # Always write — this only runs for NULL-classified rows
+        if True:
             _save_outcome(outcome, conn)
             if outcome.classified:
                 await _recompute_wallet_scores(mint, conn)
@@ -100,11 +97,10 @@ async def main() -> None:
     rows = conn.execute(
         """SELECT ge.token_mint, ge.bc_top_holders_json, ge.graduated_at
            FROM graduation_events ge
+           LEFT JOIN coin_outcomes co
+             ON co.token_mint = ge.token_mint AND co.check_offset_h = 24
            WHERE ge.structural_verdict IS NOT NULL
-             AND NOT EXISTS (
-               SELECT 1 FROM coin_outcomes co
-               WHERE co.token_mint = ge.token_mint AND co.check_offset_h = 24
-             )
+             AND (co.token_mint IS NULL OR co.classified IS NULL)
            ORDER BY ge.graduated_at DESC""",
     ).fetchall()
     conn.close()
