@@ -368,7 +368,15 @@ async def analyse_graduation(
             is_bc_sniper=team_cluster.is_bc_sniper,
         ))
 
-    # Close the learning loop — distribution checks update wallet_stats + funder_reputation
+    # Schedule price outcome checks at 1h / 4h / 24h from graduation
+    # Uses sum of top-holder balances as the baseline proxy (same method as _fetch_current_mc)
+    from src.analyzer.outcome_tracker import schedule_checks
+    graduation_mc_proxy = (
+        sum(float(h.get("ui_amount", 0)) for h in event.bc_top_holders[:10]) or None
+    )
+    asyncio.create_task(schedule_checks(event.token_mint, graduation_mc_proxy))
+
+    # Schedule distribution checks (team behavior) at 1h / 4h / 24h
     await schedule_distribution_checks(event.token_mint, event.graduated_at)
 
 
