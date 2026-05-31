@@ -29,6 +29,15 @@ export interface GraduationRow {
 
 export type Database = {
   public: {
+    Tables: {
+      graduation_events: { Row: Record<string, unknown> };
+      team_clusters: { Row: { supply_pct_at_graduation: number } };
+      coin_outcomes: { Row: { check_offset_h: number; classified: string | null } };
+      post_grad_behavior: { Row: { distribution_signal: string } };
+      funder_reputation: { Row: { rug_count: number; moon_count: number; ok_count: number } };
+      wallet_stats: { Row: { total_calls: number } };
+      wallet_graph: { Row: { wallet_a: string; wallet_b: string; co_appearances: number; rug_co_appearances: number } };
+    };
     Views: {
       graduation_feed: { Row: GraduationRow };
     };

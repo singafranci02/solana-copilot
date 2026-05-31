@@ -130,6 +130,23 @@ CREATE TABLE IF NOT EXISTS wallet_stats (
 ALTER TABLE wallet_stats ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "read-only anon" ON wallet_stats FOR SELECT USING (true);
 
+-- ── wallet_graph ──────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS wallet_graph (
+    wallet_a           TEXT NOT NULL,
+    wallet_b           TEXT NOT NULL,
+    co_appearances     INTEGER NOT NULL DEFAULT 1,
+    rug_co_appearances INTEGER NOT NULL DEFAULT 0,
+    last_seen_together BIGINT NOT NULL,
+    PRIMARY KEY (wallet_a, wallet_b),
+    CHECK (wallet_a < wallet_b)
+);
+
+ALTER TABLE wallet_graph ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "read-only anon" ON wallet_graph FOR SELECT USING (true);
+
+CREATE INDEX IF NOT EXISTS idx_wg_a ON wallet_graph(wallet_a);
+CREATE INDEX IF NOT EXISTS idx_wg_b ON wallet_graph(wallet_b);
+
 -- ── dashboard view — one row per graduation with everything needed ─────────────
 CREATE OR REPLACE VIEW graduation_feed AS
 SELECT

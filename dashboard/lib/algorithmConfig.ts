@@ -1,0 +1,291 @@
+// Mirror of src/strategy/rules.py — updated manually when thresholds change.
+// Used by the Algorithm State page to show what the bot is currently doing.
+
+export type Category = "hard_skip" | "positive" | "negative" | "memory";
+export type Impact = "SKIP" | "+2" | "+1" | "-1" | "-2" | "info";
+
+export interface AlgoVariable {
+  id: string;
+  category: Category;
+  name: string;
+  description: string;       // plain-English explanation
+  threshold: string;         // exact condition string
+  impact: Impact;
+  minSample: number;         // observations needed before signal is meaningful
+  hardcoded: boolean;        // true = threshold is hardcoded, false = data-derived
+}
+
+export const ALGO_VARIABLES: AlgoVariable[] = [
+  // ── Hard SKIPs ────────────────────────────────────────────────────────────
+  {
+    id: "known_rugger",
+    category: "hard_skip",
+    name: "Known rugger funder",
+    description: "The wallet that funded the team has rugged ≥65% of their previous 8+ launches.",
+    threshold: "rug_rate ≥ 65% AND ≥8 launches",
+    impact: "SKIP",
+    minSample: 8,
+    hardcoded: false,
+  },
+  {
+    id: "already_dumped",
+    category: "hard_skip",
+    name: "Token already dumped",
+    description: "Fewer than 5 unique holders remain — liquidity is effectively gone.",
+    threshold: "distribution_signal = DUMPED",
+    impact: "SKIP",
+    minSample: 1,
+    hardcoded: true,
+  },
+  {
+    id: "sniper_heavy",
+    category: "hard_skip",
+    name: "BC sniper + heavy supply",
+    description: "Team bought within 30s of launch AND holds ≥50% of supply at graduation.",
+    threshold: "supply_pct ≥ 50% AND is_bc_sniper = true",
+    impact: "SKIP",
+    minSample: 1,
+    hardcoded: true,
+  },
+  {
+    id: "graduation_push",
+    category: "hard_skip",
+    name: "Graduation push (single actor)",
+    description: "One wallet holds >50% of supply and the bonding curve completed in under 5 minutes — someone forced graduation.",
+    threshold: "top_holder_pct > 50% AND bc_duration < 300s",
+    impact: "SKIP",
+    minSample: 1,
+    hardcoded: true,
+  },
+  {
+    id: "bundled_graduation",
+    category: "hard_skip",
+    name: "Heavily bundled graduation",
+    description: "Top 3 wallets collectively hold >75% of supply at graduation — coordinated push.",
+    threshold: "top3_holder_pct > 75%",
+    impact: "SKIP",
+    minSample: 1,
+    hardcoded: true,
+  },
+  {
+    id: "wallet_graph_rug",
+    category: "hard_skip",
+    name: "Wallet rug graph hit",
+    description: "A team member co-appeared 2+ times with other wallets in confirmed rug clusters.",
+    threshold: "rug_co_appearances ≥ 2",
+    impact: "SKIP",
+    minSample: 4,
+    hardcoded: false,
+  },
+
+  // ── Positive signals ──────────────────────────────────────────────────────
+  {
+    id: "sm_2plus",
+    category: "positive",
+    name: "2+ smart money wallets",
+    description: "Two or more wallets with smart_money_score ≥ 0.7 bought during the bonding curve.",
+    threshold: "smart_money_count ≥ 2",
+    impact: "+2",
+    minSample: 2,
+    hardcoded: false,
+  },
+  {
+    id: "sm_1",
+    category: "positive",
+    name: "1 smart money wallet",
+    description: "One wallet with smart_money_score ≥ 0.7 bought during the bonding curve.",
+    threshold: "smart_money_count = 1",
+    impact: "+1",
+    minSample: 1,
+    hardcoded: false,
+  },
+  {
+    id: "team_holding",
+    category: "positive",
+    name: "Team holding post-grad",
+    description: "Team cluster has not sold materially in the first hour after graduation.",
+    threshold: "distribution_signal = HOLDING",
+    impact: "+1",
+    minSample: 30,
+    hardcoded: true,
+  },
+  {
+    id: "team_accumulating",
+    category: "positive",
+    name: "Team accumulating post-grad",
+    description: "Team cluster is buying more tokens after graduation — strong conviction signal.",
+    threshold: "distribution_signal = ACCUMULATING",
+    impact: "+2",
+    minSample: 30,
+    hardcoded: true,
+  },
+  {
+    id: "low_team_supply",
+    category: "positive",
+    name: "Low team supply",
+    description: "Team holds less than 20% of supply at graduation — less dump pressure.",
+    threshold: "team_supply_pct < 20%",
+    impact: "+1",
+    minSample: 30,
+    hardcoded: true,
+  },
+  {
+    id: "good_funder",
+    category: "positive",
+    name: "High moon-rate funder",
+    description: "The funding wallet has ≥8 graduated launches with ≥40% moon rate.",
+    threshold: "moon_rate ≥ 40% AND ≥8 launches",
+    impact: "+1",
+    minSample: 8,
+    hardcoded: false,
+  },
+
+  // ── Negative signals ──────────────────────────────────────────────────────
+  {
+    id: "team_distributing",
+    category: "negative",
+    name: "Team distributing",
+    description: "Team has sold >30% of their graduation-time position — selling is accelerating.",
+    threshold: "distribution_signal = DISTRIBUTING",
+    impact: "-2",
+    minSample: 30,
+    hardcoded: true,
+  },
+  {
+    id: "partial_rugger",
+    category: "negative",
+    name: "Partial rugger funder",
+    description: "Funder has 4+ launches with ≥50% rug rate — below significance threshold but flagged.",
+    threshold: "rug_rate ≥ 50% AND ≥4 launches",
+    impact: "-1",
+    minSample: 4,
+    hardcoded: false,
+  },
+  {
+    id: "top_holder_high",
+    category: "negative",
+    name: "Top holder >35%",
+    description: "Single wallet holds >35% of supply at graduation — high dump risk.",
+    threshold: "top_holder_pct > 35%",
+    impact: "-2",
+    minSample: 30,
+    hardcoded: true,
+  },
+  {
+    id: "top_holder_mid",
+    category: "negative",
+    name: "Top holder 20–35%",
+    description: "Single wallet holds 20–35% of supply — elevated concentration.",
+    threshold: "20% < top_holder_pct ≤ 35%",
+    impact: "-1",
+    minSample: 30,
+    hardcoded: true,
+  },
+  {
+    id: "top3_bundled",
+    category: "negative",
+    name: "Top 3 holders >60%",
+    description: "Top 3 wallets collectively hold >60% — likely coordinated graduation push.",
+    threshold: "top3_holder_pct > 60%",
+    impact: "-1",
+    minSample: 30,
+    hardcoded: true,
+  },
+  {
+    id: "bc_very_fast",
+    category: "negative",
+    name: "BC completed <3 min",
+    description: "Bonding curve completed in under 3 minutes — almost certainly forced.",
+    threshold: "bc_duration_seconds < 180",
+    impact: "-2",
+    minSample: 30,
+    hardcoded: true,
+  },
+  {
+    id: "bc_fast",
+    category: "negative",
+    name: "BC completed 3–10 min",
+    description: "Bonding curve completed unusually fast — possible coordinated push.",
+    threshold: "180 ≤ bc_duration_seconds < 600",
+    impact: "-1",
+    minSample: 30,
+    hardcoded: true,
+  },
+  {
+    id: "low_bc_buyers",
+    category: "negative",
+    name: "Low BC buyer count",
+    description: "Fewer than 15 unique wallets bought during the bonding curve — low organic participation.",
+    threshold: "unique_bc_buyers < 15",
+    impact: "-1",
+    minSample: 30,
+    hardcoded: true,
+  },
+
+  // ── Memory signals ─────────────────────────────────────────────────────────
+  {
+    id: "graph_soft",
+    category: "memory",
+    name: "Soft wallet graph link",
+    description: "A team member co-appeared with a previously tracked wallet, but no confirmed rug link yet.",
+    threshold: "co_appearances ≥ 2 (rug_co_appearances < 2)",
+    impact: "-1",
+    minSample: 2,
+    hardcoded: false,
+  },
+  {
+    id: "pump_ring_24h",
+    category: "memory",
+    name: "Pump ring velocity (24h)",
+    description: "This funder has launched 3+ tokens in the past 24 hours.",
+    threshold: "launches_24h ≥ 3",
+    impact: "-1",
+    minSample: 3,
+    hardcoded: true,
+  },
+  {
+    id: "pump_ring_7d",
+    category: "memory",
+    name: "High weekly launch velocity",
+    description: "This funder has launched 7+ tokens in the past 7 days.",
+    threshold: "launches_7d ≥ 7",
+    impact: "-1",
+    minSample: 7,
+    hardcoded: true,
+  },
+  {
+    id: "fingerprint_match",
+    category: "memory",
+    name: "Structural fingerprint match",
+    description: "This team's cluster size, supply %, sniper timing, and entry speed match a known rug pattern.",
+    threshold: "L2 distance ≤ 0.25 vs fingerprint with rug_rate ≥ 60%",
+    impact: "-1",
+    minSample: 4,
+    hardcoded: false,
+  },
+  {
+    id: "dump_timing",
+    category: "memory",
+    name: "Expected dump timing",
+    description: "Based on this funder's history, they typically start selling at ~Xh post-graduation.",
+    threshold: "avg_dump_start_h (requires ≥3 observations)",
+    impact: "info",
+    minSample: 3,
+    hardcoded: false,
+  },
+];
+
+export const VERDICT_RULE = {
+  sound: "score ≥ 2 AND no DISTRIBUTING/DUMPED",
+  skip: "hard SKIP condition OR score ≤ −1",
+  watch: "everything else (insufficient signal or mixed)",
+};
+
+export const MATURITY_THRESHOLDS = {
+  pattern: 30,
+  wallet_win_rate: 15,
+  funder_rugger: 8,
+  fingerprint: 4,
+  dump_timing: 3,
+  graph: 2,
+};
