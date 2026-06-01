@@ -173,8 +173,12 @@ async def _handle_graduation(
         if token_row is None:
             async with HeliusClient() as helius:
                 meta = await helius.get_token_metadata(mint)
-            symbol = (meta.get("symbol") or "UNKNOWN") if meta else "UNKNOWN"
-            name = (meta.get("name") or "Unknown") if meta else "Unknown"
+            symbol, name = _extract_symbol_name(meta)
+            # Fallback to DexScreener if Helius metadata was empty/unparseable
+            if symbol == "UNKNOWN":
+                ds_symbol, ds_name = await _dexscreener_symbol_name(mint)
+                symbol = ds_symbol or symbol
+                name = ds_name or name
             created_at = int(time.time())
             conn.execute(
                 """INSERT OR IGNORE INTO tokens
@@ -379,6 +383,58 @@ async def analyse_graduation(
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
+
+def _extract_symbol_name(meta: dict | None) -> tuple[str, str]:
+    """Pull symbol/name from a Helius v0 token-metadata response.
+
+    The response nests data under onChainMetadata.metadata.data and/or
+    legacyMetadata, with offChainMetadata as another fallback. Top-level
+    symbol/name do not exist — reading them directly always yields UNKNOWN.
+    """
+    if not meta:
+        return "UNKNOWN", "Unknown"
+
+    # on-chain metadata (Metaplex)
+    on_chain = (meta.get("onChainMetadata") or {}).get("metadata") or {}
+    on_chain_data = on_chain.get("data") or {}
+    symbol = on_chain_data.get("symbol")
+    name = on_chain_data.get("name")
+
+    # off-chain metadata (the JSON the URI points to)
+    if not symbol or not name:
+        off_chain = (meta.get("offChainMetadata") or {}).get("metadata") or {}
+        symbol = symbol or off_chain.get("symbol")
+        name = name or off_chain.get("name")
+
+    # legacy metadata
+    if not symbol or not name:
+        legacy = meta.get("legacyMetadata") or {}
+        symbol = symbol or legacy.get("symbol")
+        name = name or legacy.get("name")
+
+    symbol = (symbol or "").strip() or "UNKNOWN"
+    name = (name or "").strip() or "Unknown"
+    return symbol, name
+
+
+async def _dexscreener_symbol_name(mint: str) -> tuple[str | None, str | None]:
+    """Fallback: fetch symbol/name from DexScreener (covers PumpSwap pairs)."""
+    import aiohttp
+    url = f"https://api.dexscreener.com/latest/dex/tokens/{mint}"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status != 200:
+                    return None, None
+                data = await resp.json()
+        pairs = data.get("pairs") or []
+        if not pairs:
+            return None, None
+        base = pairs[0].get("baseToken") or {}
+        return base.get("symbol"), base.get("name")
+    except Exception:
+        return None, None
+
 
 def _parse_bc_holders(accounts: list[dict]) -> list[dict]:
     """Convert Helius largest-accounts response to ranked [{wallet, pct, ui_amount}]."""
