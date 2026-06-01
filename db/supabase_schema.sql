@@ -215,7 +215,8 @@ ALTER TABLE post_grad_swaps ADD COLUMN IF NOT EXISTS is_smart_money BOOLEAN NOT 
 
 -- ── coin_coordination + coordinated_entities ─────────────────────────────────
 CREATE TABLE IF NOT EXISTS coin_coordination (
-    token_mint                  TEXT PRIMARY KEY REFERENCES tokens(mint),
+    token_mint                  TEXT NOT NULL REFERENCES tokens(mint),
+    phase                       TEXT NOT NULL DEFAULT 'launch',
     computed_at                 BIGINT NOT NULL,
     source                      TEXT NOT NULL,
     entity_count                INTEGER NOT NULL DEFAULT 0,
@@ -225,13 +226,15 @@ CREATE TABLE IF NOT EXISTS coin_coordination (
     largest_entity_supply_pct   DOUBLE PRECISION NOT NULL DEFAULT 0,
     largest_entity_wallet_count INTEGER NOT NULL DEFAULT 0,
     largest_entity_fresh_ratio  DOUBLE PRECISION NOT NULL DEFAULT 0,
-    largest_entity_state        TEXT
+    largest_entity_state        TEXT,
+    PRIMARY KEY (token_mint, phase)
 );
 ALTER TABLE coin_coordination ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "read-only anon" ON coin_coordination FOR SELECT USING (true);
 
 CREATE TABLE IF NOT EXISTS coordinated_entities (
     token_mint       TEXT NOT NULL REFERENCES tokens(mint),
+    phase            TEXT NOT NULL DEFAULT 'launch',
     entity_id        TEXT NOT NULL,
     member_addresses JSONB NOT NULL DEFAULT '[]',
     wallet_count     INTEGER NOT NULL,
@@ -240,7 +243,7 @@ CREATE TABLE IF NOT EXISTS coordinated_entities (
     state            TEXT,
     edge_sources     JSONB NOT NULL DEFAULT '[]',
     computed_at      BIGINT NOT NULL,
-    PRIMARY KEY (token_mint, entity_id)
+    PRIMARY KEY (token_mint, phase, entity_id)
 );
 ALTER TABLE coordinated_entities ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "read-only anon" ON coordinated_entities FOR SELECT USING (true);

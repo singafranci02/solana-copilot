@@ -214,12 +214,15 @@ async def coin_coordination(
     largest_entity_wallet_count: int,
     largest_entity_fresh_ratio: float,
     largest_entity_state: str | None,
+    phase: str = "launch",
+    source: str = "live",
 ) -> None:
     import time
     await _run("coin_coordination", {
         "token_mint": token_mint,
+        "phase": phase,
         "computed_at": int(time.time()),
-        "source": "batch",
+        "source": source,
         "entity_count": entity_count,
         "bundled_supply_pct": bundled_supply_pct,
         "bundle_wallet_count": bundle_wallet_count,
@@ -228,11 +231,11 @@ async def coin_coordination(
         "largest_entity_wallet_count": largest_entity_wallet_count,
         "largest_entity_fresh_ratio": largest_entity_fresh_ratio,
         "largest_entity_state": largest_entity_state,
-    }, conflict_col="token_mint")
+    }, conflict_col="token_mint,phase")
 
 
 async def coordinated_entities_batch(token_mint: str, rows: list[dict[str, Any]]) -> None:
-    await _run_many("coordinated_entities", rows, conflict_col="token_mint,entity_id")
+    await _run_many("coordinated_entities", rows, conflict_col="token_mint,phase,entity_id")
 
 
 async def holder_snapshot(

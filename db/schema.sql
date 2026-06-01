@@ -344,10 +344,13 @@ CREATE INDEX IF NOT EXISTS idx_live_trades_token_tag ON live_trades(token_mint, 
 -- same-slot bundles + shared funder + buy-size + lockstep selling (union-find).
 -- Survives fresh-wallet rotation. coin_coordination = per-coin rollup; the
 -- entities table = each detected coordinated group.
+-- phase: 'launch' = bonding-curve bundling (the canonical rug fingerprint),
+--        'postgrad' = post-graduation coordinated trading. One row per (mint, phase).
 CREATE TABLE IF NOT EXISTS coin_coordination (
-    token_mint                  TEXT PRIMARY KEY REFERENCES tokens(mint),
+    token_mint                  TEXT NOT NULL REFERENCES tokens(mint),
+    phase                       TEXT NOT NULL DEFAULT 'launch',
     computed_at                 INTEGER NOT NULL,
-    source                      TEXT NOT NULL CHECK (source IN ('batch','live')),
+    source                      TEXT NOT NULL,
     entity_count                INTEGER NOT NULL DEFAULT 0,
     bundled_supply_pct          REAL NOT NULL DEFAULT 0.0,
     bundle_wallet_count         INTEGER NOT NULL DEFAULT 0,
@@ -355,11 +358,13 @@ CREATE TABLE IF NOT EXISTS coin_coordination (
     largest_entity_supply_pct   REAL NOT NULL DEFAULT 0.0,
     largest_entity_wallet_count INTEGER NOT NULL DEFAULT 0,
     largest_entity_fresh_ratio  REAL NOT NULL DEFAULT 0.0,
-    largest_entity_state        TEXT
+    largest_entity_state        TEXT,
+    PRIMARY KEY (token_mint, phase)
 );
 
 CREATE TABLE IF NOT EXISTS coordinated_entities (
     token_mint       TEXT NOT NULL REFERENCES tokens(mint),
+    phase            TEXT NOT NULL DEFAULT 'launch',
     entity_id        TEXT NOT NULL,
     member_addresses TEXT NOT NULL DEFAULT '[]',   -- JSON
     wallet_count     INTEGER NOT NULL,
@@ -368,7 +373,7 @@ CREATE TABLE IF NOT EXISTS coordinated_entities (
     state            TEXT,
     edge_sources     TEXT NOT NULL DEFAULT '[]',   -- JSON: which signals linked it
     computed_at      INTEGER NOT NULL,
-    PRIMARY KEY (token_mint, entity_id)
+    PRIMARY KEY (token_mint, phase, entity_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_coord_ent_token ON coordinated_entities(token_mint);

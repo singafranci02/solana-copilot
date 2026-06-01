@@ -16,8 +16,8 @@ export function TeamTimeline({ row }: { row: GraduationRow }) {
       const [swapRes, bcRes, coordRes, entRes] = await Promise.all([
         supabase.from("post_grad_swaps").select("*").eq("token_mint", row.token_mint).order("ts", { ascending: true }),
         supabase.from("bc_accumulation").select("*").eq("token_mint", row.token_mint).order("first_buy_offset_s", { ascending: true }),
-        supabase.from("coin_coordination").select("*").eq("token_mint", row.token_mint).maybeSingle(),
-        supabase.from("coordinated_entities").select("*").eq("token_mint", row.token_mint).order("supply_pct", { ascending: false }),
+        supabase.from("coin_coordination").select("*").eq("token_mint", row.token_mint).eq("phase", "launch").maybeSingle(),
+        supabase.from("coordinated_entities").select("*").eq("token_mint", row.token_mint).eq("phase", "launch").order("supply_pct", { ascending: false }),
       ]);
       setSwaps((swapRes.data as PostGradSwap[]) ?? []);
       setBc((bcRes.data as BcAccumulation[]) ?? []);

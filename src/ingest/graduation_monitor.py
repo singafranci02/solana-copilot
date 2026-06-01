@@ -456,6 +456,57 @@ async def _reconstruct_bc(
         ],
     ))
 
+    # Launch-phase coordination: detect bundling in the BC swaps (the canonical
+    # rug fingerprint — happens at launch, not post-grad). Same-slot bundles need
+    # no extra API; bc_swaps are already in hand.
+    _detect_launch_coordination(mint, bc_swaps, conn)
+
+
+def _detect_launch_coordination(mint: str, bc_swaps, conn) -> None:
+    """Run the coordination engine on bonding-curve swaps; store phase='launch'."""
+    from src.analyzer.coordination import analyze_coin, upsert_coordination
+    if not bc_swaps:
+        return
+    try:
+        cc = analyze_coin(mint, bc_swaps)
+        upsert_coordination(conn, cc, source="live", phase="launch")
+    except Exception as exc:
+        logger.debug("launch coordination failed for %s: %s", mint[:8], exc)
+        return
+
+    logger.info(
+        "launch coordination %s — %d entities, %.1f%% bundled, largest %dw",
+        mint[:8], cc.entity_count, cc.bundle_stats.bundled_supply_pct,
+        cc.largest_entity_wallet_count,
+    )
+
+    from src.common import supabase_sync as sb
+    asyncio.create_task(sb.coin_coordination(
+        token_mint=mint, entity_count=cc.entity_count,
+        bundled_supply_pct=cc.bundle_stats.bundled_supply_pct,
+        bundle_wallet_count=cc.bundle_stats.bundle_wallet_count,
+        largest_bundle_size=cc.bundle_stats.largest_bundle_size,
+        largest_entity_supply_pct=cc.largest_entity_supply_pct,
+        largest_entity_wallet_count=cc.largest_entity_wallet_count,
+        largest_entity_fresh_ratio=cc.largest_entity_fresh_ratio,
+        largest_entity_state=cc.largest_entity_state, phase="launch",
+    ))
+    if cc.entities:
+        import time as _t
+        asyncio.create_task(sb.coordinated_entities_batch(
+            token_mint=mint,
+            rows=[
+                {
+                    "token_mint": mint, "phase": "launch", "entity_id": e.entity_id,
+                    "member_addresses": list(e.wallets), "wallet_count": e.wallet_count,
+                    "supply_pct": e.supply_pct, "fresh_ratio": e.fresh_ratio,
+                    "state": e.state, "edge_sources": list(e.edge_sources),
+                    "computed_at": int(_t.time()),
+                }
+                for e in cc.entities
+            ],
+        ))
+
 
 _FUNDER_RESOLVE_MAX_MEMBERS = 10   # cap funding lookups per graduation
 

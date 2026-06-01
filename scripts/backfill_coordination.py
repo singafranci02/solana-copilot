@@ -124,7 +124,7 @@ async def main() -> None:
 
         cc = analyze_coin(mint, swaps, total_supply=total_supply,
                           funder_by_wallet=funder_map, fresh=fresh)
-        upsert_coordination(conn, cc, source="batch")
+        upsert_coordination(conn, cc, source="batch", phase="postgrad")
 
         from src.common import supabase_sync as sb
         asyncio.create_task(sb.coin_coordination(
@@ -136,13 +136,14 @@ async def main() -> None:
             largest_entity_wallet_count=cc.largest_entity_wallet_count,
             largest_entity_fresh_ratio=cc.largest_entity_fresh_ratio,
             largest_entity_state=cc.largest_entity_state,
+            phase="postgrad", source="batch",
         ))
         if cc.entities:
             asyncio.create_task(sb.coordinated_entities_batch(
                 token_mint=mint,
                 rows=[
                     {
-                        "token_mint": mint, "entity_id": e.entity_id,
+                        "token_mint": mint, "phase": "postgrad", "entity_id": e.entity_id,
                         "member_addresses": list(e.wallets), "wallet_count": e.wallet_count,
                         "supply_pct": e.supply_pct, "fresh_ratio": e.fresh_ratio,
                         "state": e.state, "edge_sources": list(e.edge_sources),

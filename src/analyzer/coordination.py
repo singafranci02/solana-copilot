@@ -362,17 +362,17 @@ def analyze_coin(
 
 # ── persistence (IO) ─────────────────────────────────────────────────────────────
 
-def upsert_coordination(conn, cc: CoinCoordination, source: str = "batch") -> None:
+def upsert_coordination(conn, cc: CoinCoordination, source: str = "batch", phase: str = "launch") -> None:
     import time
     now = int(time.time())
     bs = cc.bundle_stats
     conn.execute(
         """INSERT INTO coin_coordination
-               (token_mint, computed_at, source, entity_count, bundled_supply_pct,
+               (token_mint, phase, computed_at, source, entity_count, bundled_supply_pct,
                 bundle_wallet_count, largest_bundle_size, largest_entity_supply_pct,
                 largest_entity_wallet_count, largest_entity_fresh_ratio, largest_entity_state)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT(token_mint) DO UPDATE SET
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(token_mint, phase) DO UPDATE SET
                computed_at=excluded.computed_at, source=excluded.source,
                entity_count=excluded.entity_count, bundled_supply_pct=excluded.bundled_supply_pct,
                bundle_wallet_count=excluded.bundle_wallet_count,
@@ -382,7 +382,7 @@ def upsert_coordination(conn, cc: CoinCoordination, source: str = "batch") -> No
                largest_entity_fresh_ratio=excluded.largest_entity_fresh_ratio,
                largest_entity_state=excluded.largest_entity_state""",
         (
-            cc.token_mint, now, source, cc.entity_count, bs.bundled_supply_pct,
+            cc.token_mint, phase, now, source, cc.entity_count, bs.bundled_supply_pct,
             bs.bundle_wallet_count, bs.largest_bundle_size, cc.largest_entity_supply_pct,
             cc.largest_entity_wallet_count, cc.largest_entity_fresh_ratio, cc.largest_entity_state,
         ),
@@ -390,16 +390,16 @@ def upsert_coordination(conn, cc: CoinCoordination, source: str = "batch") -> No
     for e in cc.entities:
         conn.execute(
             """INSERT INTO coordinated_entities
-                   (token_mint, entity_id, member_addresses, wallet_count, supply_pct,
+                   (token_mint, phase, entity_id, member_addresses, wallet_count, supply_pct,
                     fresh_ratio, state, edge_sources, computed_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-               ON CONFLICT(token_mint, entity_id) DO UPDATE SET
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(token_mint, phase, entity_id) DO UPDATE SET
                    member_addresses=excluded.member_addresses, wallet_count=excluded.wallet_count,
                    supply_pct=excluded.supply_pct, fresh_ratio=excluded.fresh_ratio,
                    state=excluded.state, edge_sources=excluded.edge_sources,
                    computed_at=excluded.computed_at""",
             (
-                cc.token_mint, e.entity_id, json.dumps(list(e.wallets)), e.wallet_count,
+                cc.token_mint, phase, e.entity_id, json.dumps(list(e.wallets)), e.wallet_count,
                 e.supply_pct, e.fresh_ratio, e.state, json.dumps(list(e.edge_sources)), now,
             ),
         )

@@ -50,6 +50,11 @@ def migrate() -> None:
         _add_column_if_missing(conn, "post_grad_behavior", "coordinated_sell_count", "INTEGER NOT NULL DEFAULT 0")
         # Holder/whale tracking
         _add_column_if_missing(conn, "post_grad_swaps", "is_smart_money", "INTEGER NOT NULL DEFAULT 0")
+        # Coordination tables gained a `phase` column + composite PK — recreate the
+        # old (phase-less) shape if present. Held only throwaway post-grad rows.
+        _recreate_if_missing_column(conn, "coin_coordination", "phase")
+        _recreate_if_missing_column(conn, "coordinated_entities", "phase")
+        conn.executescript(sql)   # re-run CREATE IF NOT EXISTS to rebuild dropped tables
         conn.commit()
     finally:
         conn.close()
@@ -59,3 +64,14 @@ def _add_column_if_missing(conn: sqlite3.Connection, table: str, column: str, de
     existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
     if column not in existing:
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
+def _recreate_if_missing_column(conn: sqlite3.Connection, table: str, column: str) -> None:
+    """Drop a table if it exists but lacks `column` (PK change needs a rebuild).
+
+    Only safe for tables whose contents are cheaply regenerated. The subsequent
+    executescript re-creates the table with the current schema.
+    """
+    info = list(conn.execute(f"PRAGMA table_info({table})"))
+    if info and column not in {row[1] for row in info}:
+        conn.execute(f"DROP TABLE {table}")
