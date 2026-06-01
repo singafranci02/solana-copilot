@@ -111,25 +111,89 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
             holder_count=len(accounts),
         )
 
-        # ── Transaction-level team behaviour ──────────────────────────────────
-        # Fetch DexScreener once: gives liquidity (dead-token guard) + price.
-        liquidity_usd = await _fetch_liquidity_usd(token_mint)
+        # ── Transaction-level behaviour + holder trajectory ───────────────────
+        # Fetch DexScreener once: liquidity (dead-token guard) + USD price (F4b).
+        liquidity_usd, price_usd = await _fetch_dex_stats(token_mint)
 
         metrics = None
         team_swaps = []
-        if team_addresses and (liquidity_usd is None or liquidity_usd >= _ALIVE_LIQUIDITY_FLOOR):
+        holder_metrics = None
+        new_sm_count = 0
+        if liquidity_usd is None or liquidity_usd >= _ALIVE_LIQUIDITY_FLOOR:
             from src.analyzer.post_grad_swaps import (
                 fetch_team_swaps, compute_metrics, upsert_swaps,
             )
+            from src.analyzer.holder_snapshot import compute_holder_snapshot, detect_new_entrants
+            from src.analyzer.smart_money import get_smart_money_wallets
+
             grad_positions = _load_grad_positions(token_mint, conn)
+            grad_holder_set = set(grad_positions.keys())
             graduated_at = _load_graduated_at(token_mint, conn)
-            async with HeliusClient() as helius2:
-                team_swaps = await fetch_team_swaps(
-                    helius2, token_mint, sorted(team_addresses), since_ts=graduated_at,
+
+            # F2: track team ∪ top-20 current holders (not just the team cluster)
+            top_holders = {
+                a.get("address") for a in accounts
+                if a.get("address") and a.get("address") not in cex_addresses
+            }
+            tracked = sorted(team_addresses | top_holders)
+            smart_money_set = {w.address for w in get_smart_money_wallets(conn)}
+
+            if tracked:
+                async with HeliusClient() as helius2:
+                    team_swaps = await fetch_team_swaps(
+                        helius2, token_mint, tracked, since_ts=graduated_at,
+                    )
+                sniper_set = team_addresses if is_bc_sniper else set()
+                upsert_swaps(
+                    conn, token_mint, team_swaps, sniper_set,
+                    team_wallets=team_addresses, smart_money_wallets=smart_money_set,
                 )
-            sniper_set = team_addresses if is_bc_sniper else set()
-            upsert_swaps(conn, token_mint, team_swaps, sniper_set, is_team=True)
-            metrics = compute_metrics(team_swaps, grad_positions, sniper_set or team_addresses)
+                # team-only metrics for the behavior row (keeps signal meaning stable)
+                team_only_swaps = [s for s in team_swaps if s.signer in team_addresses]
+                metrics = compute_metrics(
+                    team_only_swaps, grad_positions, sniper_set or team_addresses
+                )
+                # F2: new smart-money entrants post-graduation
+                swap_wallets = {s.signer for s in team_swaps if s.side == "buy"}
+                entrants = detect_new_entrants(swap_wallets, grad_holder_set, smart_money_set)
+                new_sm_count = sum(1 for e in entrants if e.is_smart_money)
+
+            # F3: holder trajectory snapshot
+            holder_metrics = compute_holder_snapshot(accounts, grad_holder_set, total_supply)
+            top10_value_usd = (
+                round(holder_metrics.top10_pct / 100 * total_supply * price_usd, 2)
+                if price_usd else None
+            )
+            conn.execute(
+                """INSERT INTO holder_snapshots
+                       (token_mint, checked_at, check_offset_h, holder_count,
+                        holder_count_is_total, top10_pct, new_holder_count,
+                        churned_holder_count, new_smart_money_count, top10_value_usd)
+                   VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
+                   ON CONFLICT(token_mint, check_offset_h) DO UPDATE SET
+                       checked_at            = excluded.checked_at,
+                       holder_count          = excluded.holder_count,
+                       top10_pct             = excluded.top10_pct,
+                       new_holder_count      = excluded.new_holder_count,
+                       churned_holder_count  = excluded.churned_holder_count,
+                       new_smart_money_count = excluded.new_smart_money_count,
+                       top10_value_usd       = excluded.top10_value_usd""",
+                (
+                    token_mint, int(time.time()), offset_h, holder_metrics.holder_count,
+                    holder_metrics.top10_pct, holder_metrics.new_holder_count,
+                    holder_metrics.churned_holder_count, new_sm_count, top10_value_usd,
+                ),
+            )
+            conn.commit()
+            from src.common import supabase_sync as _sb
+            asyncio.create_task(_sb.holder_snapshot(
+                token_mint=token_mint, check_offset_h=offset_h, checked_at=int(time.time()),
+                holder_count=holder_metrics.holder_count, holder_count_is_total=False,
+                top10_pct=holder_metrics.top10_pct,
+                new_holder_count=holder_metrics.new_holder_count,
+                churned_holder_count=holder_metrics.churned_holder_count,
+                new_smart_money_count=new_sm_count, top10_value_usd=top10_value_usd,
+            ))
 
         behavior = PostGradBehavior(
             token_mint=token_mint,
@@ -200,6 +264,8 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
             coordinated_sell_count=behavior.coordinated_sell_count,
         ))
         if team_swaps:
+            from src.analyzer.smart_money import get_smart_money_wallets as _gsmw
+            _sm_set = {w.address for w in _gsmw(conn)}
             asyncio.create_task(sb.post_grad_swaps_batch(
                 token_mint=token_mint,
                 swaps=[
@@ -213,7 +279,8 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
                         "ts": s.timestamp,
                         "slot": s.slot,
                         "is_sniper": bool(is_bc_sniper and s.signer in team_addresses),
-                        "is_team": True,
+                        "is_team": s.signer in team_addresses,
+                        "is_smart_money": s.signer in _sm_set,
                     }
                     for s in team_swaps
                 ],
@@ -358,24 +425,34 @@ def get_latest_signal(token_mint: str, conn) -> DistributionSignal | None:
 
 # ── post-grad swap helpers ──────────────────────────────────────────────────────
 
-async def _fetch_liquidity_usd(token_mint: str) -> float | None:
-    """Current USD liquidity from DexScreener's highest-liquidity pair, or None."""
+async def _fetch_dex_stats(token_mint: str) -> tuple[float | None, float | None]:
+    """Return (liquidity_usd, price_usd) from DexScreener's highest-liquidity pair."""
     import aiohttp
     url = f"https://api.dexscreener.com/latest/dex/tokens/{token_mint}"
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 if resp.status != 200:
-                    return None
+                    return None, None
                 data = await resp.json()
         pairs = data.get("pairs") or []
         if not pairs:
-            return None
+            return None, None
         best = max(pairs, key=lambda p: (p.get("liquidity") or {}).get("usd", 0) or 0)
         liq = (best.get("liquidity") or {}).get("usd")
-        return float(liq) if liq is not None else None
+        price = best.get("priceUsd")
+        return (
+            float(liq) if liq is not None else None,
+            float(price) if price is not None else None,
+        )
     except Exception:
-        return None
+        return None, None
+
+
+async def _fetch_liquidity_usd(token_mint: str) -> float | None:
+    """Current USD liquidity from DexScreener's highest-liquidity pair, or None."""
+    liq, _ = await _fetch_dex_stats(token_mint)
+    return liq
 
 
 def _load_graduated_at(token_mint: str, conn) -> int:

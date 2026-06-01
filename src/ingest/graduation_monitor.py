@@ -189,8 +189,10 @@ async def _handle_graduation(
             conn.commit()
             from src.common import supabase_sync as sb
             asyncio.create_task(sb.token(mint, symbol, name, created_at))
+            token_created_at = created_at
         else:
             symbol = token_row["symbol"] or "?"
+            token_created_at = int(token_row["created_at"]) if token_row["created_at"] else int(time.time())
 
         now = int(time.time())
         conn.execute(
@@ -202,10 +204,12 @@ async def _handle_graduation(
         )
         conn.commit()
 
-        # Fetch top BC holders at graduation
+        # Fetch top BC holders at graduation + reconstruct their BC accumulation
+        # (timing-critical: BC txs are only in the recent-tx window right now)
         async with HeliusClient() as helius:
             accounts = await helius.get_token_largest_accounts(mint)
-        bc_top_holders = _parse_bc_holders(accounts)
+            bc_top_holders = _parse_bc_holders(accounts)
+            await _reconstruct_bc(helius, mint, bc_top_holders, token_created_at, now, conn)
 
         conn.execute(
             "UPDATE graduation_events SET bc_top_holders_json = ? WHERE token_mint = ?",
@@ -213,7 +217,7 @@ async def _handle_graduation(
         )
         conn.commit()
 
-        # Load BC-phase buyers from our own token_buyers table
+        # Load BC-phase buyers (now backfilled by _reconstruct_bc) from token_buyers
         rows = conn.execute(
             """SELECT wallet_address, sol_amount, tokens_received, bought_at
                FROM token_buyers WHERE token_mint = ?""",
@@ -274,6 +278,12 @@ async def analyse_graduation(
     team_cluster = build_team_cluster_post_grad(
         event.token_mint, buyers, event.bc_top_holders, cex_addresses
     )
+
+    # F4a: resolve the team's funding source so funder_reputation can populate
+    if team_cluster and not team_cluster.funding_source:
+        team_cluster.funding_source = await _resolve_funding_source(
+            team_cluster.member_addresses, conn
+        )
 
     if team_cluster:
         conn.execute(
@@ -383,6 +393,115 @@ async def analyse_graduation(
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
+
+_BC_RECONSTRUCT_TOP_N = 15   # cap holders reconstructed per graduation (API budget)
+
+
+async def _reconstruct_bc(
+    helius, mint: str, bc_top_holders: list[dict],
+    token_created_at: int, graduated_at: int, conn,
+) -> None:
+    """F1: reconstruct BC accumulation for top holders + backfill token_buyers."""
+    from src.analyzer.bc_reconstruct import (
+        reconstruct_bc_holders, upsert_bc_accumulation, to_token_buyers,
+    )
+    wallets = [h["wallet"] for h in bc_top_holders[:_BC_RECONSTRUCT_TOP_N] if h.get("wallet")]
+    if not wallets:
+        return
+    try:
+        profiles, bc_swaps = await reconstruct_bc_holders(
+            helius, mint, wallets, token_created_at, graduated_at,
+        )
+    except Exception as exc:
+        logger.debug("BC reconstruction failed for %s: %s", mint[:8], exc)
+        return
+
+    upsert_bc_accumulation(conn, mint, profiles)
+
+    # Backfill token_buyers so build_team_cluster_post_grad gets real overlap
+    buyers = to_token_buyers(bc_swaps, mint)
+    for b in buyers:
+        conn.execute(
+            """INSERT OR IGNORE INTO wallets (address) VALUES (?)""",
+            (b.wallet_address,),
+        )
+        conn.execute(
+            """INSERT INTO token_buyers
+                   (token_mint, wallet_address, bought_at, sol_amount, tokens_received)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT DO NOTHING""",
+            (b.token_mint, b.wallet_address, b.bought_at, b.sol_amount, b.tokens_received),
+        )
+    conn.commit()
+
+    logger.info(
+        "BC reconstruct %s — %d holders profiled, %d buyers backfilled",
+        mint[:8], len(profiles), len(buyers),
+    )
+
+    from src.common import supabase_sync as sb
+    asyncio.create_task(sb.bc_accumulation_batch(
+        token_mint=mint,
+        rows=[
+            {
+                "token_mint": mint,
+                "wallet_address": p.wallet,
+                "first_buy_offset_s": p.first_buy_offset_s,
+                "bc_buy_count": p.bc_buy_count,
+                "bc_sell_count": p.bc_sell_count,
+                "total_sol_in": p.total_sol_in,
+                "accumulation_style": p.accumulation_style,
+            }
+            for p in profiles.values()
+        ],
+    ))
+
+
+_FUNDER_RESOLVE_MAX_MEMBERS = 10   # cap funding lookups per graduation
+
+
+async def _resolve_funding_source(member_addresses: list[str], conn) -> str | None:
+    """F4a: find the team's common SOL funder and persist wallets.funding_source.
+
+    For each member, walk its oldest txs via extract_funding_source. Returns the
+    majority funder (excluding 'cex'), or None. Also upserts each member's
+    funding_source so the token_buyers→wallets funder path works.
+    """
+    from src.ingest.helius import HeliusClient, extract_funding_source
+    from collections import Counter
+
+    members = member_addresses[:_FUNDER_RESOLVE_MAX_MEMBERS]
+    if not members:
+        return None
+
+    funders: list[str] = []
+    try:
+        async with HeliusClient() as helius:
+            for addr in members:
+                try:
+                    txs = await helius.get_transactions_for_address(addr, limit=100)
+                except Exception:
+                    continue
+                # extract_funding_source wants oldest-first; Helius returns newest-first
+                funder = extract_funding_source(list(reversed(txs or [])))
+                if funder:
+                    conn.execute(
+                        """INSERT INTO wallets (address, funding_source) VALUES (?, ?)
+                           ON CONFLICT(address) DO UPDATE SET
+                               funding_source = COALESCE(wallets.funding_source, excluded.funding_source)""",
+                        (addr, funder),
+                    )
+                    if funder != "cex":
+                        funders.append(funder)
+        conn.commit()
+    except Exception as exc:
+        logger.debug("funding source resolution failed: %s", exc)
+        return None
+
+    if not funders:
+        return None
+    return Counter(funders).most_common(1)[0][0]
+
 
 def _extract_symbol_name(meta: dict | None) -> tuple[str, str]:
     """Pull symbol/name from a Helius v0 token-metadata response.

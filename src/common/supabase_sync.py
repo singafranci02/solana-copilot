@@ -196,6 +196,40 @@ async def post_grad_swaps_batch(token_mint: str, swaps: list[dict[str, Any]]) ->
     )
 
 
+async def bc_accumulation_batch(token_mint: str, rows: list[dict[str, Any]]) -> None:
+    """Upsert per-holder bonding-curve accumulation profiles."""
+    await _run_many(
+        "bc_accumulation", rows,
+        conflict_col="token_mint,wallet_address",
+    )
+
+
+async def holder_snapshot(
+    token_mint: str,
+    check_offset_h: int,
+    checked_at: int,
+    holder_count: int | None,
+    holder_count_is_total: bool,
+    top10_pct: float | None,
+    new_holder_count: int,
+    churned_holder_count: int,
+    new_smart_money_count: int,
+    top10_value_usd: float | None,
+) -> None:
+    await _run("holder_snapshots", {
+        "token_mint": token_mint,
+        "check_offset_h": check_offset_h,
+        "checked_at": checked_at,
+        "holder_count": holder_count,
+        "holder_count_is_total": holder_count_is_total,
+        "top10_pct": top10_pct,
+        "new_holder_count": new_holder_count,
+        "churned_holder_count": churned_holder_count,
+        "new_smart_money_count": new_smart_money_count,
+        "top10_value_usd": top10_value_usd,
+    }, conflict_col="token_mint,check_offset_h")
+
+
 async def funder_reputation(
     funding_source: str,
     rug_count: int,

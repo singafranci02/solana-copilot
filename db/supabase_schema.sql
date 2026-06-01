@@ -177,6 +177,42 @@ CREATE POLICY "read-only anon" ON wallet_graph FOR SELECT USING (true);
 CREATE INDEX IF NOT EXISTS idx_wg_a ON wallet_graph(wallet_a);
 CREATE INDEX IF NOT EXISTS idx_wg_b ON wallet_graph(wallet_b);
 
+-- ── bc_accumulation ───────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS bc_accumulation (
+    token_mint         TEXT NOT NULL REFERENCES tokens(mint),
+    wallet_address     TEXT NOT NULL,
+    first_buy_offset_s DOUBLE PRECISION,
+    bc_buy_count       INTEGER NOT NULL DEFAULT 0,
+    bc_sell_count      INTEGER NOT NULL DEFAULT 0,
+    total_sol_in       DOUBLE PRECISION NOT NULL DEFAULT 0,
+    accumulation_style TEXT,
+    PRIMARY KEY (token_mint, wallet_address)
+);
+ALTER TABLE bc_accumulation ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "read-only anon" ON bc_accumulation FOR SELECT USING (true);
+CREATE INDEX IF NOT EXISTS idx_bc_accum_token ON bc_accumulation(token_mint);
+
+-- ── holder_snapshots ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS holder_snapshots (
+    id                    BIGSERIAL PRIMARY KEY,
+    token_mint            TEXT NOT NULL REFERENCES tokens(mint),
+    checked_at            BIGINT NOT NULL,
+    check_offset_h        INTEGER NOT NULL,
+    holder_count          INTEGER,
+    holder_count_is_total BOOLEAN NOT NULL DEFAULT FALSE,
+    top10_pct             DOUBLE PRECISION,
+    new_holder_count      INTEGER NOT NULL DEFAULT 0,
+    churned_holder_count  INTEGER NOT NULL DEFAULT 0,
+    new_smart_money_count INTEGER NOT NULL DEFAULT 0,
+    top10_value_usd       DOUBLE PRECISION,
+    UNIQUE (token_mint, check_offset_h)
+);
+ALTER TABLE holder_snapshots ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "read-only anon" ON holder_snapshots FOR SELECT USING (true);
+
+-- For existing installs: add is_smart_money to post_grad_swaps
+ALTER TABLE post_grad_swaps ADD COLUMN IF NOT EXISTS is_smart_money BOOLEAN NOT NULL DEFAULT FALSE;
+
 -- ── dashboard view — one row per graduation with everything needed ─────────────
 CREATE OR REPLACE VIEW graduation_feed AS
 SELECT
@@ -205,7 +241,13 @@ SELECT
     pgb_24h.team_net_sol            AS team_net_sol_24h,
     pgb_24h.snipers_sold_pct        AS snipers_sold_pct_24h,
     pgb_24h.coordinated_sell_count  AS coordinated_sell_count_24h,
-    pgb_24h.liquidity_usd           AS liquidity_usd_24h
+    pgb_24h.liquidity_usd           AS liquidity_usd_24h,
+    hs_24h.holder_count             AS holder_count_24h,
+    hs_24h.top10_pct                AS top10_pct_24h,
+    hs_24h.new_holder_count         AS new_holder_count_24h,
+    hs_24h.churned_holder_count     AS churned_holder_count_24h,
+    hs_24h.new_smart_money_count    AS new_smart_money_count_24h,
+    hs_24h.top10_value_usd          AS top10_value_usd_24h
 FROM graduation_events ge
 LEFT JOIN tokens t             ON t.mint              = ge.token_mint
 LEFT JOIN team_clusters tc     ON tc.token_mint        = ge.token_mint
@@ -224,5 +266,8 @@ LEFT JOIN coin_outcomes co_4h  ON co_4h.token_mint     = ge.token_mint
                               AND co_4h.check_offset_h  = 4
 LEFT JOIN coin_outcomes co_24h ON co_24h.token_mint    = ge.token_mint
                               AND co_24h.check_offset_h = 24
+LEFT JOIN holder_snapshots hs_24h
+                               ON hs_24h.token_mint     = ge.token_mint
+                              AND hs_24h.check_offset_h  = 24
 LEFT JOIN funder_reputation fr ON fr.funding_source    = tc.funding_source
 ORDER BY ge.graduated_at DESC;

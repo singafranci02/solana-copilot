@@ -2,20 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { GraduationRow, PostGradSwap } from "@/lib/types";
+import type { GraduationRow, PostGradSwap, BcAccumulation } from "@/lib/types";
 
 export function TeamTimeline({ row }: { row: GraduationRow }) {
   const [swaps, setSwaps] = useState<PostGradSwap[] | null>(null);
+  const [bc, setBc] = useState<BcAccumulation[] | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("post_grad_swaps")
-        .select("*")
-        .eq("token_mint", row.token_mint)
-        .order("ts", { ascending: true });
-      setSwaps((data as PostGradSwap[]) ?? []);
+      const [swapRes, bcRes] = await Promise.all([
+        supabase.from("post_grad_swaps").select("*").eq("token_mint", row.token_mint).order("ts", { ascending: true }),
+        supabase.from("bc_accumulation").select("*").eq("token_mint", row.token_mint).order("first_buy_offset_s", { ascending: true }),
+      ]);
+      setSwaps((swapRes.data as PostGradSwap[]) ?? []);
+      setBc((bcRes.data as BcAccumulation[]) ?? []);
       setLoading(false);
     })();
   }, [row.token_mint]);
@@ -49,7 +50,57 @@ export function TeamTimeline({ row }: { row: GraduationRow }) {
         />
       </div>
 
-      {/* Timeline */}
+      {/* Holder trajectory (F3) */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        <Metric label="holders" value={row.holder_count_24h} color="zinc" hint="top-20 tracked count" />
+        <Metric
+          label="top10 conc"
+          value={row.top10_pct_24h !== null ? `${row.top10_pct_24h.toFixed(0)}%` : null}
+          color={row.top10_pct_24h !== null && row.top10_pct_24h > 60 ? "red" : "zinc"}
+        />
+        <Metric
+          label="new holders"
+          value={row.new_holder_count_24h}
+          color={row.new_holder_count_24h !== null && row.new_holder_count_24h > 0 ? "green" : "zinc"}
+        />
+        <Metric label="churned" value={row.churned_holder_count_24h} color="zinc" />
+        <Metric
+          label="new smart $"
+          value={row.new_smart_money_count_24h}
+          color={row.new_smart_money_count_24h !== null && row.new_smart_money_count_24h > 0 ? "green" : "zinc"}
+          hint="smart money entering post-grad = bullish"
+        />
+      </div>
+
+      {/* BC accumulation (F1) */}
+      {bc && bc.length > 0 && (
+        <div className="mb-3">
+          <p className="text-zinc-600 text-xs uppercase tracking-wide mb-1.5">
+            Bonding-curve accumulation (pre-graduation)
+          </p>
+          <div className="space-y-1 max-h-40 overflow-y-auto">
+            {bc.map((h) => (
+              <div key={h.wallet_address} className="flex items-center gap-3 text-xs font-mono">
+                <StyleTag style={h.accumulation_style} />
+                <span className="text-zinc-500 w-20">
+                  {h.first_buy_offset_s !== null ? `+${Math.round(h.first_buy_offset_s)}s` : "—"}
+                </span>
+                <span className="text-zinc-400 w-24 text-right">{h.total_sol_in.toFixed(2)} SOL in</span>
+                <span className="text-zinc-600 w-16">{h.bc_buy_count}b / {h.bc_sell_count}s</span>
+                <a
+                  href={`https://solscan.io/account/${h.wallet_address}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="text-zinc-600 hover:text-zinc-400 truncate"
+                >
+                  {h.wallet_address.slice(0, 4)}…{h.wallet_address.slice(-4)}
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Post-grad timeline */}
       {loading ? (
         <p className="text-zinc-600 text-xs">loading transactions…</p>
       ) : !swaps || swaps.length === 0 ? (
@@ -113,12 +164,28 @@ function SwapTimeline({ swaps, graduatedAt }: { swaps: PostGradSwap[]; graduated
               >
                 {s.wallet_address.slice(0, 4)}…{s.wallet_address.slice(-4)}
               </a>
-              {s.is_sniper && <span className="text-orange-400">⚡</span>}
+              {s.is_sniper && <span className="text-orange-400" title="BC sniper">⚡</span>}
+              {s.is_smart_money && <span className="text-green-400" title="smart money">★</span>}
+              {!s.is_team && <span className="text-zinc-600" title="non-team holder">·</span>}
             </div>
           );
         })}
       </div>
     </div>
+  );
+}
+
+function StyleTag({ style }: { style: string | null }) {
+  const map: Record<string, string> = {
+    sniped: "bg-red-900/50 text-red-300 border-red-800",
+    gradual: "bg-zinc-800/50 text-zinc-400 border-zinc-700",
+    single: "bg-yellow-900/40 text-yellow-300 border-yellow-800",
+  };
+  const cls = style ? map[style] ?? map.gradual : "bg-zinc-800/50 text-zinc-600 border-zinc-700";
+  return (
+    <span className={`inline-flex px-1.5 py-0.5 rounded text-xs font-mono border w-16 justify-center ${cls}`}>
+      {style ?? "—"}
+    </span>
   );
 }
 

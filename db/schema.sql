@@ -275,6 +275,44 @@ CREATE TABLE IF NOT EXISTS post_grad_swaps (
 
 CREATE INDEX IF NOT EXISTS idx_pgs_token_ts ON post_grad_swaps(token_mint, ts);
 
+-- ── bc_accumulation ───────────────────────────────────────────────────────────
+-- Per-holder bonding-curve accumulation profile, reconstructed AT graduation
+-- (when BC txs are still in each wallet's recent-100-tx window). Captures HOW a
+-- holder built their position pre-graduation — the predictive half of the thesis.
+CREATE TABLE IF NOT EXISTS bc_accumulation (
+    token_mint         TEXT NOT NULL REFERENCES tokens(mint),
+    wallet_address     TEXT NOT NULL,
+    first_buy_offset_s REAL,                       -- entry timing vs token created_at
+    bc_buy_count       INTEGER NOT NULL DEFAULT 0,
+    bc_sell_count      INTEGER NOT NULL DEFAULT 0,
+    total_sol_in       REAL NOT NULL DEFAULT 0.0,
+    accumulation_style TEXT CHECK (accumulation_style IN ('sniped','gradual','single',NULL)),
+    PRIMARY KEY (token_mint, wallet_address)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bc_accum_token ON bc_accumulation(token_mint);
+
+-- ── holder_snapshots ──────────────────────────────────────────────────────────
+-- Holder-base trajectory at each 1h/4h/24h check: count, concentration, churn.
+-- Distinguishes organic growth from team churn. holder_count is a top-20 proxy
+-- unless holder_count_is_total=1 (true total via DAS pagination — deferred).
+CREATE TABLE IF NOT EXISTS holder_snapshots (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_mint            TEXT NOT NULL REFERENCES tokens(mint),
+    checked_at            INTEGER NOT NULL,
+    check_offset_h        INTEGER NOT NULL,
+    holder_count          INTEGER,
+    holder_count_is_total INTEGER NOT NULL DEFAULT 0,
+    top10_pct             REAL,
+    new_holder_count      INTEGER NOT NULL DEFAULT 0,
+    churned_holder_count  INTEGER NOT NULL DEFAULT 0,
+    new_smart_money_count INTEGER NOT NULL DEFAULT 0,
+    top10_value_usd       REAL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_holder_snap_mint_offset
+    ON holder_snapshots(token_mint, check_offset_h);
+
 -- ── wallet_graph ──────────────────────────────────────────────────────────────
 -- Co-occurrence graph: wallets that habitually appear together in team clusters.
 -- Survives wallet rotation — recycling even 1-2 wallets across launches exposes

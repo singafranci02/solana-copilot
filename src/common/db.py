@@ -44,6 +44,8 @@ def migrate() -> None:
         _add_column_if_missing(conn, "post_grad_behavior", "team_sell_count", "INTEGER NOT NULL DEFAULT 0")
         _add_column_if_missing(conn, "post_grad_behavior", "team_net_sol", "REAL")
         _add_column_if_missing(conn, "post_grad_behavior", "coordinated_sell_count", "INTEGER NOT NULL DEFAULT 0")
+        # Holder/whale tracking
+        _add_column_if_missing(conn, "post_grad_swaps", "is_smart_money", "INTEGER NOT NULL DEFAULT 0")
         conn.commit()
     finally:
         conn.close()

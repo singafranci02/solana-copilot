@@ -31,6 +31,22 @@ export interface GraduationRow {
   snipers_sold_pct_24h: number | null;
   coordinated_sell_count_24h: number | null;
   liquidity_usd_24h: number | null;
+  holder_count_24h: number | null;
+  top10_pct_24h: number | null;
+  new_holder_count_24h: number | null;
+  churned_holder_count_24h: number | null;
+  new_smart_money_count_24h: number | null;
+  top10_value_usd_24h: number | null;
+}
+
+export interface BcAccumulation {
+  token_mint: string;
+  wallet_address: string;
+  first_buy_offset_s: number | null;
+  bc_buy_count: number;
+  bc_sell_count: number;
+  total_sol_in: number;
+  accumulation_style: "sniped" | "gradual" | "single" | null;
 }
 
 export interface PostGradSwap {
@@ -44,6 +60,7 @@ export interface PostGradSwap {
   slot: number;
   is_sniper: boolean;
   is_team: boolean;
+  is_smart_money?: boolean;
 }
 
 export type Database = {
@@ -57,6 +74,8 @@ export type Database = {
       wallet_stats: { Row: { total_calls: number } };
       wallet_graph: { Row: { wallet_a: string; wallet_b: string; co_appearances: number; rug_co_appearances: number } };
       post_grad_swaps: { Row: PostGradSwap };
+      bc_accumulation: { Row: BcAccumulation };
+      holder_snapshots: { Row: Record<string, unknown> };
     };
     Views: {
       graduation_feed: { Row: GraduationRow };

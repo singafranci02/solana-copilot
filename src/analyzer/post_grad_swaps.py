@@ -48,9 +48,19 @@ def dedup_swaps(swaps: list[Swap]) -> list[Swap]:
     return out
 
 
+def filter_token_swaps_window(
+    swaps: list[Swap], token_mint: str, lo_ts: int, hi_ts: float = float("inf")
+) -> list[Swap]:
+    """Keep swaps for this token within [lo_ts, hi_ts] (inclusive)."""
+    return [
+        s for s in swaps
+        if s.token_mint == token_mint and lo_ts <= s.timestamp <= hi_ts
+    ]
+
+
 def filter_token_swaps(swaps: list[Swap], token_mint: str, since_ts: int) -> list[Swap]:
     """Keep only swaps for this token at or after the graduation timestamp."""
-    return [s for s in swaps if s.token_mint == token_mint and s.timestamp >= since_ts]
+    return filter_token_swaps_window(swaps, token_mint, since_ts)
 
 
 def price_sol(swap: Swap) -> float | None:
@@ -129,17 +139,11 @@ def compute_metrics(
 
 # ── IO ───────────────────────────────────────────────────────────────────────
 
-async def fetch_team_swaps(
-    helius,
-    token_mint: str,
-    wallets: list[str],
-    since_ts: int,
-) -> list[Swap]:
-    """Fetch + parse all swaps for `wallets` on `token_mint` since graduation.
+async def fetch_wallet_swaps(helius, wallets: list[str]) -> list[Swap]:
+    """Fetch + parse ALL swaps (any token) for a set of wallets.
 
-    Uses the passed-in HeliusClient so calls share its rate-limit semaphore.
-    Re-fetches the full window each time; dedup_swaps + the table PK make it
-    idempotent across the 1h/4h/24h checks.
+    Lower-level shared fetch: uses the passed-in HeliusClient so calls share its
+    rate-limit semaphore. Callers apply their own token/time-window filtering.
     """
     async def _one(addr: str) -> list[Swap]:
         try:
@@ -159,7 +163,21 @@ async def fetch_team_swaps(
     for r in results:
         if isinstance(r, list):
             all_swaps.extend(r)
+    return all_swaps
 
+
+async def fetch_team_swaps(
+    helius,
+    token_mint: str,
+    wallets: list[str],
+    since_ts: int,
+) -> list[Swap]:
+    """Fetch + parse swaps for `wallets` on `token_mint` since graduation.
+
+    Re-fetches the full window each time; dedup_swaps + the table PK make it
+    idempotent across the 1h/4h/24h checks.
+    """
+    all_swaps = await fetch_wallet_swaps(helius, wallets)
     return dedup_swaps(filter_token_swaps(all_swaps, token_mint, since_ts))
 
 
@@ -171,10 +189,17 @@ def upsert_swaps(
     swaps: list[Swap],
     sniper_wallets: set[str],
     is_team: bool = True,
+    team_wallets: set[str] | None = None,
+    smart_money_wallets: set[str] | None = None,
 ) -> int:
-    """Batch-upsert swaps into post_grad_swaps. Returns rows written."""
+    """Batch-upsert swaps into post_grad_swaps. Returns rows written.
+
+    If team_wallets is given, is_team is set per-wallet (for the broadened top-20
+    tracking); otherwise the scalar is_team applies to all rows.
+    """
     if not swaps:
         return 0
+    sm = smart_money_wallets or set()
     rows = [
         (
             token_mint,
@@ -186,20 +211,22 @@ def upsert_swaps(
             s.timestamp,
             s.slot,
             1 if s.signer in sniper_wallets else 0,
-            1 if is_team else 0,
+            (1 if s.signer in team_wallets else 0) if team_wallets is not None else (1 if is_team else 0),
+            1 if s.signer in sm else 0,
         )
         for s in swaps
     ]
     conn.executemany(
         """INSERT INTO post_grad_swaps
                (token_mint, wallet_address, side, sol_amount, token_amount,
-                price_sol, ts, slot, is_sniper, is_team)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                price_sol, ts, slot, is_sniper, is_team, is_smart_money)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(token_mint, wallet_address, slot, side) DO UPDATE SET
-               sol_amount   = excluded.sol_amount,
-               token_amount = excluded.token_amount,
-               price_sol    = excluded.price_sol,
-               ts           = excluded.ts""",
+               sol_amount     = excluded.sol_amount,
+               token_amount   = excluded.token_amount,
+               price_sol      = excluded.price_sol,
+               ts             = excluded.ts,
+               is_smart_money = excluded.is_smart_money""",
         rows,
     )
     conn.commit()
