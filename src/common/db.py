@@ -10,10 +10,14 @@ def get_connection() -> sqlite3.Connection:
     """Return a WAL-mode SQLite connection to the configured DB path."""
     db_path = Path(settings.db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(db_path), check_same_thread=False)
+    conn = sqlite3.connect(str(db_path), check_same_thread=False, timeout=30.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode = WAL;")
     conn.execute("PRAGMA foreign_keys = ON;")
+    # Wait up to 30s for a competing writer (e.g. the live service) instead of
+    # immediately raising "database is locked" — WAL allows concurrent readers
+    # but serialises writers.
+    conn.execute("PRAGMA busy_timeout = 30000;")
     return conn
 
 
