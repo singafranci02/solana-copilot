@@ -213,6 +213,39 @@ CREATE POLICY "read-only anon" ON holder_snapshots FOR SELECT USING (true);
 -- For existing installs: add is_smart_money to post_grad_swaps
 ALTER TABLE post_grad_swaps ADD COLUMN IF NOT EXISTS is_smart_money BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- ── coin_coordination + coordinated_entities ─────────────────────────────────
+CREATE TABLE IF NOT EXISTS coin_coordination (
+    token_mint                  TEXT PRIMARY KEY REFERENCES tokens(mint),
+    computed_at                 BIGINT NOT NULL,
+    source                      TEXT NOT NULL,
+    entity_count                INTEGER NOT NULL DEFAULT 0,
+    bundled_supply_pct          DOUBLE PRECISION NOT NULL DEFAULT 0,
+    bundle_wallet_count         INTEGER NOT NULL DEFAULT 0,
+    largest_bundle_size         INTEGER NOT NULL DEFAULT 0,
+    largest_entity_supply_pct   DOUBLE PRECISION NOT NULL DEFAULT 0,
+    largest_entity_wallet_count INTEGER NOT NULL DEFAULT 0,
+    largest_entity_fresh_ratio  DOUBLE PRECISION NOT NULL DEFAULT 0,
+    largest_entity_state        TEXT
+);
+ALTER TABLE coin_coordination ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "read-only anon" ON coin_coordination FOR SELECT USING (true);
+
+CREATE TABLE IF NOT EXISTS coordinated_entities (
+    token_mint       TEXT NOT NULL REFERENCES tokens(mint),
+    entity_id        TEXT NOT NULL,
+    member_addresses JSONB NOT NULL DEFAULT '[]',
+    wallet_count     INTEGER NOT NULL,
+    supply_pct       DOUBLE PRECISION NOT NULL,
+    fresh_ratio      DOUBLE PRECISION NOT NULL DEFAULT 0,
+    state            TEXT,
+    edge_sources     JSONB NOT NULL DEFAULT '[]',
+    computed_at      BIGINT NOT NULL,
+    PRIMARY KEY (token_mint, entity_id)
+);
+ALTER TABLE coordinated_entities ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "read-only anon" ON coordinated_entities FOR SELECT USING (true);
+CREATE INDEX IF NOT EXISTS idx_coord_ent_token ON coordinated_entities(token_mint);
+
 -- ── dashboard view — one row per graduation with everything needed ─────────────
 CREATE OR REPLACE VIEW graduation_feed AS
 SELECT

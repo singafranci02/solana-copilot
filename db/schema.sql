@@ -339,6 +339,40 @@ CREATE TABLE IF NOT EXISTS live_trades (
 CREATE INDEX IF NOT EXISTS idx_live_trades_token_ts  ON live_trades(token_mint, ts);
 CREATE INDEX IF NOT EXISTS idx_live_trades_token_tag ON live_trades(token_mint, wallet_tag);
 
+-- ── coin_coordination + coordinated_entities ─────────────────────────────────
+-- Coordinated-entity detection: groups wallets acting as one team on a coin via
+-- same-slot bundles + shared funder + buy-size + lockstep selling (union-find).
+-- Survives fresh-wallet rotation. coin_coordination = per-coin rollup; the
+-- entities table = each detected coordinated group.
+CREATE TABLE IF NOT EXISTS coin_coordination (
+    token_mint                  TEXT PRIMARY KEY REFERENCES tokens(mint),
+    computed_at                 INTEGER NOT NULL,
+    source                      TEXT NOT NULL CHECK (source IN ('batch','live')),
+    entity_count                INTEGER NOT NULL DEFAULT 0,
+    bundled_supply_pct          REAL NOT NULL DEFAULT 0.0,
+    bundle_wallet_count         INTEGER NOT NULL DEFAULT 0,
+    largest_bundle_size         INTEGER NOT NULL DEFAULT 0,
+    largest_entity_supply_pct   REAL NOT NULL DEFAULT 0.0,
+    largest_entity_wallet_count INTEGER NOT NULL DEFAULT 0,
+    largest_entity_fresh_ratio  REAL NOT NULL DEFAULT 0.0,
+    largest_entity_state        TEXT
+);
+
+CREATE TABLE IF NOT EXISTS coordinated_entities (
+    token_mint       TEXT NOT NULL REFERENCES tokens(mint),
+    entity_id        TEXT NOT NULL,
+    member_addresses TEXT NOT NULL DEFAULT '[]',   -- JSON
+    wallet_count     INTEGER NOT NULL,
+    supply_pct       REAL NOT NULL,
+    fresh_ratio      REAL NOT NULL DEFAULT 0.0,
+    state            TEXT,
+    edge_sources     TEXT NOT NULL DEFAULT '[]',   -- JSON: which signals linked it
+    computed_at      INTEGER NOT NULL,
+    PRIMARY KEY (token_mint, entity_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_coord_ent_token ON coordinated_entities(token_mint);
+
 -- ── wallet_graph ──────────────────────────────────────────────────────────────
 -- Co-occurrence graph: wallets that habitually appear together in team clusters.
 -- Survives wallet rotation — recycling even 1-2 wallets across launches exposes

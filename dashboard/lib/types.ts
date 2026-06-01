@@ -49,6 +49,29 @@ export interface BcAccumulation {
   accumulation_style: "sniped" | "gradual" | "single" | null;
 }
 
+export interface CoinCoordination {
+  token_mint: string;
+  entity_count: number;
+  bundled_supply_pct: number;
+  bundle_wallet_count: number;
+  largest_bundle_size: number;
+  largest_entity_supply_pct: number;
+  largest_entity_wallet_count: number;
+  largest_entity_fresh_ratio: number;
+  largest_entity_state: string | null;
+}
+
+export interface CoordinatedEntity {
+  token_mint: string;
+  entity_id: string;
+  member_addresses: string[];
+  wallet_count: number;
+  supply_pct: number;
+  fresh_ratio: number;
+  state: string | null;
+  edge_sources: string[];
+}
+
 export interface PostGradSwap {
   token_mint: string;
   wallet_address: string;
@@ -76,6 +99,8 @@ export type Database = {
       post_grad_swaps: { Row: PostGradSwap };
       bc_accumulation: { Row: BcAccumulation };
       holder_snapshots: { Row: Record<string, unknown> };
+      coin_coordination: { Row: CoinCoordination };
+      coordinated_entities: { Row: CoordinatedEntity };
     };
     Views: {
       graduation_feed: { Row: GraduationRow };

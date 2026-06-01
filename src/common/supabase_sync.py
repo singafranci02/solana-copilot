@@ -204,6 +204,37 @@ async def bc_accumulation_batch(token_mint: str, rows: list[dict[str, Any]]) -> 
     )
 
 
+async def coin_coordination(
+    token_mint: str,
+    entity_count: int,
+    bundled_supply_pct: float,
+    bundle_wallet_count: int,
+    largest_bundle_size: int,
+    largest_entity_supply_pct: float,
+    largest_entity_wallet_count: int,
+    largest_entity_fresh_ratio: float,
+    largest_entity_state: str | None,
+) -> None:
+    import time
+    await _run("coin_coordination", {
+        "token_mint": token_mint,
+        "computed_at": int(time.time()),
+        "source": "batch",
+        "entity_count": entity_count,
+        "bundled_supply_pct": bundled_supply_pct,
+        "bundle_wallet_count": bundle_wallet_count,
+        "largest_bundle_size": largest_bundle_size,
+        "largest_entity_supply_pct": largest_entity_supply_pct,
+        "largest_entity_wallet_count": largest_entity_wallet_count,
+        "largest_entity_fresh_ratio": largest_entity_fresh_ratio,
+        "largest_entity_state": largest_entity_state,
+    }, conflict_col="token_mint")
+
+
+async def coordinated_entities_batch(token_mint: str, rows: list[dict[str, Any]]) -> None:
+    await _run_many("coordinated_entities", rows, conflict_col="token_mint,entity_id")
+
+
 async def holder_snapshot(
     token_mint: str,
     check_offset_h: int,

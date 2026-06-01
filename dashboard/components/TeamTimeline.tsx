@@ -2,21 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { GraduationRow, PostGradSwap, BcAccumulation } from "@/lib/types";
+import type { GraduationRow, PostGradSwap, BcAccumulation, CoinCoordination, CoordinatedEntity } from "@/lib/types";
 
 export function TeamTimeline({ row }: { row: GraduationRow }) {
   const [swaps, setSwaps] = useState<PostGradSwap[] | null>(null);
   const [bc, setBc] = useState<BcAccumulation[] | null>(null);
+  const [coord, setCoord] = useState<CoinCoordination | null>(null);
+  const [entities, setEntities] = useState<CoordinatedEntity[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const [swapRes, bcRes] = await Promise.all([
+      const [swapRes, bcRes, coordRes, entRes] = await Promise.all([
         supabase.from("post_grad_swaps").select("*").eq("token_mint", row.token_mint).order("ts", { ascending: true }),
         supabase.from("bc_accumulation").select("*").eq("token_mint", row.token_mint).order("first_buy_offset_s", { ascending: true }),
+        supabase.from("coin_coordination").select("*").eq("token_mint", row.token_mint).maybeSingle(),
+        supabase.from("coordinated_entities").select("*").eq("token_mint", row.token_mint).order("supply_pct", { ascending: false }),
       ]);
       setSwaps((swapRes.data as PostGradSwap[]) ?? []);
       setBc((bcRes.data as BcAccumulation[]) ?? []);
+      setCoord((coordRes.data as unknown as CoinCoordination) ?? null);
+      setEntities((entRes.data as CoordinatedEntity[]) ?? []);
       setLoading(false);
     })();
   }, [row.token_mint]);
@@ -71,6 +77,51 @@ export function TeamTimeline({ row }: { row: GraduationRow }) {
           hint="smart money entering post-grad = bullish"
         />
       </div>
+
+      {/* Coordinated-entity detection */}
+      {coord && (
+        <div className="mb-3">
+          <div className="flex items-center gap-2 mb-1.5">
+            <p className="text-zinc-600 text-xs uppercase tracking-wide">Coordinated entities</p>
+            {coord.bundled_supply_pct > 30 && (
+              <span className="inline-flex px-1.5 py-0.5 rounded text-xs font-mono border bg-red-900/50 text-red-300 border-red-800">
+                ⚠ {coord.bundled_supply_pct.toFixed(0)}% bundled
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2 mb-2">
+            <Metric label="bundled supply" value={`${coord.bundled_supply_pct.toFixed(1)}%`}
+              color={coord.bundled_supply_pct > 30 ? "red" : "zinc"} hint="% of buy volume in same-slot bundles" />
+            <Metric label="entities" value={coord.entity_count} color="zinc"
+              hint="distinct coordinated wallet groups" />
+            <Metric label="largest team" value={`${coord.largest_entity_wallet_count}w`}
+              color={coord.largest_entity_wallet_count >= 3 ? "red" : "zinc"}
+              hint={`controls ${coord.largest_entity_supply_pct.toFixed(1)}% of supply`} />
+            <Metric label="fresh ratio"
+              value={`${(coord.largest_entity_fresh_ratio * 100).toFixed(0)}%`}
+              color={coord.largest_entity_fresh_ratio > 0.5 ? "red" : "zinc"}
+              hint="fraction of largest entity that are fresh wallets" />
+            {coord.largest_entity_state && (
+              <Metric label="state" value={coord.largest_entity_state}
+                color={["DISTRIBUTING", "DUMPED"].includes(coord.largest_entity_state) ? "red" : "green"} />
+            )}
+          </div>
+          {entities.length > 0 && (
+            <div className="space-y-1 max-h-32 overflow-y-auto">
+              {entities.slice(0, 6).map((e) => (
+                <div key={e.entity_id} className="flex items-center gap-3 text-xs font-mono">
+                  <span className="text-zinc-300 w-12 text-right">{e.supply_pct.toFixed(1)}%</span>
+                  <span className="text-zinc-500 w-10">{e.wallet_count}w</span>
+                  <span className={`w-24 ${["DISTRIBUTING", "DUMPED"].includes(e.state ?? "") ? "text-red-400" : "text-zinc-400"}`}>
+                    {e.state}
+                  </span>
+                  <span className="text-zinc-600 truncate">{(e.edge_sources ?? []).join(", ")}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* BC accumulation (F1) */}
       {bc && bc.length > 0 && (
