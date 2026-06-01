@@ -88,6 +88,10 @@ CREATE TABLE IF NOT EXISTS post_grad_behavior (
     team_sold_pct            DOUBLE PRECISION,
     snipers_sold_pct         DOUBLE PRECISION,
     liquidity_usd            DOUBLE PRECISION,
+    team_buy_count           INTEGER NOT NULL DEFAULT 0,
+    team_sell_count          INTEGER NOT NULL DEFAULT 0,
+    team_net_sol             DOUBLE PRECISION,
+    coordinated_sell_count   INTEGER NOT NULL DEFAULT 0,
     distribution_signal      TEXT NOT NULL DEFAULT 'HOLDING'
                              CHECK (distribution_signal IN ('ACCUMULATING','HOLDING','DISTRIBUTING','DUMPED')),
     UNIQUE (token_mint, check_offset_h)
@@ -95,6 +99,32 @@ CREATE TABLE IF NOT EXISTS post_grad_behavior (
 
 ALTER TABLE post_grad_behavior ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "read-only anon" ON post_grad_behavior FOR SELECT USING (true);
+
+-- For existing Supabase installs, add the new columns:
+ALTER TABLE post_grad_behavior ADD COLUMN IF NOT EXISTS team_buy_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE post_grad_behavior ADD COLUMN IF NOT EXISTS team_sell_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE post_grad_behavior ADD COLUMN IF NOT EXISTS team_net_sol DOUBLE PRECISION;
+ALTER TABLE post_grad_behavior ADD COLUMN IF NOT EXISTS coordinated_sell_count INTEGER NOT NULL DEFAULT 0;
+
+-- ── post_grad_swaps ───────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS post_grad_swaps (
+    token_mint     TEXT NOT NULL REFERENCES tokens(mint),
+    wallet_address TEXT NOT NULL,
+    side           TEXT NOT NULL CHECK (side IN ('buy','sell')),
+    sol_amount     DOUBLE PRECISION NOT NULL,
+    token_amount   DOUBLE PRECISION NOT NULL,
+    price_sol      DOUBLE PRECISION,
+    ts             BIGINT NOT NULL,
+    slot           BIGINT NOT NULL,
+    is_sniper      BOOLEAN NOT NULL DEFAULT FALSE,
+    is_team        BOOLEAN NOT NULL DEFAULT TRUE,
+    PRIMARY KEY (token_mint, wallet_address, slot, side)
+);
+
+ALTER TABLE post_grad_swaps ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "read-only anon" ON post_grad_swaps FOR SELECT USING (true);
+
+CREATE INDEX IF NOT EXISTS idx_pgs_token_ts ON post_grad_swaps(token_mint, ts);
 
 CREATE INDEX IF NOT EXISTS idx_pgb_token_mint ON post_grad_behavior(token_mint);
 
@@ -169,7 +199,13 @@ SELECT
     co_4h.classified             AS outcome_4h,
     co_24h.classified            AS outcome_24h,
     fr.rug_rate                  AS funder_rug_rate,
-    fr.is_known_rugger
+    fr.is_known_rugger,
+    pgb_24h.team_buy_count          AS team_buy_count_24h,
+    pgb_24h.team_sell_count         AS team_sell_count_24h,
+    pgb_24h.team_net_sol            AS team_net_sol_24h,
+    pgb_24h.snipers_sold_pct        AS snipers_sold_pct_24h,
+    pgb_24h.coordinated_sell_count  AS coordinated_sell_count_24h,
+    pgb_24h.liquidity_usd           AS liquidity_usd_24h
 FROM graduation_events ge
 LEFT JOIN tokens t             ON t.mint              = ge.token_mint
 LEFT JOIN team_clusters tc     ON tc.token_mint        = ge.token_mint
@@ -179,6 +215,9 @@ LEFT JOIN post_grad_behavior pgb_1h
 LEFT JOIN post_grad_behavior pgb_4h
                                ON pgb_4h.token_mint    = ge.token_mint
                               AND pgb_4h.check_offset_h = 4
+LEFT JOIN post_grad_behavior pgb_24h
+                               ON pgb_24h.token_mint    = ge.token_mint
+                              AND pgb_24h.check_offset_h = 24
 LEFT JOIN coin_outcomes co_1h  ON co_1h.token_mint     = ge.token_mint
                               AND co_1h.check_offset_h  = 1
 LEFT JOIN coin_outcomes co_4h  ON co_4h.token_mint     = ge.token_mint

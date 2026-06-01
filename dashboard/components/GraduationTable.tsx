@@ -8,6 +8,7 @@ import { VerdictBadge } from "./VerdictBadge";
 import { OutcomeChip } from "./OutcomeChip";
 import { SignalPip } from "./SignalPip";
 import { StatsBar } from "./StatsBar";
+import { TeamTimeline } from "./TeamTimeline";
 
 const PAGE_SIZE = 12;
 
@@ -135,6 +136,7 @@ export function GraduationTable() {
 // ── Token Journey Card ────────────────────────────────────────────────────────
 
 function TokenCard({ row }: { row: GraduationRow }) {
+  const [expanded, setExpanded] = useState(false);
   const isResolved = row.outcome_24h !== null;
   const isMatch = isResolved && row.verdict !== null;
   const correct = isMatch && (
@@ -147,6 +149,8 @@ function TokenCard({ row }: { row: GraduationRow }) {
     : "border-zinc-800";
 
   const solscanUrl = `https://solscan.io/token/${row.token_mint}`;
+  const hasTeamActivity =
+    (row.team_buy_count_24h ?? 0) > 0 || (row.team_sell_count_24h ?? 0) > 0;
 
   return (
     <div className={`rounded-lg border ${borderColor} bg-zinc-900/60 overflow-hidden`}>
@@ -233,8 +237,17 @@ function TokenCard({ row }: { row: GraduationRow }) {
               : <span className="text-zinc-700 text-xs font-mono">pending</span>
             }
           </JourneyStep>
+
+          <button
+            onClick={() => setExpanded((e) => !e)}
+            className="ml-auto text-xs font-mono text-zinc-500 hover:text-zinc-300 transition-colors"
+          >
+            {expanded ? "hide team activity ▲" : `team activity${hasTeamActivity ? "" : " (none yet)"} ▼`}
+          </button>
         </div>
       </div>
+
+      {expanded && <TeamTimeline row={row} />}
     </div>
   );
 }

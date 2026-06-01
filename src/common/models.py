@@ -165,6 +165,10 @@ class PostGradBehavior:
     team_sold_pct: Optional[float] = None    # % of team cluster position sold
     snipers_sold_pct: Optional[float] = None
     liquidity_usd: Optional[float] = None
+    team_buy_count: int = 0
+    team_sell_count: int = 0
+    team_net_sol: Optional[float] = None
+    coordinated_sell_count: int = 0
     distribution_signal: DistributionSignal = DistributionSignal.HOLDING
 
 

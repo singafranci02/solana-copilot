@@ -243,6 +243,10 @@ CREATE TABLE IF NOT EXISTS post_grad_behavior (
     team_sold_pct            REAL,                         -- % of team position sold
     snipers_sold_pct         REAL,
     liquidity_usd            REAL,
+    team_buy_count           INTEGER NOT NULL DEFAULT 0,   -- team buy txns since graduation
+    team_sell_count          INTEGER NOT NULL DEFAULT 0,   -- team sell txns since graduation
+    team_net_sol             REAL,                         -- sell SOL − buy SOL (positive = net out)
+    coordinated_sell_count   INTEGER NOT NULL DEFAULT 0,   -- 5-min windows with ≥2 team sellers
     distribution_signal      TEXT NOT NULL DEFAULT 'HOLDING'
                              CHECK (distribution_signal IN ('ACCUMULATING','HOLDING','DISTRIBUTING','DUMPED'))
 );
@@ -250,6 +254,26 @@ CREATE TABLE IF NOT EXISTS post_grad_behavior (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_post_grad_mint_offset
     ON post_grad_behavior(token_mint, check_offset_h);
 CREATE INDEX IF NOT EXISTS idx_post_grad_checked_at ON post_grad_behavior(checked_at);
+
+-- ── post_grad_swaps ───────────────────────────────────────────────────────────
+-- Individual buy/sell transactions by team cluster members for a graduated token.
+-- Reconstructed from Helius transaction history at each 1h/4h/24h check. The
+-- composite PK dedups across re-fetches (parse_swap yields no tx signature).
+CREATE TABLE IF NOT EXISTS post_grad_swaps (
+    token_mint     TEXT NOT NULL REFERENCES tokens(mint),
+    wallet_address TEXT NOT NULL,
+    side           TEXT NOT NULL CHECK (side IN ('buy','sell')),
+    sol_amount     REAL NOT NULL,
+    token_amount   REAL NOT NULL,
+    price_sol      REAL,                       -- sol_amount/token_amount, NULL if token_amount=0
+    ts             INTEGER NOT NULL,           -- unix epoch (>= graduated_at)
+    slot           INTEGER NOT NULL,
+    is_sniper      INTEGER NOT NULL DEFAULT 0 CHECK (is_sniper IN (0,1)),
+    is_team        INTEGER NOT NULL DEFAULT 1 CHECK (is_team IN (0,1)),
+    PRIMARY KEY (token_mint, wallet_address, slot, side)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pgs_token_ts ON post_grad_swaps(token_mint, ts);
 
 -- ── wallet_graph ──────────────────────────────────────────────────────────────
 -- Co-occurrence graph: wallets that habitually appear together in team clusters.

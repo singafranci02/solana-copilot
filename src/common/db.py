@@ -39,6 +39,11 @@ def migrate() -> None:
         _add_column_if_missing(conn, "team_fingerprints", "avg_first_buy_offset_s", "REAL NOT NULL DEFAULT 0.0")
         _add_column_if_missing(conn, "team_fingerprints", "avg_sniper_rate", "REAL NOT NULL DEFAULT 0.0")
         _add_column_if_missing(conn, "team_fingerprints", "sample_count", "INTEGER NOT NULL DEFAULT 0")
+        # Post-grad swap tracking aggregate columns
+        _add_column_if_missing(conn, "post_grad_behavior", "team_buy_count", "INTEGER NOT NULL DEFAULT 0")
+        _add_column_if_missing(conn, "post_grad_behavior", "team_sell_count", "INTEGER NOT NULL DEFAULT 0")
+        _add_column_if_missing(conn, "post_grad_behavior", "team_net_sol", "REAL")
+        _add_column_if_missing(conn, "post_grad_behavior", "coordinated_sell_count", "INTEGER NOT NULL DEFAULT 0")
         conn.commit()
     finally:
         conn.close()

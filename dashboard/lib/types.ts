@@ -25,6 +25,25 @@ export interface GraduationRow {
   outcome_24h: Outcome | null;
   funder_rug_rate: number | null;
   is_known_rugger: boolean | null;
+  team_buy_count_24h: number | null;
+  team_sell_count_24h: number | null;
+  team_net_sol_24h: number | null;
+  snipers_sold_pct_24h: number | null;
+  coordinated_sell_count_24h: number | null;
+  liquidity_usd_24h: number | null;
+}
+
+export interface PostGradSwap {
+  token_mint: string;
+  wallet_address: string;
+  side: "buy" | "sell";
+  sol_amount: number;
+  token_amount: number;
+  price_sol: number | null;
+  ts: number;
+  slot: number;
+  is_sniper: boolean;
+  is_team: boolean;
 }
 
 export type Database = {
@@ -37,6 +56,7 @@ export type Database = {
       funder_reputation: { Row: { rug_count: number; moon_count: number; ok_count: number } };
       wallet_stats: { Row: { total_calls: number } };
       wallet_graph: { Row: { wallet_a: string; wallet_b: string; co_appearances: number; rug_co_appearances: number } };
+      post_grad_swaps: { Row: PostGradSwap };
     };
     Views: {
       graduation_feed: { Row: GraduationRow };

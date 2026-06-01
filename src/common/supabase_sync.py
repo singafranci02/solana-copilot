@@ -68,6 +68,20 @@ async def _run(table: str, record: dict[str, Any], conflict_col: str = "token_mi
     await asyncio.to_thread(_upsert_keyed, table, record, conflict_col)
 
 
+def _upsert_many(table: str, records: list[dict[str, Any]], conflict_col: str) -> None:
+    client = _get_client()
+    if client is None or not records:
+        return
+    try:
+        client.table(table).upsert(records, on_conflict=conflict_col).execute()
+    except Exception as exc:
+        logger.debug("supabase batch upsert %s failed: %s", table, exc)
+
+
+async def _run_many(table: str, records: list[dict[str, Any]], conflict_col: str) -> None:
+    await asyncio.to_thread(_upsert_many, table, records, conflict_col)
+
+
 # ── Public sync functions (one per table) ─────────────────────────────────────
 # Each returns a coroutine — callers should wrap in asyncio.create_task().
 
@@ -151,6 +165,12 @@ async def post_grad_behavior(
     holders_remaining_count: int | None,
     team_sold_pct: float | None,
     distribution_signal: str,
+    snipers_sold_pct: float | None = None,
+    liquidity_usd: float | None = None,
+    team_buy_count: int = 0,
+    team_sell_count: int = 0,
+    team_net_sol: float | None = None,
+    coordinated_sell_count: int = 0,
 ) -> None:
     await _run("post_grad_behavior", {
         "token_mint": token_mint,
@@ -159,7 +179,21 @@ async def post_grad_behavior(
         "holders_remaining_count": holders_remaining_count,
         "team_sold_pct": team_sold_pct,
         "distribution_signal": distribution_signal,
+        "snipers_sold_pct": snipers_sold_pct,
+        "liquidity_usd": liquidity_usd,
+        "team_buy_count": team_buy_count,
+        "team_sell_count": team_sell_count,
+        "team_net_sol": team_net_sol,
+        "coordinated_sell_count": coordinated_sell_count,
     }, conflict_col="token_mint,check_offset_h")
+
+
+async def post_grad_swaps_batch(token_mint: str, swaps: list[dict[str, Any]]) -> None:
+    """Upsert a batch of individual team swaps for a graduated token."""
+    await _run_many(
+        "post_grad_swaps", swaps,
+        conflict_col="token_mint,wallet_address,slot,side",
+    )
 
 
 async def funder_reputation(

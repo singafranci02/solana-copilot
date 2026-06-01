@@ -32,6 +32,8 @@ _DUMPED_HOLDER_THRESHOLD = 5       # fewer than 5 unique holders → DUMPED
 _DISTRIBUTING_SELL_PCT   = 30.0   # team sold > 30% of grad-time position → DISTRIBUTING
 _ACCUMULATING_BUY_PCT    = 10.0   # team grew position > 10% → ACCUMULATING
 
+_ALIVE_LIQUIDITY_FLOOR   = 500.0  # below this USD liquidity, skip per-wallet tx fetch
+
 
 async def schedule_distribution_checks(
     token_mint: str, graduation_ts: int
@@ -68,16 +70,18 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
         cex_addresses = get_all_cex_addresses(conn)
 
         cluster_row = conn.execute(
-            """SELECT member_addresses, supply_pct_at_graduation
+            """SELECT member_addresses, supply_pct_at_graduation, is_bc_sniper
                FROM team_clusters WHERE token_mint = ?
                ORDER BY supply_pct_at_graduation DESC LIMIT 1""",
             (token_mint,),
         ).fetchone()
         team_addresses: set[str] = set()
         grad_team_pct: float = 0.0
+        is_bc_sniper = False
         if cluster_row:
             team_addresses = set(json.loads(cluster_row["member_addresses"] or "[]"))
             grad_team_pct = float(cluster_row["supply_pct_at_graduation"] or 0)
+            is_bc_sniper = bool(cluster_row["is_bc_sniper"])
 
         async with HeliusClient() as helius:
             accounts = await helius.get_token_largest_accounts(token_mint)
@@ -107,31 +111,65 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
             holder_count=len(accounts),
         )
 
+        # ── Transaction-level team behaviour ──────────────────────────────────
+        # Fetch DexScreener once: gives liquidity (dead-token guard) + price.
+        liquidity_usd = await _fetch_liquidity_usd(token_mint)
+
+        metrics = None
+        team_swaps = []
+        if team_addresses and (liquidity_usd is None or liquidity_usd >= _ALIVE_LIQUIDITY_FLOOR):
+            from src.analyzer.post_grad_swaps import (
+                fetch_team_swaps, compute_metrics, upsert_swaps,
+            )
+            grad_positions = _load_grad_positions(token_mint, conn)
+            graduated_at = _load_graduated_at(token_mint, conn)
+            async with HeliusClient() as helius2:
+                team_swaps = await fetch_team_swaps(
+                    helius2, token_mint, sorted(team_addresses), since_ts=graduated_at,
+                )
+            sniper_set = team_addresses if is_bc_sniper else set()
+            upsert_swaps(conn, token_mint, team_swaps, sniper_set, is_team=True)
+            metrics = compute_metrics(team_swaps, grad_positions, sniper_set or team_addresses)
+
         behavior = PostGradBehavior(
             token_mint=token_mint,
             checked_at=int(time.time()),
             check_offset_h=offset_h,
             holders_remaining_count=len(accounts),
             team_sold_pct=team_sold_pct,
-            snipers_sold_pct=None,   # TODO: track snipers separately
-            liquidity_usd=None,      # TODO: fetch from PumpSwap pool via on-chain call
+            snipers_sold_pct=metrics.snipers_sold_pct if metrics else None,
+            liquidity_usd=liquidity_usd,
+            team_buy_count=metrics.team_buy_count if metrics else 0,
+            team_sell_count=metrics.team_sell_count if metrics else 0,
+            team_net_sol=metrics.team_net_sol if metrics else None,
+            coordinated_sell_count=metrics.coordinated_sell_count if metrics else 0,
             distribution_signal=signal,
         )
 
         conn.execute(
             """INSERT INTO post_grad_behavior
                (token_mint, checked_at, check_offset_h, holders_remaining_count,
-                team_sold_pct, snipers_sold_pct, liquidity_usd, distribution_signal)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                team_sold_pct, snipers_sold_pct, liquidity_usd,
+                team_buy_count, team_sell_count, team_net_sol, coordinated_sell_count,
+                distribution_signal)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(token_mint, check_offset_h) DO UPDATE SET
                    checked_at              = excluded.checked_at,
                    holders_remaining_count = excluded.holders_remaining_count,
                    team_sold_pct           = excluded.team_sold_pct,
+                   snipers_sold_pct        = excluded.snipers_sold_pct,
+                   liquidity_usd           = excluded.liquidity_usd,
+                   team_buy_count          = excluded.team_buy_count,
+                   team_sell_count         = excluded.team_sell_count,
+                   team_net_sol            = excluded.team_net_sol,
+                   coordinated_sell_count  = excluded.coordinated_sell_count,
                    distribution_signal     = excluded.distribution_signal""",
             (
                 behavior.token_mint, behavior.checked_at, behavior.check_offset_h,
                 behavior.holders_remaining_count, behavior.team_sold_pct,
                 behavior.snipers_sold_pct, behavior.liquidity_usd,
+                behavior.team_buy_count, behavior.team_sell_count,
+                behavior.team_net_sol, behavior.coordinated_sell_count,
                 behavior.distribution_signal.value,
             ),
         )
@@ -154,7 +192,32 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
             holders_remaining_count=behavior.holders_remaining_count,
             team_sold_pct=behavior.team_sold_pct,
             distribution_signal=signal.value,
+            snipers_sold_pct=behavior.snipers_sold_pct,
+            liquidity_usd=behavior.liquidity_usd,
+            team_buy_count=behavior.team_buy_count,
+            team_sell_count=behavior.team_sell_count,
+            team_net_sol=behavior.team_net_sol,
+            coordinated_sell_count=behavior.coordinated_sell_count,
         ))
+        if team_swaps:
+            asyncio.create_task(sb.post_grad_swaps_batch(
+                token_mint=token_mint,
+                swaps=[
+                    {
+                        "token_mint": token_mint,
+                        "wallet_address": s.signer,
+                        "side": s.side,
+                        "sol_amount": s.sol_amount,
+                        "token_amount": s.token_amount,
+                        "price_sol": (s.sol_amount / s.token_amount) if s.token_amount else None,
+                        "ts": s.timestamp,
+                        "slot": s.slot,
+                        "is_sniper": bool(is_bc_sniper and s.signer in team_addresses),
+                        "is_team": True,
+                    }
+                    for s in team_swaps
+                ],
+            ))
 
         # Record first DISTRIBUTING signal for dump timing memory
         if signal == DistributionSignal.DISTRIBUTING:
@@ -291,3 +354,54 @@ def get_latest_signal(token_mint: str, conn) -> DistributionSignal | None:
         return DistributionSignal(row["distribution_signal"])
     except (ValueError, KeyError):
         return None
+
+
+# ── post-grad swap helpers ──────────────────────────────────────────────────────
+
+async def _fetch_liquidity_usd(token_mint: str) -> float | None:
+    """Current USD liquidity from DexScreener's highest-liquidity pair, or None."""
+    import aiohttp
+    url = f"https://api.dexscreener.com/latest/dex/tokens/{token_mint}"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+        pairs = data.get("pairs") or []
+        if not pairs:
+            return None
+        best = max(pairs, key=lambda p: (p.get("liquidity") or {}).get("usd", 0) or 0)
+        liq = (best.get("liquidity") or {}).get("usd")
+        return float(liq) if liq is not None else None
+    except Exception:
+        return None
+
+
+def _load_graduated_at(token_mint: str, conn) -> int:
+    """Graduation timestamp for a token, or 0 if unknown."""
+    row = conn.execute(
+        "SELECT graduated_at FROM graduation_events WHERE token_mint = ?", (token_mint,)
+    ).fetchone()
+    return int(row["graduated_at"]) if row and row["graduated_at"] else 0
+
+
+def _load_grad_positions(token_mint: str, conn) -> dict[str, float]:
+    """Map wallet → token holding at graduation, from bc_top_holders_json."""
+    row = conn.execute(
+        "SELECT bc_top_holders_json FROM graduation_events WHERE token_mint = ?",
+        (token_mint,),
+    ).fetchone()
+    if not row or not row["bc_top_holders_json"]:
+        return {}
+    try:
+        holders = json.loads(row["bc_top_holders_json"])
+    except Exception:
+        return {}
+    positions: dict[str, float] = {}
+    for h in holders:
+        wallet = h.get("wallet")
+        ui = h.get("ui_amount")
+        if wallet and ui:
+            positions[wallet] = float(ui)
+    return positions
