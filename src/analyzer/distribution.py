@@ -113,7 +113,7 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
 
         # ── Transaction-level behaviour + holder trajectory ───────────────────
         # Fetch DexScreener once: liquidity (dead-token guard) + USD price (F4b).
-        liquidity_usd, price_usd = await _fetch_dex_stats(token_mint)
+        liquidity_usd, price_usd, _pair = await _fetch_dex_stats(token_mint)
 
         metrics = None
         team_swaps = []
@@ -425,33 +425,37 @@ def get_latest_signal(token_mint: str, conn) -> DistributionSignal | None:
 
 # ── post-grad swap helpers ──────────────────────────────────────────────────────
 
-async def _fetch_dex_stats(token_mint: str) -> tuple[float | None, float | None]:
-    """Return (liquidity_usd, price_usd) from DexScreener's highest-liquidity pair."""
+async def _fetch_dex_stats(
+    token_mint: str,
+) -> tuple[float | None, float | None, str | None]:
+    """Return (liquidity_usd, price_usd, pair_address) from the top-liquidity pair."""
     import aiohttp
     url = f"https://api.dexscreener.com/latest/dex/tokens/{token_mint}"
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 if resp.status != 200:
-                    return None, None
+                    return None, None, None
                 data = await resp.json()
         pairs = data.get("pairs") or []
         if not pairs:
-            return None, None
+            return None, None, None
         best = max(pairs, key=lambda p: (p.get("liquidity") or {}).get("usd", 0) or 0)
         liq = (best.get("liquidity") or {}).get("usd")
         price = best.get("priceUsd")
+        pair_address = best.get("pairAddress")
         return (
             float(liq) if liq is not None else None,
             float(price) if price is not None else None,
+            pair_address,
         )
     except Exception:
-        return None, None
+        return None, None, None
 
 
 async def _fetch_liquidity_usd(token_mint: str) -> float | None:
     """Current USD liquidity from DexScreener's highest-liquidity pair, or None."""
-    liq, _ = await _fetch_dex_stats(token_mint)
+    liq, _, _ = await _fetch_dex_stats(token_mint)
     return liq
 
 

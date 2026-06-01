@@ -313,6 +313,32 @@ CREATE TABLE IF NOT EXISTS holder_snapshots (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_holder_snap_mint_offset
     ON holder_snapshots(token_mint, check_offset_h);
 
+-- ── live_trades ───────────────────────────────────────────────────────────────
+-- Full order flow (every buy/sell, every wallet) for watched/backfilled tokens,
+-- with each trade's wallet tagged (team/smart_money/known_rugger/new/unknown).
+-- High volume — SQLite is the source of truth; Supabase gets only aggregates +
+-- a recent-N tape. source='live' (PumpPortal stream) or 'backfill' (Helius pool history).
+CREATE TABLE IF NOT EXISTS live_trades (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_mint     TEXT NOT NULL REFERENCES tokens(mint),
+    wallet_address TEXT NOT NULL,
+    side           TEXT NOT NULL CHECK (side IN ('buy','sell')),
+    sol_amount     REAL NOT NULL,
+    token_amount   REAL NOT NULL,
+    price_sol      REAL,
+    price_usd      REAL,
+    ts             INTEGER NOT NULL,
+    slot           INTEGER,
+    signature      TEXT,
+    source         TEXT NOT NULL CHECK (source IN ('live','backfill')),
+    wallet_tag     TEXT NOT NULL DEFAULT 'unknown'
+                   CHECK (wallet_tag IN ('team','smart_money','known_rugger','new','unknown')),
+    dedup_key      TEXT NOT NULL UNIQUE
+);
+
+CREATE INDEX IF NOT EXISTS idx_live_trades_token_ts  ON live_trades(token_mint, ts);
+CREATE INDEX IF NOT EXISTS idx_live_trades_token_tag ON live_trades(token_mint, wallet_tag);
+
 -- ── wallet_graph ──────────────────────────────────────────────────────────────
 -- Co-occurrence graph: wallets that habitually appear together in team clusters.
 -- Survives wallet rotation — recycling even 1-2 wallets across launches exposes

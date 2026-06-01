@@ -161,13 +161,30 @@ class HeliusClient:
         raise RuntimeError("request failed after all retries")
 
     async def get_transactions_for_address(
-        self, address: str, limit: int = 100
+        self,
+        address: str,
+        limit: int = 100,
+        before: str | None = None,
+        until: str | None = None,
+        tx_type: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Return full Helius-enhanced transactions for a wallet address."""
+        """Return full Helius-enhanced transactions for an address.
+
+        before:  signature cursor — return txs older than this signature (pagination).
+        until:   signature — stop at this signature.
+        tx_type: Helius enhanced type filter, e.g. "SWAP".
+        """
+        params: dict[str, Any] = {"limit": limit}
+        if before:
+            params["before"] = before
+        if until:
+            params["until"] = until
+        if tx_type:
+            params["type"] = tx_type
         return await self._request(
             "GET",
             f"{self.BASE_URL}/addresses/{address}/transactions",
-            params={"limit": limit},
+            params=params,
         )
 
     async def get_signatures_for_address(
@@ -294,6 +311,41 @@ def parse_swap(raw_tx: dict[str, Any]) -> Swap | None:
         timestamp=timestamp,
         slot=slot,
     )
+
+
+async def paginate_address_txs(
+    client,
+    address: str,
+    *,
+    until_ts: int,
+    max_pages: int = 50,
+    tx_type: str | None = None,
+) -> list[dict[str, Any]]:
+    """Walk an address's tx history backward until until_ts, empty, or max_pages.
+
+    Uses the `before` signature cursor. `client` is any object exposing
+    get_transactions_for_address(address, limit, before, tx_type) — so this is
+    unit-testable with a mock. Returns raw enhanced txs with timestamp >= until_ts.
+    """
+    out: list[dict[str, Any]] = []
+    before: str | None = None
+    for _ in range(max_pages):
+        page = await client.get_transactions_for_address(
+            address, limit=100, before=before, tx_type=tx_type,
+        )
+        if not page:
+            break
+        for tx in page:
+            if int(tx.get("timestamp", 0)) >= until_ts:
+                out.append(tx)
+        oldest_ts = int(page[-1].get("timestamp", 0))
+        if oldest_ts < until_ts:
+            break
+        next_before = page[-1].get("signature")
+        if not next_before or next_before == before:
+            break
+        before = next_before
+    return out
 
 
 # ── backward-compat helpers (used by existing callers / smoke tests) ──────────
