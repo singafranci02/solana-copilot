@@ -29,6 +29,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             >
               Algorithm
             </Link>
+            <Link
+              href="/insights"
+              className="px-3 py-1 rounded text-xs font-mono text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+            >
+              Insights
+            </Link>
           </nav>
         </header>
         <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
