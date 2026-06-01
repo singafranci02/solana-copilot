@@ -17,8 +17,13 @@ from src.common.config import settings
 from src.common.models import TokenBuyer
 
 PUMP_FUN_PROGRAM_ID = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+# PumpSwap AMM — where graduated tokens trade post-migration
+PUMPSWAP_PROGRAM_ID = "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"
 # TODO: replace with confirmed on-chain program ID once Bags is deployed to mainnet
 BAGS_PROGRAM_ID = "BaGS111111111111111111111111111111111111111111"
+
+# Helius `source` labels we treat as a tradeable swap
+_SWAP_SOURCES = {"PUMP_FUN", "PUMP_AMM", "PUMPSWAP", "BAGS", "RAYDIUM", "JUPITER", "METEORA", "ORCA"}
 
 _LAMPORTS_PER_SOL = 1_000_000_000
 _METADATA_CACHE_TTL = 86_400  # 24 h in seconds
@@ -246,11 +251,12 @@ class HeliusClient:
 def parse_swap(raw_tx: dict[str, Any]) -> Swap | None:
     """Extract a canonical Swap from a Helius enhanced transaction.
 
-    Recognises Pump.fun (source=="PUMP_FUN" or program 6EF8…) and
-    Bags (source=="BAGS" or BAGS_PROGRAM_ID in instructions).
-    Returns None for any transaction that doesn't match.
+    Recognises Pump.fun bonding-curve AND PumpSwap AMM (post-graduation) swaps,
+    Bags, and any tx Helius classifies as type=="SWAP". Callers filter by mint
+    afterward, so a permissive gate is safe. Returns None if no swap is found.
     """
     source = raw_tx.get("source", "")
+    tx_type = raw_tx.get("type", "")
 
     program_ids: set[str] = set()
     for inst in raw_tx.get("instructions", []):
@@ -258,10 +264,14 @@ def parse_swap(raw_tx: dict[str, Any]) -> Swap | None:
         for inner in inst.get("innerInstructions", []):
             program_ids.add(inner.get("programId", ""))
 
-    is_pump = source == "PUMP_FUN" or PUMP_FUN_PROGRAM_ID in program_ids
-    is_bags = source == "BAGS" or BAGS_PROGRAM_ID in program_ids
+    known_program = (
+        PUMP_FUN_PROGRAM_ID in program_ids
+        or PUMPSWAP_PROGRAM_ID in program_ids
+        or BAGS_PROGRAM_ID in program_ids
+    )
+    is_swap = tx_type == "SWAP" or source in _SWAP_SOURCES or known_program
 
-    if not (is_pump or is_bags):
+    if not is_swap:
         return None
 
     signer: str = raw_tx.get("feePayer", "")

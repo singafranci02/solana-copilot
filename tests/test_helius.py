@@ -138,13 +138,28 @@ def test_parse_swap_bags_sell():
     assert swap.slot == 300_000_002
 
 
-def test_parse_swap_unknown_source_returns_none():
+def test_parse_swap_non_swap_returns_none():
+    # Not a swap: non-DEX source, no SWAP type, unknown program → None
     tx = {
         **PUMP_FUN_BUY_TX,
-        "source": "RAYDIUM",
+        "type": "TRANSFER",
+        "source": "SYSTEM_PROGRAM",
         "instructions": [{"programId": "SomeOtherProgram1111111111111111111111"}],
     }
     assert parse_swap(tx) is None
+
+
+def test_parse_swap_recognises_pumpswap_amm():
+    # Post-graduation swaps happen on PumpSwap AMM — must be recognised
+    tx = {
+        **PUMP_FUN_BUY_TX,
+        "type": "SWAP",
+        "source": "PUMP_AMM",
+        "instructions": [{"programId": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"}],
+    }
+    swap = parse_swap(tx)
+    assert swap is not None
+    assert swap.side == "buy"
 
 
 def test_parse_swap_detected_via_program_id_fallback():
