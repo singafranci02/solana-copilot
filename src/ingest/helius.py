@@ -110,7 +110,7 @@ class HeliusClient:
     def __init__(
         self,
         api_key: str | None = None,
-        requests_per_second: int = 10,
+        requests_per_second: int = 5,
         db_path: str | None = None,
     ) -> None:
         self._api_key = api_key or settings.helius_api_key
@@ -222,16 +222,21 @@ class HeliusClient:
         return (data.get("result") or {}).get("value", [])
 
     async def get_token_metadata(self, mint: str) -> dict[str, Any]:
-        """Fetch DAS asset metadata for a mint address; results cached for 24 h."""
+        """Fetch DAS asset metadata for a mint; cached 24h. Non-fatal: returns {}
+        on error (e.g. 429) so callers fall back to DexScreener for the name
+        rather than aborting the whole graduation."""
         cached = self._cache.get(mint)
         if cached is not None:
             return cached
 
-        data = await self._request(
-            "POST",
-            f"{self.BASE_URL}/token-metadata",
-            json_body={"mintAccounts": [mint]},
-        )
+        try:
+            data = await self._request(
+                "POST",
+                f"{self.BASE_URL}/token-metadata",
+                json_body={"mintAccounts": [mint]},
+            )
+        except Exception:
+            return {}
         result: dict[str, Any] = data[0] if isinstance(data, list) else data
         self._cache.set(mint, result)
         return result

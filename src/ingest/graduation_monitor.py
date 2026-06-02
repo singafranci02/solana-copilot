@@ -394,7 +394,7 @@ async def analyse_graduation(
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-_BC_RECONSTRUCT_TOP_N = 15   # cap holders reconstructed per graduation (API budget)
+_BC_RECONSTRUCT_TOP_N = 8   # cap holders reconstructed per graduation (Helius budget)
 
 
 async def _reconstruct_bc(
@@ -508,7 +508,7 @@ def _detect_launch_coordination(mint: str, bc_swaps, conn) -> None:
         ))
 
 
-_FUNDER_RESOLVE_MAX_MEMBERS = 10   # cap funding lookups per graduation
+_FUNDER_RESOLVE_MAX_MEMBERS = 5   # cap funding lookups per graduation (Helius budget)
 
 
 async def _resolve_funding_source(member_addresses: list[str], conn) -> str | None:
