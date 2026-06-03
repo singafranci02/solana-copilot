@@ -29,8 +29,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.common.db import get_connection
-from src.ingest.helius import HeliusClient, paginate_address_txs, parse_swap
-from src.analyzer.distribution import _fetch_dex_stats
+from src.ingest.solana_tracker import SolanaTrackerClient
 from src.analyzer.wallet_tag import build_mint_context, tag_wallet
 from src.analyzer.live_trades import LiveTrade, insert_trades
 
@@ -45,26 +44,15 @@ if "--max-pages" in sys.argv:
     MAX_PAGES = int(sys.argv[sys.argv.index("--max-pages") + 1])
 
 
-async def backfill_token(helius, conn, mint: str, graduated_at: int) -> int:
-    liq, _price, pool = await _fetch_dex_stats(mint)
-    if not pool:
-        logger.debug("skip %s.. — no pool resolvable", mint[:8])
-        return 0
-
+async def backfill_token(st, conn, mint: str, graduated_at: int) -> int:
     until_ts = max(graduated_at, int(time.time()) - DAYS * 86_400)
-    raw = await paginate_address_txs(
-        helius, pool, until_ts=until_ts, max_pages=MAX_PAGES, tx_type="SWAP",
-    )
-    if not raw:
+    swaps = await st.get_token_trades(mint, since_ts=until_ts, max_pages=MAX_PAGES)
+    if not swaps:
         return 0
 
     ctx = build_mint_context(conn, mint)
-    trades: list[LiveTrade] = []
-    for tx in raw:
-        sw = parse_swap(tx)
-        if sw is None or sw.token_mint != mint:
-            continue
-        trades.append(LiveTrade(
+    trades = [
+        LiveTrade(
             token_mint=mint,
             wallet_address=sw.signer,
             side=sw.side,
@@ -72,14 +60,15 @@ async def backfill_token(helius, conn, mint: str, graduated_at: int) -> int:
             token_amount=sw.token_amount,
             ts=sw.timestamp,
             slot=sw.slot,
-            signature=tx.get("signature"),
             wallet_tag=tag_wallet(ctx, sw.signer),
             source="backfill",
-        ))
+        )
+        for sw in swaps
+    ]
 
     n = insert_trades(conn, trades)
     if n:
-        logger.info("%s.. — %d trades backfilled (pool %s..)", mint[:8], n, pool[:8])
+        logger.info("%s.. — %d trades backfilled", mint[:8], n)
     return n
 
 
@@ -108,12 +97,12 @@ async def main() -> None:
                 total, DAYS, MAX_PAGES)
     grand_total = 0
 
-    async with HeliusClient() as helius:
+    async with SolanaTrackerClient() as st:
         for i, row in enumerate(rows):
             conn = get_connection()
             try:
                 grand_total += await backfill_token(
-                    helius, conn, row["token_mint"], int(row["graduated_at"]),
+                    st, conn, row["token_mint"], int(row["graduated_at"]),
                 )
             except Exception as exc:
                 logger.debug("backfill failed for %s..: %s", row["token_mint"][:8], exc)

@@ -22,7 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.common.db import get_connection
-from src.ingest.helius import HeliusClient, extract_funding_source
+from src.ingest.rpc import RpcClient, extract_funding_source_rpc
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
 logger = logging.getLogger(__name__)
@@ -31,14 +31,13 @@ MAX_MEMBERS = 10
 SLEEP_BETWEEN = 0.3
 
 
-async def resolve(conn, helius, token_mint: str, members: list[str]) -> str | None:
+async def resolve(conn, rpc, token_mint: str, members: list[str]) -> str | None:
     funders: list[str] = []
     for addr in members[:MAX_MEMBERS]:
         try:
-            txs = await helius.get_transactions_for_address(addr, limit=100)
+            funder = await extract_funding_source_rpc(rpc, addr)
         except Exception:
             continue
-        funder = extract_funding_source(list(reversed(txs or [])))
         if funder:
             conn.execute(
                 """INSERT INTO wallets (address, funding_source) VALUES (?, ?)
@@ -68,12 +67,12 @@ async def main() -> None:
     logger.info("resolving funding_source for %d clusters...", total)
     resolved = 0
 
-    async with HeliusClient() as helius:
+    async with RpcClient() as rpc:
         for i, row in enumerate(rows):
             members = json.loads(row["member_addresses"] or "[]")
             if not members:
                 continue
-            funder = await resolve(conn, helius, row["token_mint"], members)
+            funder = await resolve(conn, rpc, row["token_mint"], members)
             if funder:
                 conn.execute(
                     "UPDATE team_clusters SET funding_source = ? WHERE token_mint = ?",

@@ -21,7 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.common.db import get_connection
-from src.ingest.helius import HeliusClient
+from src.ingest.solana_tracker import SolanaTrackerClient
 from src.analyzer.post_grad_swaps import fetch_team_swaps, compute_metrics, upsert_swaps
 from src.analyzer.distribution import (
     _fetch_liquidity_usd, _load_grad_positions, _ALIVE_LIQUIDITY_FLOOR,
@@ -74,8 +74,8 @@ async def main() -> None:
             continue
         alive += 1
 
-        async with HeliusClient() as helius:
-            swaps = await fetch_team_swaps(helius, mint, sorted(members), since_ts=graduated_at)
+        async with SolanaTrackerClient() as st:
+            swaps = await fetch_team_swaps(st, mint, sorted(members), since_ts=graduated_at)
 
         sniper_set = set(members) if is_sniper else set()
         n = upsert_swaps(conn, mint, swaps, sniper_set, is_team=True)

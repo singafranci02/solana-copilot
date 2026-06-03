@@ -16,9 +16,7 @@ from dataclasses import dataclass
 
 from src.common.models import TokenBuyer
 from src.ingest.helius import Swap
-from src.analyzer.post_grad_swaps import (
-    fetch_wallet_swaps, filter_token_swaps_window, dedup_swaps,
-)
+from src.analyzer.post_grad_swaps import filter_token_swaps_window, dedup_swaps
 
 logger = logging.getLogger(__name__)
 
@@ -98,18 +96,19 @@ def to_token_buyers(swaps: list[Swap], token_mint: str) -> list[TokenBuyer]:
 # ── IO ───────────────────────────────────────────────────────────────────────
 
 async def reconstruct_bc_holders(
-    helius,
+    client,
     token_mint: str,
-    holder_wallets: list[str],
+    holder_wallets: list[str] | None,
     token_created_at: int,
     graduated_at: int,
 ) -> tuple[dict[str, BcAccumulation], list[Swap]]:
-    """Reconstruct BC accumulation for a set of holders.
+    """Reconstruct BC accumulation from the token's trade history (Solana Tracker).
 
-    Returns (per-wallet BcAccumulation map, all BC swaps) — the raw swaps are
-    reused by the funding-source resolution step to avoid extra API calls.
+    One mint-level call returns ALL bonding-curve traders (not just top holders),
+    filtered to the BC window [token_created_at, graduated_at]. `holder_wallets` is
+    no longer needed for fetching. Returns (per-wallet BcAccumulation, BC swaps).
     """
-    raw = await fetch_wallet_swaps(helius, holder_wallets)
+    raw = await client.get_token_trades(token_mint, since_ts=token_created_at)
     bc_swaps = dedup_swaps(
         filter_token_swaps_window(raw, token_mint, token_created_at, graduated_at)
     )

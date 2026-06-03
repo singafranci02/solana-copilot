@@ -62,7 +62,7 @@ async def _deferred_check(
 
 async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
     """Fetch current holder state, classify, persist, trigger downstream updates."""
-    from src.ingest.helius import HeliusClient
+    from src.ingest.solana_tracker import SolanaTrackerClient
     from src.common.cex_wallets import get_all_cex_addresses
 
     conn = get_connection()
@@ -83,8 +83,8 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
             grad_team_pct = float(cluster_row["supply_pct_at_graduation"] or 0)
             is_bc_sniper = bool(cluster_row["is_bc_sniper"])
 
-        async with HeliusClient() as helius:
-            accounts = await helius.get_token_largest_accounts(token_mint)
+        async with SolanaTrackerClient() as st:
+            accounts = await st.get_token_holders(token_mint)
 
         if not accounts:
             return None
@@ -139,9 +139,9 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
             smart_money_set = {w.address for w in get_smart_money_wallets(conn)}
 
             if tracked:
-                async with HeliusClient() as helius2:
+                async with SolanaTrackerClient() as st2:
                     team_swaps = await fetch_team_swaps(
-                        helius2, token_mint, tracked, since_ts=graduated_at,
+                        st2, token_mint, tracked, since_ts=graduated_at,
                     )
                 sniper_set = team_addresses if is_bc_sniper else set()
                 upsert_swaps(

@@ -10,7 +10,10 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # On-chain (required)
+    # On-chain data (Solana Tracker = primary trades/holders; RPC = funding tracing only)
+    solana_tracker_api_key: str = Field(default="", alias="SOLANA_TRACKER_API_KEY")
+    rpc_url: str = Field(default="", alias="RPC_URL")   # free Alchemy/Ankr Solana endpoint
+    # Deprecated — Helius free tier exhausted; kept only as a fallback RPC if RPC_URL is blank
     helius_api_key: str = Field(default="", alias="HELIUS_API_KEY")
 
     # My wallet (optional — journal auto-ingest)

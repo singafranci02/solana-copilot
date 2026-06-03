@@ -139,45 +139,18 @@ def compute_metrics(
 
 # ── IO ───────────────────────────────────────────────────────────────────────
 
-async def fetch_wallet_swaps(helius, wallets: list[str]) -> list[Swap]:
-    """Fetch + parse ALL swaps (any token) for a set of wallets.
-
-    Lower-level shared fetch: uses the passed-in HeliusClient so calls share its
-    rate-limit semaphore. Callers apply their own token/time-window filtering.
-    """
-    async def _one(addr: str) -> list[Swap]:
-        try:
-            txs = await helius.get_transactions_for_address(addr, limit=100)
-        except Exception as exc:
-            logger.debug("tx fetch failed for %s..: %s", addr[:8], exc)
-            return []
-        out: list[Swap] = []
-        for tx in txs or []:
-            sw = parse_swap(tx)
-            if sw is not None:
-                out.append(sw)
-        return out
-
-    results = await asyncio.gather(*[_one(w) for w in wallets], return_exceptions=True)
-    all_swaps: list[Swap] = []
-    for r in results:
-        if isinstance(r, list):
-            all_swaps.extend(r)
-    return all_swaps
-
-
 async def fetch_team_swaps(
-    helius,
+    client,
     token_mint: str,
-    wallets: list[str],
+    wallets: list[str] | None,
     since_ts: int,
 ) -> list[Swap]:
-    """Fetch + parse swaps for `wallets` on `token_mint` since graduation.
+    """Fetch swaps for `token_mint` since graduation via Solana Tracker (by mint).
 
-    Re-fetches the full window each time; dedup_swaps + the table PK make it
-    idempotent across the 1h/4h/24h checks.
+    `wallets` is unused for fetching now (one mint-level call returns all traders);
+    the caller filters team-only afterward. Kept for signature compatibility.
     """
-    all_swaps = await fetch_wallet_swaps(helius, wallets)
+    all_swaps = await client.get_token_trades(token_mint, since_ts=since_ts)
     return dedup_swaps(filter_token_swaps(all_swaps, token_mint, since_ts))
 
 

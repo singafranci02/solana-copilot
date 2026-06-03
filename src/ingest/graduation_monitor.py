@@ -31,6 +31,7 @@ from dataclasses import dataclass
 
 import aiohttp
 
+from src.common.config import settings
 from src.common.db import get_connection
 from src.common.models import GraduationEvent, TeamCluster, TokenBuyer
 
@@ -161,7 +162,7 @@ async def _handle_graduation(
     detection_lag: int,
 ) -> None:
     """Persist the graduation and run full structural analysis."""
-    from src.ingest.helius import HeliusClient
+    from src.ingest.solana_tracker import SolanaTrackerClient
 
     conn = get_connection()
     try:
@@ -171,14 +172,10 @@ async def _handle_graduation(
         ).fetchone()
 
         if token_row is None:
-            async with HeliusClient() as helius:
-                meta = await helius.get_token_metadata(mint)
-            symbol, name = _extract_symbol_name(meta)
-            # Fallback to DexScreener if Helius metadata was empty/unparseable
-            if symbol == "UNKNOWN":
-                ds_symbol, ds_name = await _dexscreener_symbol_name(mint)
-                symbol = ds_symbol or symbol
-                name = ds_name or name
+            # DexScreener is the primary (free) name source now
+            ds_symbol, ds_name = await _dexscreener_symbol_name(mint)
+            symbol = ds_symbol or "UNKNOWN"
+            name = ds_name or "Unknown"
             created_at = int(time.time())
             conn.execute(
                 """INSERT OR IGNORE INTO tokens
@@ -204,12 +201,12 @@ async def _handle_graduation(
         )
         conn.commit()
 
-        # Fetch top BC holders at graduation + reconstruct their BC accumulation
-        # (timing-critical: BC txs are only in the recent-tx window right now)
-        async with HeliusClient() as helius:
-            accounts = await helius.get_token_largest_accounts(mint)
+        # Fetch holders at graduation + reconstruct BC accumulation from the token's
+        # full trade history (Solana Tracker, by mint).
+        async with SolanaTrackerClient() as st:
+            accounts = await st.get_token_holders(mint)
             bc_top_holders = _parse_bc_holders(accounts)
-            await _reconstruct_bc(helius, mint, bc_top_holders, token_created_at, now, conn)
+            await _reconstruct_bc(st, mint, bc_top_holders, token_created_at, now, conn)
 
         conn.execute(
             "UPDATE graduation_events SET bc_top_holders_json = ? WHERE token_mint = ?",
@@ -518,23 +515,21 @@ async def _resolve_funding_source(member_addresses: list[str], conn) -> str | No
     majority funder (excluding 'cex'), or None. Also upserts each member's
     funding_source so the token_buyers→wallets funder path works.
     """
-    from src.ingest.helius import HeliusClient, extract_funding_source
+    from src.ingest.rpc import RpcClient, extract_funding_source_rpc
     from collections import Counter
 
     members = member_addresses[:_FUNDER_RESOLVE_MAX_MEMBERS]
-    if not members:
+    if not members or not settings.rpc_url:
         return None
 
     funders: list[str] = []
     try:
-        async with HeliusClient() as helius:
+        async with RpcClient() as rpc:
             for addr in members:
                 try:
-                    txs = await helius.get_transactions_for_address(addr, limit=100)
+                    funder = await extract_funding_source_rpc(rpc, addr)
                 except Exception:
                     continue
-                # extract_funding_source wants oldest-first; Helius returns newest-first
-                funder = extract_funding_source(list(reversed(txs or [])))
                 if funder:
                     conn.execute(
                         """INSERT INTO wallets (address, funding_source) VALUES (?, ?)
