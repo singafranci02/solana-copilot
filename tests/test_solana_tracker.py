@@ -13,14 +13,20 @@ def _raw(wallet, side="buy", amount=100.0, vol_sol=1.0, time=1000, tx="T1"):
 # ── _trade_to_swap normalization ────────────────────────────────────────────────
 
 def test_trade_to_swap_fields():
-    sw = _trade_to_swap(_raw("W1", "buy", 100.0, 2.0, 1234), "MINT")
+    # ST `time` is milliseconds → normalized to seconds
+    sw = _trade_to_swap(_raw("W1", "buy", 100.0, 2.0, 1780648041000), "MINT")
     assert sw.side == "buy"
     assert sw.token_mint == "MINT"
     assert sw.sol_amount == 2.0
     assert sw.token_amount == 100.0
     assert sw.signer == "W1"
-    assert sw.timestamp == 1234
-    assert sw.slot == 1234   # slot ← time
+    assert sw.timestamp == 1780648041   # ms → s
+    assert sw.slot == 1780648041        # slot ← time (seconds)
+
+
+def test_trade_to_swap_ms_to_seconds():
+    sw = _trade_to_swap(_raw("W1", time=1780648041000), "MINT")
+    assert sw.timestamp == 1780648041
 
 
 def test_trade_to_swap_rejects_bad_side():

@@ -93,15 +93,13 @@ class SolanaTrackerClient:
             trades = data.get("trades") or []
             if not trades:
                 break
-            for t in trades:
-                sw = _trade_to_swap(t, mint)
-                if sw is None:
-                    continue
+            page_swaps = [s for s in (_trade_to_swap(t, mint) for t in trades) if s]
+            for sw in page_swaps:
                 if since_ts is not None and sw.timestamp < since_ts:
                     continue
                 out.append(sw)
             # early-stop: oldest trade on this DESC page is already before the window
-            oldest = min((int(t.get("time", 0)) for t in trades), default=0)
+            oldest = min((s.timestamp for s in page_swaps), default=0)
             if since_ts is not None and sort == "DESC" and oldest < since_ts:
                 break
             if not data.get("hasNextPage"):
@@ -144,7 +142,10 @@ def _trade_to_swap(t: dict, mint: str) -> Swap | None:
     wallet = t.get("wallet")
     if side not in ("buy", "sell") or not wallet:
         return None
-    ts = int(t.get("time", 0))
+    # Solana Tracker returns `time` in MILLISECONDS; the rest of the system uses
+    # unix SECONDS (graduated_at, since_ts, lockstep windows, same-second bundling).
+    raw = int(t.get("time", 0))
+    ts = raw // 1000 if raw > 10_000_000_000 else raw   # ms→s (guard if ever seconds)
     return Swap(
         side=side,
         token_mint=mint,
