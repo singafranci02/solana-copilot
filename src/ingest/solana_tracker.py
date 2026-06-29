@@ -133,6 +133,13 @@ class SolanaTrackerClient:
         """Current price/liquidity/marketCap (DexScreener stays primary; this is a fallback)."""
         return await self._get("/price", {"token": mint})
 
+    async def get_token_info(self, mint: str) -> dict | None:
+        """Raw token-info response (name/symbol/image + metadata/socials/description).
+
+        Shape varies; callers extract via _extract_meta_fields. Returns None on failure.
+        """
+        return await self._get(f"/tokens/{mint}")
+
 
 # ── normalization ───────────────────────────────────────────────────────────────
 

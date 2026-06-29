@@ -249,6 +249,23 @@ ALTER TABLE coordinated_entities ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "read-only anon" ON coordinated_entities FOR SELECT USING (true);
 CREATE INDEX IF NOT EXISTS idx_coord_ent_token ON coordinated_entities(token_mint);
 
+-- ── token_classification ──────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS token_classification (
+    token_mint   TEXT PRIMARY KEY REFERENCES tokens(mint),
+    label        TEXT NOT NULL,
+    is_project   BOOLEAN NOT NULL DEFAULT FALSE,
+    confidence   DOUBLE PRECISION NOT NULL DEFAULT 0,
+    reason       TEXT,
+    has_website  BOOLEAN NOT NULL DEFAULT FALSE,
+    website      TEXT,
+    twitter      TEXT,
+    telegram     TEXT,
+    description  TEXT,
+    computed_at  BIGINT NOT NULL
+);
+ALTER TABLE token_classification ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "read-only anon" ON token_classification FOR SELECT USING (true);
+
 -- ── dashboard view — one row per graduation with everything needed ─────────────
 CREATE OR REPLACE VIEW graduation_feed AS
 SELECT

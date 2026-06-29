@@ -379,6 +379,9 @@ async def analyse_graduation(
             is_bc_sniper=team_cluster.is_bc_sniper,
         ))
 
+    # Classify project-vs-meme + alert on real projects (fire-and-forget, non-fatal)
+    asyncio.create_task(_classify_and_notify(event.token_mint, symbol, read, conn))
+
     # Schedule price outcome checks at 1h / 4h / 24h from graduation
     # Baseline: ~$69K USD — Pump.fun bonding curve always migrates near this MC
     from src.analyzer.outcome_tracker import schedule_checks
@@ -387,6 +390,68 @@ async def analyse_graduation(
 
     # Schedule distribution checks (team behavior) at 1h / 4h / 24h
     await schedule_distribution_checks(event.token_mint, event.graduated_at)
+
+
+async def _classify_and_notify(token_mint: str, symbol: str, read, conn) -> None:
+    """Classify project vs meme; store it; alert on project AND verdict != SKIP."""
+    from src.analyzer.project_classifier import fetch_token_meta, classify_project, _is_real_website
+    from src.ingest.solana_tracker import SolanaTrackerClient
+    from src.common import supabase_sync as sb
+    try:
+        async with SolanaTrackerClient() as st:
+            meta = await fetch_token_meta(token_mint, st)
+        cls = await classify_project(meta)
+
+        own = get_connection()
+        try:
+            own.execute(
+                """INSERT INTO token_classification
+                       (token_mint, label, is_project, confidence, reason, has_website,
+                        website, twitter, telegram, description, computed_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(token_mint) DO UPDATE SET
+                       label=excluded.label, is_project=excluded.is_project,
+                       confidence=excluded.confidence, reason=excluded.reason,
+                       has_website=excluded.has_website, website=excluded.website,
+                       twitter=excluded.twitter, telegram=excluded.telegram,
+                       description=excluded.description, computed_at=excluded.computed_at""",
+                (
+                    token_mint, cls.label, int(cls.is_project), cls.confidence, cls.reason,
+                    int(_is_real_website(meta.website)), meta.website, meta.twitter,
+                    meta.telegram, meta.description, int(time.time()),
+                ),
+            )
+            own.commit()
+        finally:
+            own.close()
+
+        asyncio.create_task(sb.token_classification(
+            token_mint=token_mint, label=cls.label, is_project=cls.is_project,
+            confidence=cls.confidence, reason=cls.reason,
+            has_website=_is_real_website(meta.website), website=meta.website,
+            twitter=meta.twitter, telegram=meta.telegram, description=meta.description,
+        ))
+
+        logger.info("classify %s — %s (%.0f%%) %s", token_mint[:8], cls.label,
+                    cls.confidence * 100, cls.reason[:60] if cls.reason else "")
+
+        if cls.is_project and read.verdict != "SKIP":
+            coord = conn.execute(
+                """SELECT bundled_supply_pct, largest_entity_supply_pct
+                   FROM coin_coordination WHERE token_mint = ? AND phase = 'launch'""",
+                (token_mint,),
+            ).fetchone()
+            from src.notifications.telegram import notify_project_graduation
+            await notify_project_graduation(
+                symbol=symbol, name=meta.name or symbol, mint=token_mint,
+                description=meta.description, website=meta.website,
+                twitter=meta.twitter, telegram=meta.telegram,
+                verdict=read.verdict, confidence=read.confidence,
+                bundled_supply_pct=coord["bundled_supply_pct"] if coord else None,
+                largest_entity_supply_pct=coord["largest_entity_supply_pct"] if coord else None,
+            )
+    except Exception:
+        logger.exception("classify/notify failed for %s", token_mint[:8])
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────

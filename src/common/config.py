@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     supabase_url: str = Field(default="", alias="SUPABASE_URL")
     supabase_service_key: str = Field(default="", alias="SUPABASE_SERVICE_KEY")
 
+    # Telegram alerts (optional — leave blank to disable project-graduation alerts)
+    telegram_bot_token: str = Field(default="", alias="TELEGRAM_BOT_TOKEN")
+    telegram_chat_id: str = Field(default="", alias="TELEGRAM_CHAT_ID")
+
     # Server
     server_host: str = Field(default="0.0.0.0", alias="SERVER_HOST")
     server_port: int = Field(default=8000, alias="SERVER_PORT")

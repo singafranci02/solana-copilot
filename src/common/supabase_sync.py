@@ -238,6 +238,34 @@ async def coordinated_entities_batch(token_mint: str, rows: list[dict[str, Any]]
     await _run_many("coordinated_entities", rows, conflict_col="token_mint,phase,entity_id")
 
 
+async def token_classification(
+    token_mint: str,
+    label: str,
+    is_project: bool,
+    confidence: float,
+    reason: str | None,
+    has_website: bool,
+    website: str | None,
+    twitter: str | None,
+    telegram: str | None,
+    description: str | None,
+) -> None:
+    import time
+    await _run("token_classification", {
+        "token_mint": token_mint,
+        "label": label,
+        "is_project": is_project,
+        "confidence": confidence,
+        "reason": reason,
+        "has_website": has_website,
+        "website": website,
+        "twitter": twitter,
+        "telegram": telegram,
+        "description": description,
+        "computed_at": int(time.time()),
+    }, conflict_col="token_mint")
+
+
 async def holder_snapshot(
     token_mint: str,
     check_offset_h: int,

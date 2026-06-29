@@ -378,6 +378,23 @@ CREATE TABLE IF NOT EXISTS coordinated_entities (
 
 CREATE INDEX IF NOT EXISTS idx_coord_ent_token ON coordinated_entities(token_mint);
 
+-- ── token_classification ──────────────────────────────────────────────────────
+-- Project (website/app/utility) vs meme classification, computed at graduation.
+-- Drives the Telegram project-alert and a future dashboard "Projects" filter.
+CREATE TABLE IF NOT EXISTS token_classification (
+    token_mint   TEXT PRIMARY KEY REFERENCES tokens(mint),
+    label        TEXT NOT NULL,                 -- 'project' | 'meme'
+    is_project   INTEGER NOT NULL DEFAULT 0,
+    confidence   REAL NOT NULL DEFAULT 0.0,
+    reason       TEXT,
+    has_website  INTEGER NOT NULL DEFAULT 0,
+    website      TEXT,
+    twitter      TEXT,
+    telegram     TEXT,
+    description  TEXT,
+    computed_at  INTEGER NOT NULL
+);
+
 -- ── wallet_graph ──────────────────────────────────────────────────────────────
 -- Co-occurrence graph: wallets that habitually appear together in team clusters.
 -- Survives wallet rotation — recycling even 1-2 wallets across launches exposes
