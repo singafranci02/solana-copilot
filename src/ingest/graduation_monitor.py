@@ -47,6 +47,59 @@ MIN_GRADUATION_MC_USD = 50_000.0   # sanity-check lower bound
 # Wait for ST/DexScreener to index the migration AMM pool before analysing
 _POOL_INDEX_DELAY_S = 45
 
+# Watchdog: alert once per episode via Telegram when the feed goes quiet or
+# analyses fail repeatedly — silent failure previously went unnoticed for weeks.
+_STALL_ALERT_S = 3600          # no graduation for 1h (normal cadence: 5-13/h)
+_FAILURE_ALERT_THRESHOLD = 5   # consecutive analysis failures
+_WATCHDOG_CHECK_S = 300
+
+
+class _Watchdog:
+    def __init__(self) -> None:
+        self.last_event_ts = time.time()
+        self.consecutive_failures = 0
+        self._stall_alerted = False
+        self._failure_alerted = False
+
+    def beat(self) -> None:
+        self.last_event_ts = time.time()
+        self._stall_alerted = False
+
+    def analysis_ok(self) -> None:
+        self.consecutive_failures = 0
+        self._failure_alerted = False
+
+    def analysis_failed(self) -> None:
+        self.consecutive_failures += 1
+
+    async def check(self) -> None:
+        from src.notifications.telegram import send_message
+        quiet_s = time.time() - self.last_event_ts
+        if quiet_s > _STALL_ALERT_S and not self._stall_alerted:
+            self._stall_alerted = True
+            await send_message(
+                f"⚠️ graduation feed quiet for {quiet_s/3600:.1f}h — "
+                "check PumpPortal WS / Solana Tracker credits / logs"
+            )
+        if self.consecutive_failures >= _FAILURE_ALERT_THRESHOLD and not self._failure_alerted:
+            self._failure_alerted = True
+            await send_message(
+                f"⚠️ {self.consecutive_failures} consecutive graduation analyses failed — "
+                "check logs/graduation_monitor.err (API credits? schema?)"
+            )
+
+
+_watchdog = _Watchdog()
+
+
+async def _watchdog_loop() -> None:
+    while True:
+        await asyncio.sleep(_WATCHDOG_CHECK_S)
+        try:
+            await _watchdog.check()
+        except Exception:
+            pass
+
 
 # ── internal event struct ─────────────────────────────────────────────────────
 
@@ -97,6 +150,7 @@ class GraduationMonitor:
                                     event = _parse_migrate(raw)
                                     if event and event.mint not in self._seen:
                                         self._seen.add(event.mint)
+                                        _watchdog.beat()
                                         lag = max(0, int(time.time()) - event.event_ts)
                                         logger.info(
                                             "graduation WS: %s (lag %ds)",
@@ -367,8 +421,10 @@ async def _handle_graduation(
             grad_event, buyers, conn, symbol=symbol,
             structural=structural, meta=meta,
         )
+        _watchdog.analysis_ok()
 
     except Exception:
+        _watchdog.analysis_failed()
         logger.exception("graduation analysis failed for %s", mint[:8])
     finally:
         conn.close()
@@ -1057,6 +1113,11 @@ async def monitor() -> None:
     """Run the graduation monitor forever."""
     gm = GraduationMonitor()
     logger.info("graduation monitor running — waiting for pump.fun graduations")
+    asyncio.create_task(_watchdog_loop())
+    # Startup ping doubles as deploy confirmation AND crash-loop detector
+    # (repeated pings = launchd KeepAlive is restart-looping the service).
+    from src.notifications.telegram import send_message
+    asyncio.create_task(send_message("🟢 graduation monitor started"))
     await gm.run()
 
 
