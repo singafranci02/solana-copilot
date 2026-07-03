@@ -166,6 +166,10 @@ def _trade_to_swap(t: dict, mint: str) -> Swap | None:
     # unix SECONDS (graduated_at, since_ts, lockstep windows, same-second bundling).
     raw = int(t.get("time", 0))
     ts = raw // 1000 if raw > 10_000_000_000 else raw   # ms→s (guard if ever seconds)
+    try:
+        price_usd = float(t["priceUsd"]) if t.get("priceUsd") else None
+    except (TypeError, ValueError):
+        price_usd = None
     return Swap(
         side=side,
         token_mint=mint,
@@ -174,4 +178,7 @@ def _trade_to_swap(t: dict, mint: str) -> Swap | None:
         signer=wallet,
         timestamp=ts,
         slot=ts,                      # no slot from ST → second-granularity bundle key
+        tx_signature=t.get("tx") or t.get("signature"),
+        price_usd=price_usd,
+        pool=t.get("pool") if isinstance(t.get("pool"), str) else None,
     )

@@ -8,6 +8,7 @@ significant wallets per graduation, gated by the caller.
 
 import asyncio
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import aiohttp
@@ -72,44 +73,100 @@ class RpcClient:
         )
 
 
-def _funder_from_tx(tx: dict, wallet: str) -> str | None:
-    """Find a SOL transfer into `wallet` in a jsonParsed tx → the sender."""
+@dataclass
+class FundingInfo:
+    """First-funder trace for a wallet, plus freshness signals from the same
+    getSignaturesForAddress call (no extra requests)."""
+
+    wallet: str
+    funder: str | None = None          # "cex" or funder address
+    lamports: int | None = None
+    funded_at: int | None = None       # blockTime of the funding tx
+    tx_signature: str | None = None
+    first_seen: int | None = None      # oldest blockTime observed for the wallet
+    sig_count: int = 0                 # signatures returned (freshness proxy, ≤1000)
+
+
+# Instruction types that move SOL into a fresh wallet
+_FUNDING_TYPES = ("transfer", "transferChecked", "createAccount", "createAccountWithSeed")
+
+
+def _iter_parsed_instructions(tx: dict):
+    """Yield parsed instruction dicts from top-level AND inner instructions."""
     try:
-        instrs = tx["transaction"]["message"]["instructions"]
+        yield from tx["transaction"]["message"]["instructions"]
     except (KeyError, TypeError):
-        return None
-    for ins in instrs:
+        pass
+    for group in (tx.get("meta") or {}).get("innerInstructions") or []:
+        yield from group.get("instructions") or []
+
+
+def _funder_from_tx(tx: dict, wallet: str) -> tuple[str, int | None] | None:
+    """Find a SOL transfer/account-creation into `wallet` → (sender, lamports)."""
+    for ins in _iter_parsed_instructions(tx):
         parsed = ins.get("parsed") if isinstance(ins, dict) else None
-        if not isinstance(parsed, dict):
-            continue
-        if parsed.get("type") != "transfer":
+        if not isinstance(parsed, dict) or parsed.get("type") not in _FUNDING_TYPES:
             continue
         info = parsed.get("info") or {}
-        if info.get("destination") == wallet:
-            src = info.get("source")
-            if src and src != wallet:
-                return "cex" if src in CEX_HOT_WALLETS else src
+        dest = info.get("destination") or info.get("newAccount")
+        if dest != wallet:
+            continue
+        src = info.get("source")
+        if src and src != wallet:
+            lamports = info.get("lamports")
+            try:
+                lamports = int(lamports) if lamports is not None else None
+            except (TypeError, ValueError):
+                lamports = None
+            return ("cex" if src in CEX_HOT_WALLETS else src), lamports
     return None
 
 
-async def extract_funding_source_rpc(client: RpcClient, wallet: str, scan: int = 5) -> str | None:
-    """Walk a wallet's OLDEST transactions to find its first SOL funder.
+async def extract_funding_info_rpc(
+    client: RpcClient, wallet: str, scan: int = 5, fresh_gate: int | None = None
+) -> FundingInfo:
+    """Walk a wallet's OLDEST transactions for its first SOL funder + wallet age.
 
-    getSignaturesForAddress returns newest-first; the funding tx is the oldest, so we
-    scan from the end. Fresh team wallets have few txs, so one page suffices.
+    getSignaturesForAddress returns newest-first; the funding tx is the oldest,
+    so we scan from the end. Fresh team wallets have few txs, so one page
+    suffices. first_seen/sig_count come from the same response for free.
+
+    fresh_gate: skip the (expensive) tx scan when the wallet has at least this
+    many signatures — used for hop-2 tracing, where only fresh intermediary
+    funders are worth peeling.
     """
+    info = FundingInfo(wallet=wallet)
     sigs = await client.get_signatures_for_address(wallet, limit=1000)
     if not sigs:
-        return None
-    oldest = list(reversed(sigs))[:scan]   # oldest-first, capped
-    for s in oldest:
+        return info
+    info.sig_count = len(sigs)
+    if fresh_gate is not None and info.sig_count >= fresh_gate:
+        for s in reversed(sigs):
+            if s.get("blockTime"):
+                info.first_seen = int(s["blockTime"])
+                break
+        return info
+    oldest_first = list(reversed(sigs))
+    for s in oldest_first:
+        if s.get("blockTime"):
+            info.first_seen = int(s["blockTime"])
+            break
+    for s in oldest_first[:scan]:
         sig = s.get("signature")
         if not sig:
             continue
         tx = await client.get_transaction(sig)
         if not tx:
             continue
-        funder = _funder_from_tx(tx, wallet)
-        if funder:
-            return funder
-    return None
+        found = _funder_from_tx(tx, wallet)
+        if found:
+            info.funder, info.lamports = found
+            info.funded_at = s.get("blockTime")
+            info.tx_signature = sig
+            return info
+    return info
+
+
+async def extract_funding_source_rpc(client: RpcClient, wallet: str, scan: int = 5) -> str | None:
+    """Back-compat wrapper: just the funder address (or 'cex'), or None."""
+    return (await extract_funding_info_rpc(client, wallet, scan)).funder

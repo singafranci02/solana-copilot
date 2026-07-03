@@ -310,6 +310,80 @@ def update_funder_reputation(
     conn.commit()
 
 
+# ── Graduation-context: creator (deployer) reputation ────────────────────────
+
+_MIN_CREATOR_SAMPLE = 8   # graduated mints before is_serial_rugger can be set
+
+
+def update_creator_reputation(
+    creator_wallet: str,
+    token_mint: str,
+    outcome: str,         # "moon" | "ok" | "rug"
+    conn: sqlite3.Connection,
+) -> None:
+    """Incrementally update creator_reputation after a 4h outcome (mirrors
+    funder_reputation; keyed by tokens.creator_wallet — the serial-deployer signal)."""
+    existing = conn.execute(
+        "SELECT * FROM creator_reputation WHERE creator_wallet = ?", (creator_wallet,)
+    ).fetchone()
+    now = int(time.time())
+
+    if existing is None:
+        conn.execute(
+            """INSERT INTO creator_reputation
+               (creator_wallet, graduated_mints, rug_count, moon_count, ok_count,
+                rug_rate, last_seen, is_serial_rugger)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 0)""",
+            (
+                creator_wallet, json.dumps([token_mint]),
+                1 if outcome == "rug" else 0,
+                1 if outcome == "moon" else 0,
+                1 if outcome == "ok" else 0,
+                1.0 if outcome == "rug" else 0.0,
+                now,
+            ),
+        )
+    else:
+        mints = json.loads(existing["graduated_mints"])
+        if token_mint not in mints:
+            mints.append(token_mint)
+        rug_count = int(existing["rug_count"]) + (1 if outcome == "rug" else 0)
+        moon_count = int(existing["moon_count"]) + (1 if outcome == "moon" else 0)
+        ok_count = int(existing["ok_count"]) + (1 if outcome == "ok" else 0)
+        n = len(mints)
+        rug_rate = rug_count / n
+        is_serial = int(n >= _MIN_CREATOR_SAMPLE and rug_rate >= _KNOWN_RUGGER_THRESHOLD)
+        conn.execute(
+            """UPDATE creator_reputation SET
+               graduated_mints = ?, rug_count = ?, moon_count = ?, ok_count = ?,
+               rug_rate = ?, last_seen = ?, is_serial_rugger = ?
+               WHERE creator_wallet = ?""",
+            (
+                json.dumps(mints), rug_count, moon_count, ok_count,
+                rug_rate, now, is_serial, creator_wallet,
+            ),
+        )
+    conn.commit()
+
+
+def get_creator_reputation(creator_wallet: str | None, conn: sqlite3.Connection) -> dict | None:
+    """creator_reputation row as a dict, or None (n and rates precomputed)."""
+    if not creator_wallet:
+        return None
+    row = conn.execute(
+        "SELECT * FROM creator_reputation WHERE creator_wallet = ?", (creator_wallet,)
+    ).fetchone()
+    if row is None:
+        return None
+    mints = json.loads(row["graduated_mints"])
+    return {
+        "creator_wallet": row["creator_wallet"],
+        "n": len(mints),
+        "rug_rate": float(row["rug_rate"]),
+        "is_serial_rugger": bool(row["is_serial_rugger"]),
+    }
+
+
 def get_funder_reputation(
     funding_source: str, conn: sqlite3.Connection
 ) -> FunderReputation | None:

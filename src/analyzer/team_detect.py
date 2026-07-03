@@ -97,13 +97,19 @@ def compute_dev_pct(
     return round((team_tokens / total_tokens) * 100, 2)
 
 
-def get_past_deployments(dev_wallet: str) -> list[str]:
-    """Return mint addresses of other tokens previously deployed by dev_wallet.
+def get_past_deployments(dev_wallet: str, conn=None) -> list[str]:
+    """Mint addresses of other tokens previously deployed by dev_wallet.
 
-    Returns empty list until Helius indexer integration is wired up.
-    TODO: implement via get_transactions_for_address + InitializeMint filter.
+    Self-learned from tokens.creator_wallet (captured at graduation from the
+    token-info creation field) — no external API. Empty without a connection.
     """
-    return []
+    if conn is None or not dev_wallet:
+        return []
+    rows = conn.execute(
+        "SELECT mint FROM tokens WHERE creator_wallet = ? ORDER BY created_at",
+        (dev_wallet,),
+    ).fetchall()
+    return [r["mint"] for r in rows]
 
 
 # ── Graduation-context cluster detection ─────────────────────────────────────

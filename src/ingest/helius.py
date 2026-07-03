@@ -40,6 +40,9 @@ class Swap:
     signer: str
     timestamp: int      # unix epoch
     slot: int
+    tx_signature: str | None = None   # exact dedup key (slot is a second-proxy)
+    price_usd: float | None = None    # per-token USD price at trade time
+    pool: str | None = None           # pool the trade routed through
 
 
 class _MetadataCache:

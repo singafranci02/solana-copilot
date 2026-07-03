@@ -271,9 +271,38 @@ async def _handle_graduation(
             accounts = await st.get_token_holders(mint)
             accounts = [a for a in accounts if a.get("address") not in structural]
             bc_top_holders = _parse_bc_holders(accounts, total_supply)
-            await _reconstruct_bc(
+            bc_swaps = await _reconstruct_bc(
                 st, mint, bc_top_holders, token_created_at, now, conn,
                 structural=structural,
+            )
+
+        # Funding + wallet age for the top holders (free RPC, cached), then
+        # launch coordination WITH funder/fresh maps — shared-funder edges and
+        # fresh-wallet ratios were structurally zero before this.
+        top_wallets = [h["wallet"] for h in bc_top_holders[:_BC_RECONSTRUCT_TOP_N] if h.get("wallet")]
+        funder_by_wallet, first_seen_map = await _resolve_wallet_funding(top_wallets, conn)
+        fresh_map: dict[str, str] = {}
+        if first_seen_map:
+            from src.analyzer.coordination import fresh_flags
+            first_buy_offset = {}
+            for s in bc_swaps:
+                if s.side == "buy":
+                    off = float(max(0, s.timestamp - token_created_at))
+                    prev = first_buy_offset.get(s.signer)
+                    if prev is None or off < prev:
+                        first_buy_offset[s.signer] = off
+            fresh_map = fresh_flags(first_seen_map, first_buy_offset, now)
+        _detect_launch_coordination(
+            mint, bc_swaps, conn, total_supply=total_supply,
+            funder_by_wallet=funder_by_wallet, fresh=fresh_map,
+        )
+
+        if bc_swaps:
+            from src.analyzer.flow_features import (
+                compute_bc_flow_features, upsert_bc_flow_features,
+            )
+            upsert_bc_flow_features(
+                conn, mint, compute_bc_flow_features(bc_swaps, token_created_at)
             )
 
         conn.execute(
@@ -381,6 +410,15 @@ async def analyse_graduation(
     if team_cluster and team_cluster.funding_source:
         funder_rep = get_funder_reputation(team_cluster.funding_source, conn)
 
+    # Serial-deployer signal (creator captured at graduation from token-info)
+    from src.analyzer.smart_money import get_creator_reputation
+    creator_row = conn.execute(
+        "SELECT creator_wallet FROM tokens WHERE mint = ?", (event.token_mint,)
+    ).fetchone()
+    creator_rep = get_creator_reputation(
+        creator_row["creator_wallet"] if creator_row else None, conn
+    )
+
     from src.analyzer.team_memory import gather_memory_signals
     memory_signals = gather_memory_signals(team_cluster, conn)
 
@@ -412,6 +450,7 @@ async def analyse_graduation(
         "top3_holder_pct": top3_holder_pct,
         "unique_bc_buyers": unique_bc_buyers,
         "proven_wallet_count": proven_wallet_count,
+        "creator_rep": creator_rep,
     }
     read = structural_read(ctx)
 
@@ -428,6 +467,8 @@ async def analyse_graduation(
         ),
     )
     conn.commit()
+
+    _snapshot_features(event, ctx, read, conn)
 
     _print_graduation_alert(event, symbol, team_cluster, sm_buyers, funder_rep, read)
 
@@ -549,14 +590,18 @@ async def _reconstruct_bc(
     helius, mint: str, bc_top_holders: list[dict],
     token_created_at: int, graduated_at: int, conn,
     structural: frozenset[str] = frozenset(),
-) -> None:
-    """F1: reconstruct BC accumulation for top holders + backfill token_buyers."""
+) -> list:
+    """F1: reconstruct BC accumulation for top holders + backfill token_buyers.
+
+    Returns the BC swap tape so the caller can run launch coordination AFTER
+    funding resolution (funder/fresh maps make the entity clustering real).
+    """
     from src.analyzer.bc_reconstruct import (
         reconstruct_bc_holders, upsert_bc_accumulation, to_token_buyers,
     )
     wallets = [h["wallet"] for h in bc_top_holders[:_BC_RECONSTRUCT_TOP_N] if h.get("wallet")]
     if not wallets:
-        return
+        return []
     try:
         profiles, bc_swaps = await reconstruct_bc_holders(
             helius, mint, wallets, token_created_at, graduated_at,
@@ -564,7 +609,7 @@ async def _reconstruct_bc(
         )
     except Exception as exc:
         logger.debug("BC reconstruction failed for %s: %s", mint[:8], exc)
-        return
+        return []
 
     upsert_bc_accumulation(conn, mint, profiles)
 
@@ -606,19 +651,28 @@ async def _reconstruct_bc(
         ],
     ))
 
-    # Launch-phase coordination: detect bundling in the BC swaps (the canonical
-    # rug fingerprint — happens at launch, not post-grad). Same-slot bundles need
-    # no extra API; bc_swaps are already in hand.
-    _detect_launch_coordination(mint, bc_swaps, conn)
+    return bc_swaps
 
 
-def _detect_launch_coordination(mint: str, bc_swaps, conn) -> None:
-    """Run the coordination engine on bonding-curve swaps; store phase='launch'."""
+def _detect_launch_coordination(
+    mint: str, bc_swaps, conn,
+    total_supply: float | None = None,
+    funder_by_wallet: dict[str, str | None] | None = None,
+    fresh: dict[str, str] | None = None,
+) -> None:
+    """Run the coordination engine on bonding-curve swaps; store phase='launch'.
+
+    funder_by_wallet + fresh unlock shared-funder edges and fresh-wallet ratios
+    in the entity clustering (previously never passed — always empty).
+    """
     from src.analyzer.coordination import analyze_coin, upsert_coordination
     if not bc_swaps:
         return
     try:
-        cc = analyze_coin(mint, bc_swaps)
+        cc = analyze_coin(
+            mint, bc_swaps, total_supply=total_supply,
+            funder_by_wallet=funder_by_wallet, fresh=fresh,
+        )
         upsert_coordination(conn, cc, source="live", phase="launch")
     except Exception as exc:
         logger.debug("launch coordination failed for %s: %s", mint[:8], exc)
@@ -658,48 +712,160 @@ def _detect_launch_coordination(mint: str, bc_swaps, conn) -> None:
         ))
 
 
-_FUNDER_RESOLVE_MAX_MEMBERS = 5   # cap funding lookups per graduation (Helius budget)
+_FUNDER_RESOLVE_MAX_MEMBERS = 12    # funding lookups per graduation (free RPC)
+_FRESH_FUNDER_SIG_COUNT = 10        # funder with fewer sigs → peel one more hop
+
+
+def _persist_funding_info(conn, info) -> None:
+    """wallet_funding row + wallets.first_seen/funding_source (COALESCE-preserving)."""
+    conn.execute(
+        """INSERT INTO wallet_funding
+               (wallet, hop, funder, sol_amount, funded_at, tx_signature,
+                sig_count, traced_at)
+           VALUES (?, 1, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(wallet, hop) DO UPDATE SET
+               funder       = COALESCE(wallet_funding.funder, excluded.funder),
+               sol_amount   = COALESCE(wallet_funding.sol_amount, excluded.sol_amount),
+               funded_at    = COALESCE(wallet_funding.funded_at, excluded.funded_at),
+               tx_signature = COALESCE(wallet_funding.tx_signature, excluded.tx_signature),
+               sig_count    = MAX(wallet_funding.sig_count, excluded.sig_count),
+               traced_at    = excluded.traced_at""",
+        (
+            info.wallet, info.funder,
+            (info.lamports / 1e9) if info.lamports else None,
+            info.funded_at, info.tx_signature, info.sig_count, int(time.time()),
+        ),
+    )
+    conn.execute(
+        """INSERT INTO wallets (address, first_seen, funding_source) VALUES (?, ?, ?)
+           ON CONFLICT(address) DO UPDATE SET
+               first_seen     = COALESCE(wallets.first_seen, excluded.first_seen),
+               funding_source = COALESCE(wallets.funding_source, excluded.funding_source)""",
+        (info.wallet, info.first_seen, info.funder),
+    )
+
+
+async def _resolve_wallet_funding(
+    wallets: list[str], conn
+) -> tuple[dict[str, str | None], dict[str, int]]:
+    """Trace first funder + wallet age for `wallets` (free RPC, cached in
+    wallet_funding). Fresh funders (<10 sigs) get their own funder traced too,
+    stored as their own hop-1 row — the funding graph emerges from traversal.
+
+    Returns (funder_by_wallet, first_seen_by_wallet).
+    """
+    from src.ingest.rpc import RpcClient, extract_funding_info_rpc
+
+    funder_by_wallet: dict[str, str | None] = {}
+    first_seen: dict[str, int] = {}
+    todo = list(dict.fromkeys(wallets))[:_FUNDER_RESOLVE_MAX_MEMBERS]
+    if not todo or not settings.rpc_url:
+        return funder_by_wallet, first_seen
+
+    # Cache hits first — wallet_funding survives across graduations
+    uncached: list[str] = []
+    for addr in todo:
+        row = conn.execute(
+            """SELECT wf.funder, w.first_seen
+               FROM wallet_funding wf LEFT JOIN wallets w ON w.address = wf.wallet
+               WHERE wf.wallet = ? AND wf.hop = 1""",
+            (addr,),
+        ).fetchone()
+        if row:
+            funder_by_wallet[addr] = row["funder"]
+            if row["first_seen"]:
+                first_seen[addr] = int(row["first_seen"])
+        else:
+            uncached.append(addr)
+
+    if uncached:
+        try:
+            async with RpcClient() as rpc:
+                for addr in uncached:
+                    try:
+                        info = await extract_funding_info_rpc(rpc, addr)
+                    except Exception:
+                        continue
+                    funder_by_wallet[addr] = info.funder
+                    if info.first_seen:
+                        first_seen[addr] = info.first_seen
+                    _persist_funding_info(conn, info)
+                    # Hop 2: fresh intermediary funder → trace who funded IT
+                    f = info.funder
+                    if f and f != "cex" and not conn.execute(
+                        "SELECT 1 FROM wallet_funding WHERE wallet = ? AND hop = 1", (f,)
+                    ).fetchone():
+                        try:
+                            finfo = await extract_funding_info_rpc(
+                                rpc, f, fresh_gate=_FRESH_FUNDER_SIG_COUNT,
+                            )
+                            _persist_funding_info(conn, finfo)
+                        except Exception:
+                            pass
+            conn.commit()
+        except Exception as exc:
+            logger.debug("funding resolution failed: %s", exc)
+
+    return funder_by_wallet, first_seen
 
 
 async def _resolve_funding_source(member_addresses: list[str], conn) -> str | None:
-    """F4a: find the team's common SOL funder and persist wallets.funding_source.
-
-    For each member, walk its oldest txs via extract_funding_source. Returns the
-    majority funder (excluding 'cex'), or None. Also upserts each member's
-    funding_source so the token_buyers→wallets funder path works.
-    """
-    from src.ingest.rpc import RpcClient, extract_funding_source_rpc
+    """F4a: the team's common SOL funder — majority non-CEX funder among members."""
     from collections import Counter
 
-    members = member_addresses[:_FUNDER_RESOLVE_MAX_MEMBERS]
-    if not members or not settings.rpc_url:
-        return None
-
-    funders: list[str] = []
-    try:
-        async with RpcClient() as rpc:
-            for addr in members:
-                try:
-                    funder = await extract_funding_source_rpc(rpc, addr)
-                except Exception:
-                    continue
-                if funder:
-                    conn.execute(
-                        """INSERT INTO wallets (address, funding_source) VALUES (?, ?)
-                           ON CONFLICT(address) DO UPDATE SET
-                               funding_source = COALESCE(wallets.funding_source, excluded.funding_source)""",
-                        (addr, funder),
-                    )
-                    if funder != "cex":
-                        funders.append(funder)
-        conn.commit()
-    except Exception as exc:
-        logger.debug("funding source resolution failed: %s", exc)
-        return None
-
+    funder_by_wallet, _ = await _resolve_wallet_funding(member_addresses, conn)
+    funders = [f for f in funder_by_wallet.values() if f and f != "cex"]
     if not funders:
         return None
     return Counter(funders).most_common(1)[0][0]
+
+
+def _snapshot_features(event: GraduationEvent, ctx: dict, read, conn) -> None:
+    """Persist the exact feature vector structural_read saw — the leak-proof
+    training input (never recomputed from data written after graduation)."""
+    tc = ctx.get("team_cluster")
+    fr = ctx.get("funder_rep")
+    mem = ctx.get("memory_signals")
+    cr = ctx.get("creator_rep") or {}
+    features = {
+        "team_size": len(tc.member_addresses) if tc else 0,
+        "team_supply_pct": tc.supply_pct_at_graduation if tc else None,
+        "team_is_bc_sniper": bool(tc.is_bc_sniper) if tc else None,
+        "team_first_buy_offset_s": tc.first_buy_offset_seconds if tc else None,
+        "funder_n": len(fr.graduated_mints) if fr else 0,
+        "funder_rug_rate": fr.rug_rate if fr else None,
+        "funder_moon_rate": fr.moon_rate if fr else None,
+        "smart_money_count": ctx.get("smart_money_count"),
+        "proven_wallet_count": ctx.get("proven_wallet_count"),
+        "bc_duration_seconds": ctx.get("bc_duration_seconds"),
+        "top_holder_pct": ctx.get("top_holder_pct"),
+        "top3_holder_pct": ctx.get("top3_holder_pct"),
+        "unique_bc_buyers": ctx.get("unique_bc_buyers"),
+        "graph_hits": len(mem.graph_hits) if mem else 0,
+        "graph_rug_hits": sum(
+            1 for h in (mem.graph_hits if mem else []) if h.rug_co_appearances >= 2
+        ),
+        "fingerprint_distance": (
+            mem.fingerprint_match.distance if mem and mem.fingerprint_match else None
+        ),
+        "launches_24h": mem.launches_24h if mem else 0,
+        "launches_7d": mem.launches_7d if mem else 0,
+        "expected_dump_start_h": mem.expected_dump_start_h if mem else None,
+        "creator_n": cr.get("n", 0),
+        "creator_rug_rate": cr.get("rug_rate"),
+        "verdict": read.verdict,
+        "confidence": read.confidence,
+    }
+    conn.execute(
+        """INSERT INTO graduation_feature_snapshot
+               (token_mint, pipeline_version, features_json, snapped_at)
+           VALUES (?, 2, ?, ?)
+           ON CONFLICT(token_mint) DO UPDATE SET
+               features_json = excluded.features_json,
+               snapped_at = excluded.snapped_at""",
+        (event.token_mint, json.dumps(features), int(time.time())),
+    )
+    conn.commit()
 
 
 def _count_proven_buyers(buyers: list[TokenBuyer], conn) -> int:

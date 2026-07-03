@@ -260,7 +260,11 @@ CREATE TABLE IF NOT EXISTS post_grad_behavior (
     team_net_sol             REAL,                         -- sell SOL − buy SOL (positive = net out)
     coordinated_sell_count   INTEGER NOT NULL DEFAULT 0,   -- 5-min windows with ≥2 team sellers
     distribution_signal      TEXT NOT NULL DEFAULT 'HOLDING'
-                             CHECK (distribution_signal IN ('ACCUMULATING','HOLDING','DISTRIBUTING','DUMPED'))
+                             CHECK (distribution_signal IN ('ACCUMULATING','HOLDING','DISTRIBUTING','DUMPED')),
+    total_buy_count          INTEGER,                      -- whole tape, not just team
+    total_sell_count         INTEGER,
+    unique_buyers            INTEGER,
+    retail_net_sol           REAL                          -- non-team sells − buys
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_post_grad_mint_offset
@@ -282,6 +286,9 @@ CREATE TABLE IF NOT EXISTS post_grad_swaps (
     slot           INTEGER NOT NULL,
     is_sniper      INTEGER NOT NULL DEFAULT 0 CHECK (is_sniper IN (0,1)),
     is_team        INTEGER NOT NULL DEFAULT 1 CHECK (is_team IN (0,1)),
+    is_smart_money INTEGER NOT NULL DEFAULT 0 CHECK (is_smart_money IN (0,1)),
+    tx_signature   TEXT,                       -- exact dedup key (slot is a second proxy)
+    price_usd      REAL,                       -- per-token USD price at trade time
     PRIMARY KEY (token_mint, wallet_address, slot, side)
 );
 
@@ -444,4 +451,62 @@ CREATE TABLE IF NOT EXISTS api_usage (
     endpoint  TEXT NOT NULL,                    -- path template, e.g. '/tokens/{mint}/holders'
     count     INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (day, provider, endpoint)
+);
+
+-- ── wallet_funding ────────────────────────────────────────────────────────────
+-- First-funder trace per wallet (funding tracing v2): who sent the wallet its
+-- first SOL, how much, when. hop=2 rows trace the funder's own funder when the
+-- funder itself is fresh (<10 signatures) — peels one layer of intermediaries.
+CREATE TABLE IF NOT EXISTS wallet_funding (
+    wallet        TEXT NOT NULL,
+    hop           INTEGER NOT NULL DEFAULT 1,
+    funder        TEXT,                        -- 'cex' or funder address
+    sol_amount    REAL,                        -- lamports/1e9 at funding tx
+    funded_at     INTEGER,                     -- blockTime of funding tx
+    tx_signature  TEXT,
+    sig_count     INTEGER NOT NULL DEFAULT 0,  -- wallet freshness proxy (≤1000)
+    traced_at     INTEGER NOT NULL,
+    PRIMARY KEY (wallet, hop)
+);
+
+CREATE INDEX IF NOT EXISTS idx_wallet_funding_funder ON wallet_funding(funder);
+
+-- ── creator_reputation ────────────────────────────────────────────────────────
+-- Track record per token DEPLOYER (tokens.creator_wallet) — the serial-deployer
+-- signal. Mirrors funder_reputation semantics: n>=8 before is_serial_rugger.
+CREATE TABLE IF NOT EXISTS creator_reputation (
+    creator_wallet  TEXT PRIMARY KEY,
+    graduated_mints TEXT NOT NULL DEFAULT '[]',  -- JSON mints (graduations only)
+    rug_count       INTEGER NOT NULL DEFAULT 0,
+    moon_count      INTEGER NOT NULL DEFAULT 0,
+    ok_count        INTEGER NOT NULL DEFAULT 0,
+    rug_rate        REAL NOT NULL DEFAULT 0.0,
+    last_seen       INTEGER,
+    is_serial_rugger INTEGER NOT NULL DEFAULT 0 CHECK (is_serial_rugger IN (0,1))
+);
+
+-- ── bc_flow_features ──────────────────────────────────────────────────────────
+-- One row per graduated mint: BC order-flow structure computed from the swap
+-- tape already fetched at graduation (training-dataset features, zero API).
+CREATE TABLE IF NOT EXISTS bc_flow_features (
+    token_mint                TEXT PRIMARY KEY REFERENCES tokens(mint),
+    n_trades                  INTEGER NOT NULL DEFAULT 0,
+    n_buyers                  INTEGER NOT NULL DEFAULT 0,
+    n_sellers                 INTEGER NOT NULL DEFAULT 0,
+    buys_first_60s            INTEGER NOT NULL DEFAULT 0,
+    same_second_bundle_count  INTEGER NOT NULL DEFAULT 0,
+    top5_buyer_share          REAL NOT NULL DEFAULT 0.0,   -- share of SOL-in [0,1]
+    gini_buy_size             REAL NOT NULL DEFAULT 0.0,   -- buy-size inequality [0,1]
+    sol_in                    REAL NOT NULL DEFAULT 0.0,
+    sol_out                   REAL NOT NULL DEFAULT 0.0
+);
+
+-- ── graduation_feature_snapshot ───────────────────────────────────────────────
+-- Point-in-time feature vector exactly as seen by structural_read at graduation.
+-- The leak-proof training input: never recomputed from later data.
+CREATE TABLE IF NOT EXISTS graduation_feature_snapshot (
+    token_mint       TEXT PRIMARY KEY REFERENCES tokens(mint),
+    pipeline_version INTEGER NOT NULL DEFAULT 2,
+    features_json    TEXT NOT NULL DEFAULT '{}',
+    snapped_at       INTEGER NOT NULL
 );

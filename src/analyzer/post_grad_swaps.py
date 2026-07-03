@@ -186,20 +186,25 @@ def upsert_swaps(
             1 if s.signer in sniper_wallets else 0,
             (1 if s.signer in team_wallets else 0) if team_wallets is not None else (1 if is_team else 0),
             1 if s.signer in sm else 0,
+            s.tx_signature,
+            s.price_usd,
         )
         for s in swaps
     ]
     conn.executemany(
         """INSERT INTO post_grad_swaps
                (token_mint, wallet_address, side, sol_amount, token_amount,
-                price_sol, ts, slot, is_sniper, is_team, is_smart_money)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                price_sol, ts, slot, is_sniper, is_team, is_smart_money,
+                tx_signature, price_usd)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(token_mint, wallet_address, slot, side) DO UPDATE SET
                sol_amount     = excluded.sol_amount,
                token_amount   = excluded.token_amount,
                price_sol      = excluded.price_sol,
                ts             = excluded.ts,
-               is_smart_money = excluded.is_smart_money""",
+               is_smart_money = excluded.is_smart_money,
+               tx_signature   = COALESCE(excluded.tx_signature, post_grad_swaps.tx_signature),
+               price_usd      = COALESCE(excluded.price_usd, post_grad_swaps.price_usd)""",
         rows,
     )
     conn.commit()

@@ -133,6 +133,7 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
 
         # ── Transaction-level behaviour + holder trajectory ───────────────────
         metrics = None
+        tape_aggregates: tuple | None = None
         team_swaps = []
         holder_metrics = None
         new_sm_count = 0
@@ -174,6 +175,22 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
                 swap_wallets = {s.signer for s in team_swaps if s.side == "buy"}
                 entrants = detect_new_entrants(swap_wallets, grad_holder_set, smart_money_set)
                 new_sm_count = sum(1 for e in entrants if e.is_smart_money)
+
+            # Whole-tape aggregates (fetch_team_swaps returns ALL traders, not
+            # just team) — retail-vs-team flow for the training dataset.
+            # Applied via UPDATE after the behavior row INSERT below.
+            if team_swaps:
+                tape_buys = [s for s in team_swaps if s.side == "buy"]
+                retail = [s for s in team_swaps if s.signer not in team_addresses]
+                tape_aggregates = (
+                    len(tape_buys),
+                    sum(1 for s in team_swaps if s.side == "sell"),
+                    len({s.signer for s in tape_buys}),
+                    round(
+                        sum(s.sol_amount for s in retail if s.side == "sell")
+                        - sum(s.sol_amount for s in retail if s.side == "buy"), 4,
+                    ),
+                )
 
             # F3: holder trajectory snapshot
             holder_metrics = compute_holder_snapshot(accounts, grad_holder_set, total_supply)
@@ -254,6 +271,14 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
                 behavior.distribution_signal.value,
             ),
         )
+        if tape_aggregates:
+            conn.execute(
+                """UPDATE post_grad_behavior SET
+                       total_buy_count = ?, total_sell_count = ?,
+                       unique_buyers = ?, retail_net_sol = ?
+                   WHERE token_mint = ? AND check_offset_h = ?""",
+                (*tape_aggregates, token_mint, offset_h),
+            )
         conn.commit()
 
         logger.info(
@@ -310,10 +335,41 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
         # At 4h: update funder reputation + fingerprint + wallet graph with outcome
         if offset_h == 4:
             await _update_funder_reputation_from_distribution(token_mint, conn)
+            _detect_postgrad_coordination(token_mint, team_swaps, total_supply, conn)
 
         return behavior
     finally:
         conn.close()
+
+
+def _detect_postgrad_coordination(
+    token_mint: str, swaps, total_supply: float | None, conn
+) -> None:
+    """Coordination pass on the post-graduation tape (phase='postgrad').
+
+    Same engine as launch coordination; the 4h tape is already in memory so
+    this costs zero API. Catches exit bundles that form only after migration.
+    """
+    from src.analyzer.coordination import analyze_coin, upsert_coordination
+    if not swaps:
+        return
+    try:
+        cc = analyze_coin(token_mint, swaps, total_supply=total_supply)
+        upsert_coordination(conn, cc, source="live", phase="postgrad")
+    except Exception as exc:
+        logger.debug("postgrad coordination failed for %s: %s", token_mint[:8], exc)
+        return
+    from src.common import supabase_sync as sb
+    asyncio.create_task(sb.coin_coordination(
+        token_mint=token_mint, entity_count=cc.entity_count,
+        bundled_supply_pct=cc.bundle_stats.bundled_supply_pct,
+        bundle_wallet_count=cc.bundle_stats.bundle_wallet_count,
+        largest_bundle_size=cc.bundle_stats.largest_bundle_size,
+        largest_entity_supply_pct=cc.largest_entity_supply_pct,
+        largest_entity_wallet_count=cc.largest_entity_wallet_count,
+        largest_entity_fresh_ratio=cc.largest_entity_fresh_ratio,
+        largest_entity_state=cc.largest_entity_state, phase="postgrad",
+    ))
 
 
 def _record_first_dump(token_mint: str, offset_h: int, conn) -> None:
@@ -368,10 +424,18 @@ async def _update_funder_reputation_from_distribution(
         return
 
     token_row = conn.execute(
-        "SELECT bundle_pct, dev_pct FROM tokens WHERE mint = ?", (token_mint,)
+        "SELECT bundle_pct, dev_pct, creator_wallet FROM tokens WHERE mint = ?",
+        (token_mint,),
     ).fetchone()
     bundle_pct = float(token_row["bundle_pct"] or 0) if token_row else 0.0
     dev_pct = float(token_row["dev_pct"] or 0) if token_row else 0.0
+
+    # Serial-deployer track record (keyed by creator, independent of funder)
+    if token_row and token_row["creator_wallet"]:
+        from src.analyzer.smart_money import update_creator_reputation
+        update_creator_reputation(
+            token_row["creator_wallet"], token_mint, outcome_row["classified"], conn
+        )
 
     update_funder_reputation(
         funder_row["funding_source"],

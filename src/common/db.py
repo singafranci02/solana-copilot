@@ -56,8 +56,15 @@ def migrate() -> None:
         _add_column_if_missing(conn, "post_grad_behavior", "team_sell_count", "INTEGER NOT NULL DEFAULT 0")
         _add_column_if_missing(conn, "post_grad_behavior", "team_net_sol", "REAL")
         _add_column_if_missing(conn, "post_grad_behavior", "coordinated_sell_count", "INTEGER NOT NULL DEFAULT 0")
+        # Whole-tape aggregates (retail vs team flow)
+        _add_column_if_missing(conn, "post_grad_behavior", "total_buy_count", "INTEGER")
+        _add_column_if_missing(conn, "post_grad_behavior", "total_sell_count", "INTEGER")
+        _add_column_if_missing(conn, "post_grad_behavior", "unique_buyers", "INTEGER")
+        _add_column_if_missing(conn, "post_grad_behavior", "retail_net_sol", "REAL")
         # Holder/whale tracking
         _add_column_if_missing(conn, "post_grad_swaps", "is_smart_money", "INTEGER NOT NULL DEFAULT 0")
+        _add_column_if_missing(conn, "post_grad_swaps", "tx_signature", "TEXT")
+        _add_column_if_missing(conn, "post_grad_swaps", "price_usd", "REAL")
         # Coordination tables gained a `phase` column + composite PK — recreate the
         # old (phase-less) shape if present. Held only throwaway post-grad rows.
         _recreate_if_missing_column(conn, "coin_coordination", "phase")

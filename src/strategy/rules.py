@@ -292,6 +292,22 @@ def structural_read(ctx: dict[str, Any]) -> StructuralRead:
             f"({len(funder_rep.graduated_mints)} launches, below significance threshold)"
         )
 
+    # Serial-deployer signal (creator_reputation, n>=8 gate for the hard flag)
+    creator_rep = ctx.get("creator_rep")
+    if creator_rep:
+        if creator_rep.get("is_serial_rugger"):
+            score -= 2
+            factors.append(
+                f"creator is a serial rugger: {creator_rep['rug_rate']*100:.0f}% rug rate "
+                f"across {creator_rep['n']} graduated deployments"
+            )
+        elif creator_rep.get("n", 0) >= 4 and creator_rep.get("rug_rate", 0) >= 0.5:
+            score -= 1
+            factors.append(
+                f"creator partial rugger: {creator_rep['rug_rate']*100:.0f}% rug rate "
+                f"({creator_rep['n']} deployments, below significance threshold)"
+            )
+
     # ── Graduation push scoring (soft signals below hard-SKIP thresholds) ────
 
     if top_holder_pct > 35:
