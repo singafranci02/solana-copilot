@@ -167,8 +167,10 @@ CREATE TABLE IF NOT EXISTS wallet_graph (
     co_appearances     INTEGER NOT NULL DEFAULT 1,
     rug_co_appearances INTEGER NOT NULL DEFAULT 0,
     last_seen_together BIGINT NOT NULL,
-    PRIMARY KEY (wallet_a, wallet_b),
-    CHECK (wallet_a < wallet_b)
+    PRIMARY KEY (wallet_a, wallet_b)
+    -- NO canonical-order CHECK here: the source (SQLite/Python) orders pairs
+    -- byte-wise, which disagrees with Postgres locale collation ('Z' vs 'e').
+    -- Existing installs: ALTER TABLE wallet_graph DROP CONSTRAINT wallet_graph_check;
 );
 
 ALTER TABLE wallet_graph ENABLE ROW LEVEL SECURITY;
