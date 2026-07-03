@@ -246,11 +246,13 @@ async def _handle_graduation(
             )
             conn.commit()
 
-            amm_pool_address = next(iter(sorted(pool_accounts)), None)
-            for pool in (token_info or {}).get("pools") or []:
-                if isinstance(pool, dict) and isinstance(pool.get("poolId"), str):
-                    amm_pool_address = pool["poolId"]
-                    break
+            # token-info pools[] at graduation still shows the BONDING CURVE pool
+            # (the new AMM pool isn't indexed yet). DexScreener's pairAddress is
+            # the AMM pool when already listed; otherwise the 1h distribution
+            # check backfills it (see distribution._persist_pool_account).
+            ds_pairs = await _dexscreener_pair_addresses(mint)
+            pool_accounts |= ds_pairs
+            amm_pool_address = next(iter(sorted(ds_pairs)), None)
 
             conn.execute(
                 """INSERT OR REPLACE INTO graduation_events
@@ -394,6 +396,7 @@ async def analyse_graduation(
     top_holder_pct = float(event.bc_top_holders[0]["pct"]) if event.bc_top_holders else 0.0
     top3_holder_pct = sum(float(h["pct"]) for h in event.bc_top_holders[:3])
     unique_bc_buyers = len(set(b.wallet_address for b in buyers))
+    proven_wallet_count = _count_proven_buyers(buyers, conn)
 
     ctx = {
         "token_mint": event.token_mint,
@@ -408,6 +411,7 @@ async def analyse_graduation(
         "top_holder_pct": top_holder_pct,
         "top3_holder_pct": top3_holder_pct,
         "unique_bc_buyers": unique_bc_buyers,
+        "proven_wallet_count": proven_wallet_count,
     }
     read = structural_read(ctx)
 
@@ -698,6 +702,21 @@ async def _resolve_funding_source(member_addresses: list[str], conn) -> str | No
     return Counter(funders).most_common(1)[0][0]
 
 
+def _count_proven_buyers(buyers: list[TokenBuyer], conn) -> int:
+    """BC buyers with a mature wallet_stats win rate (≥60%, n≥15 gate in DB)."""
+    addresses = list({b.wallet_address for b in buyers})
+    if not addresses:
+        return 0
+    placeholders = ",".join("?" * len(addresses))
+    row = conn.execute(
+        f"""SELECT COUNT(*) FROM wallet_stats
+            WHERE address IN ({placeholders})
+              AND win_rate IS NOT NULL AND win_rate >= 0.6""",
+        addresses,
+    ).fetchone()
+    return int(row[0]) if row else 0
+
+
 def _extract_symbol_name(meta: dict | None) -> tuple[str, str]:
     """Pull symbol/name from a Helius v0 token-metadata response.
 
@@ -729,6 +748,24 @@ def _extract_symbol_name(meta: dict | None) -> tuple[str, str]:
     symbol = (symbol or "").strip() or "UNKNOWN"
     name = (name or "").strip() or "Unknown"
     return symbol, name
+
+
+async def _dexscreener_pair_addresses(mint: str) -> set[str]:
+    """All DexScreener pairAddresses for a mint — these are AMM pool accounts
+    that must be excluded from holder analysis. Free API; empty set on miss."""
+    url = f"https://api.dexscreener.com/latest/dex/tokens/{mint}"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status != 200:
+                    return set()
+                data = await resp.json()
+        return {
+            p["pairAddress"] for p in (data.get("pairs") or [])
+            if isinstance(p.get("pairAddress"), str)
+        }
+    except Exception:
+        return set()
 
 
 async def _dexscreener_symbol_name(mint: str) -> tuple[str | None, str | None]:

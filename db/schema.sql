@@ -156,10 +156,15 @@ CREATE TABLE IF NOT EXISTS team_fingerprints (
     rug_rate            REAL NOT NULL DEFAULT 0.0,      -- fraction of launches that rugged
     moon_rate           REAL NOT NULL DEFAULT 0.0,
     last_seen           INTEGER,                        -- epoch of most recent launch
-    description_keywords TEXT NOT NULL DEFAULT '[]'     -- JSON — common words in their descriptions
+    description_keywords TEXT NOT NULL DEFAULT '[]',    -- JSON — common words in their descriptions
+    avg_first_buy_offset_s REAL NOT NULL DEFAULT 0.0,   -- structural averages (team_memory)
+    avg_sniper_rate     REAL NOT NULL DEFAULT 0.0,
+    sample_count        INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE INDEX IF NOT EXISTS idx_fingerprints_funding_source
+-- UNIQUE: one fingerprint per funder — both writers (structural averages +
+-- outcome labels) upsert via ON CONFLICT(funding_source).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_fingerprints_funding_source_uq
     ON team_fingerprints (funding_source);
 CREATE INDEX IF NOT EXISTS idx_fingerprints_rug_rate
     ON team_fingerprints (rug_rate DESC);

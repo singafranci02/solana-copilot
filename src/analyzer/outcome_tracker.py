@@ -78,6 +78,7 @@ async def _do_check(
         if offset_h == 4:
             # 4h is our primary signal — recompute wallet scores after it lands
             await _recompute_wallet_scores(token_mint, conn)
+            _update_wallet_stats_for_buyers(token_mint, outcome.classified, conn)
             await _update_team_fingerprint(token_mint, conn)
     finally:
         conn.close()
@@ -260,112 +261,51 @@ def _recompute_one_wallet(
     )
 
 
+def _update_wallet_stats_for_buyers(
+    token_mint: str, classified: str | None, conn: sqlite3.Connection
+) -> None:
+    """Increment wallet_stats for every BC buyer of this coin (audit trail behind
+    wallets.smart_money_score — win_rate stays NULL until total_calls >= 15)."""
+    if not classified:
+        return
+    from src.analyzer.smart_money import update_wallet_stats
+
+    is_graduated = conn.execute(
+        "SELECT 1 FROM graduation_events WHERE token_mint = ?", (token_mint,)
+    ).fetchone() is not None
+    addresses = [
+        r[0] for r in conn.execute(
+            "SELECT DISTINCT wallet_address FROM token_buyers WHERE token_mint = ?",
+            (token_mint,),
+        )
+    ]
+    for address in addresses:
+        update_wallet_stats(address, classified, is_graduated, conn)
+
+    if addresses:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return   # sync context (scripts/tests) — Supabase mirror skipped
+        placeholders = ",".join("?" * len(addresses))
+        rows = [
+            dict(r) for r in conn.execute(
+                f"""SELECT address, graduated_calls, wins, losses, total_calls,
+                           win_rate, last_updated
+                    FROM wallet_stats WHERE address IN ({placeholders})""",
+                addresses,
+            )
+        ]
+        from src.common import supabase_sync as sb
+        loop.create_task(sb.wallet_stats_batch(rows))
+
+
 # ── team fingerprint update ───────────────────────────────────────────────────
 
 async def _update_team_fingerprint(token_mint: str, conn: sqlite3.Connection) -> None:
-    """Update the team fingerprint for the dev cluster that launched this coin."""
-    import json as _json
-
-    # Find the team cluster linked to this token
-    token_row = conn.execute(
-        "SELECT bundle_pct, dev_pct FROM tokens WHERE mint = ?", (token_mint,)
-    ).fetchone()
-    if not token_row:
-        return
-
-    # Find the funding source for this token's team cluster via token_buyers
-    funder_row = conn.execute(
-        """SELECT w.funding_source
-           FROM token_buyers tb
-           JOIN wallets w ON w.address = tb.wallet_address
-           WHERE tb.token_mint = ?
-             AND w.funding_source IS NOT NULL
-             AND w.funding_source != 'cex'
-           GROUP BY w.funding_source
-           ORDER BY COUNT(*) DESC
-           LIMIT 1""",
-        (token_mint,),
-    ).fetchone()
-    if not funder_row or not funder_row[0]:
-        return
-
-    funding_source = funder_row[0]
-
-    # Get this coin's outcome
-    outcome_row = conn.execute(
-        "SELECT classified FROM coin_outcomes WHERE token_mint = ? AND check_offset_h = 4",
-        (token_mint,),
-    ).fetchone()
-    outcome_label = outcome_row[0] if outcome_row else None
-
-    # Fetch existing fingerprint for this funder
-    fp_row = conn.execute(
-        "SELECT * FROM team_fingerprints WHERE funding_source = ?", (funding_source,)
-    ).fetchone()
-
-    token_desc_row = conn.execute(
-        "SELECT name, symbol, narrative_tags FROM tokens WHERE mint = ?", (token_mint,)
-    ).fetchone()
-    new_keywords = _json.loads(token_desc_row["narrative_tags"] or "[]") if token_desc_row else []
-
-    if fp_row is None:
-        import uuid
-        conn.execute(
-            """INSERT INTO team_fingerprints
-               (fingerprint_id, funding_source, known_mints, outcome_labels,
-                avg_bundle_pct, avg_dev_pct, avg_cluster_size,
-                rug_rate, moon_rate, last_seen, description_keywords)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-            (
-                str(uuid.uuid4()), funding_source,
-                _json.dumps([token_mint]),
-                _json.dumps([outcome_label] if outcome_label else []),
-                float(token_row["bundle_pct"] or 0),
-                float(token_row["dev_pct"] or 0),
-                1.0,
-                1.0 if outcome_label == "rug" else 0.0,
-                1.0 if outcome_label == "moon" else 0.0,
-                int(time.time()),
-                _json.dumps(new_keywords),
-            ),
-        )
-    else:
-        mints = _json.loads(fp_row["known_mints"])
-        labels = _json.loads(fp_row["outcome_labels"])
-        keywords = list(set(_json.loads(fp_row["description_keywords"]) + new_keywords))
-
-        if token_mint not in mints:
-            mints.append(token_mint)
-        if outcome_label:
-            labels.append(outcome_label)
-
-        n = len(labels) or 1
-        rug_rate = labels.count("rug") / n
-        moon_rate = labels.count("moon") / n
-
-        conn.execute(
-            """UPDATE team_fingerprints SET
-               known_mints          = ?,
-               outcome_labels       = ?,
-               avg_bundle_pct       = (avg_bundle_pct * ? + ?) / ?,
-               avg_dev_pct          = (avg_dev_pct * ? + ?) / ?,
-               avg_cluster_size     = avg_cluster_size + 0,
-               rug_rate             = ?,
-               moon_rate            = ?,
-               last_seen            = ?,
-               description_keywords = ?
-               WHERE funding_source = ?""",
-            (
-                _json.dumps(mints), _json.dumps(labels),
-                len(mints) - 1, float(token_row["bundle_pct"] or 0), len(mints),
-                len(mints) - 1, float(token_row["dev_pct"] or 0), len(mints),
-                rug_rate, moon_rate,
-                int(time.time()),
-                _json.dumps(keywords),
-                funding_source,
-            ),
-        )
-    conn.commit()
+    """Update the funder fingerprint's outcome ledger (owned by team_memory)."""
+    from src.analyzer.team_memory import update_fingerprint_outcome
+    update_fingerprint_outcome(token_mint, conn)
 
 
 # ── public query helpers ──────────────────────────────────────────────────────

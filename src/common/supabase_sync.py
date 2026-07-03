@@ -331,3 +331,13 @@ async def funder_reputation(
         "last_seen": last_seen,
         "is_known_rugger": is_known_rugger,
     }, conflict_col="funding_source")
+
+
+async def wallet_stats_batch(rows: list[dict[str, Any]]) -> None:
+    """Mirror wallet_stats rows (dashboard 'wallet win rates' maturity meter)."""
+    await _run_many("wallet_stats", rows, conflict_col="address")
+
+
+async def wallet_graph_pairs_batch(rows: list[dict[str, Any]]) -> None:
+    """Mirror wallet_graph pairs (dashboard 'wallet graph' maturity meter)."""
+    await _run_many("wallet_graph", rows, conflict_col="wallet_a,wallet_b")

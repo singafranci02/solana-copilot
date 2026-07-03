@@ -62,6 +62,9 @@ def migrate() -> None:
         # old (phase-less) shape if present. Held only throwaway post-grad rows.
         _recreate_if_missing_column(conn, "coin_coordination", "phase")
         _recreate_if_missing_column(conn, "coordinated_entities", "phase")
+        # team_fingerprints.funding_source must be UNIQUE for ON CONFLICT upserts;
+        # replace the old non-unique index (table was reset at pipeline v2).
+        conn.execute("DROP INDEX IF EXISTS idx_fingerprints_funding_source")
         conn.executescript(sql)   # re-run CREATE IF NOT EXISTS to rebuild dropped tables
         conn.commit()
     finally:

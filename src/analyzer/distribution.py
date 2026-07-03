@@ -89,15 +89,22 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
         if not accounts:
             return None
 
+        # DexScreener fetched up-front: liquidity/price AND the pairAddress —
+        # the AMM pool created at migration is NOT in the graduation-time
+        # token-info pools[] (indexing lag), so this is how we learn it.
+        liquidity_usd, price_usd, pair_address = await _fetch_dex_stats(token_mint)
+
         # Exclude CEX + structural accounts (AMM pool, curve, programs). The
         # PumpSwap pool is the largest "holder" post-migration — leaving it in
         # corrupts total supply, team pct, and the tracked top-20 set.
         from src.analyzer.structural_accounts import (
             structural_set, PUMP_FUN_TOTAL_SUPPLY,
         )
-        excluded = structural_set(
-            None, cex_addresses, extra=_load_pool_accounts(token_mint, conn)
-        )
+        pool_accounts = _load_pool_accounts(token_mint, conn)
+        if pair_address and pair_address not in pool_accounts:
+            pool_accounts.add(pair_address)
+            _persist_pool_account(token_mint, pair_address, conn)
+        excluded = structural_set(None, cex_addresses, extra=pool_accounts)
         accounts = [a for a in accounts if a.get("address") not in excluded]
 
         supply_row = conn.execute(
@@ -125,9 +132,6 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
         )
 
         # ── Transaction-level behaviour + holder trajectory ───────────────────
-        # Fetch DexScreener once: liquidity (dead-token guard) + USD price (F4b).
-        liquidity_usd, price_usd, _pair = await _fetch_dex_stats(token_mint)
-
         metrics = None
         team_swaps = []
         holder_metrics = None
@@ -378,6 +382,21 @@ async def _update_funder_reputation_from_distribution(
         conn,
     )
 
+    # Mirror the updated reputation to Supabase (dashboard maturity meter)
+    from src.analyzer.smart_money import get_funder_reputation
+    from src.common import supabase_sync as sb
+    rep = get_funder_reputation(funder_row["funding_source"], conn)
+    if rep:
+        asyncio.create_task(sb.funder_reputation(
+            funding_source=rep.funding_source,
+            rug_count=rep.rug_count, moon_count=rep.moon_count,
+            ok_count=rep.ok_count, rug_rate=rep.rug_rate,
+            moon_rate=rep.moon_rate, avg_bundle_pct=rep.avg_bundle_pct,
+            avg_dev_pct=rep.avg_dev_pct, last_seen=rep.last_seen or 0,
+            is_known_rugger=rep.is_known_rugger,
+            graduated_mints=rep.graduated_mints,
+        ))
+
     # Memory: update wallet graph with outcome + update structural fingerprint
     from src.analyzer.team_memory import update_wallet_graph, update_fingerprint
     from src.common.models import TeamCluster
@@ -478,6 +497,20 @@ def _load_graduated_at(token_mint: str, conn) -> int:
         "SELECT graduated_at FROM graduation_events WHERE token_mint = ?", (token_mint,)
     ).fetchone()
     return int(row["graduated_at"]) if row and row["graduated_at"] else 0
+
+
+def _persist_pool_account(token_mint: str, address: str, conn) -> None:
+    """Append a newly discovered pool account (e.g. the post-migration AMM pool
+    from DexScreener) so later checks and exports exclude it too."""
+    pools = sorted(_load_pool_accounts(token_mint, conn) | {address})
+    conn.execute(
+        """UPDATE graduation_events
+           SET pool_accounts_json = ?,
+               amm_pool_address = COALESCE(amm_pool_address, ?)
+           WHERE token_mint = ?""",
+        (json.dumps(pools), address, token_mint),
+    )
+    conn.commit()
 
 
 def _load_pool_accounts(token_mint: str, conn) -> set[str]:

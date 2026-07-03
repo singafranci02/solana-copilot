@@ -85,6 +85,31 @@ def update_wallet_graph(
     logger.debug(
         "wallet_graph: %d pairs upserted (rug=%s)", len(pairs), is_rug
     )
+    _sync_graph_pairs(pairs, conn)
+
+
+def _sync_graph_pairs(pairs: list[tuple[str, str]], conn) -> None:
+    """Mirror the touched pairs to Supabase. No-op outside an event loop."""
+    import asyncio
+    from src.common import supabase_sync as sb
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return   # sync context (scripts/tests) — Supabase mirror skipped
+
+    rows = []
+    for wallet_a, wallet_b in pairs:
+        r = conn.execute(
+            """SELECT wallet_a, wallet_b, co_appearances, rug_co_appearances,
+                      last_seen_together
+               FROM wallet_graph WHERE wallet_a = ? AND wallet_b = ?""",
+            (wallet_a, wallet_b),
+        ).fetchone()
+        if r:
+            rows.append(dict(r))
+    if rows:
+        loop.create_task(sb.wallet_graph_pairs_batch(rows))
 
 
 def query_wallet_graph(
@@ -255,19 +280,21 @@ def update_fingerprint(
     supply_pct = float(team_cluster.supply_pct_at_graduation)
 
     if row is None:
-        # Fresh insert — also handles the case where team_fingerprints row was never created
+        # Fresh insert — fingerprint_id is NOT NULL UNIQUE so it must be set here;
+        # ON CONFLICT needs the UNIQUE index on funding_source (db.py migrate).
+        import uuid
         conn.execute(
             """INSERT INTO team_fingerprints
-               (funding_source, avg_first_buy_offset_s, avg_sniper_rate,
-                avg_cluster_size, avg_bundle_pct, sample_count)
-               VALUES (?, ?, ?, ?, ?, 1)
+               (fingerprint_id, funding_source, avg_first_buy_offset_s,
+                avg_sniper_rate, avg_cluster_size, avg_bundle_pct, sample_count)
+               VALUES (?, ?, ?, ?, ?, ?, 1)
                ON CONFLICT(funding_source) DO UPDATE SET
                    avg_first_buy_offset_s = excluded.avg_first_buy_offset_s,
                    avg_sniper_rate        = excluded.avg_sniper_rate,
                    avg_cluster_size       = excluded.avg_cluster_size,
                    avg_bundle_pct         = excluded.avg_bundle_pct,
                    sample_count           = sample_count + 1""",
-            (funder, offset_s, is_sniper, cluster_size, supply_pct),
+            (str(uuid.uuid4()), funder, offset_s, is_sniper, cluster_size, supply_pct),
         )
     else:
         n = int(row["sample_count"] or 0)
@@ -292,6 +319,110 @@ def update_fingerprint(
             (new_offset, new_sniper, new_size, new_bundle, new_n, funder),
         )
 
+    conn.commit()
+
+
+def update_fingerprint_outcome(token_mint: str, conn) -> None:
+    """Update a funder fingerprint's outcome ledger (known_mints, outcome_labels,
+    rug_rate, moon_rate, avg_bundle/dev_pct, keywords) after a 4h outcome.
+
+    Owns the outcome-side columns of team_fingerprints; update_fingerprint owns
+    the structural-average columns. Both upsert on funding_source so writer
+    order doesn't matter (moved here from outcome_tracker so one module owns
+    the table).
+    """
+    token_row = conn.execute(
+        "SELECT bundle_pct, dev_pct, narrative_tags FROM tokens WHERE mint = ?",
+        (token_mint,),
+    ).fetchone()
+    if not token_row:
+        return
+
+    funder_row = conn.execute(
+        """SELECT w.funding_source
+           FROM token_buyers tb
+           JOIN wallets w ON w.address = tb.wallet_address
+           WHERE tb.token_mint = ?
+             AND w.funding_source IS NOT NULL
+             AND w.funding_source != 'cex'
+           GROUP BY w.funding_source
+           ORDER BY COUNT(*) DESC LIMIT 1""",
+        (token_mint,),
+    ).fetchone()
+    if not funder_row or not funder_row[0]:
+        return
+    funding_source = funder_row[0]
+
+    outcome_row = conn.execute(
+        "SELECT classified FROM coin_outcomes WHERE token_mint = ? AND check_offset_h = 4",
+        (token_mint,),
+    ).fetchone()
+    outcome_label = outcome_row[0] if outcome_row else None
+
+    bundle_pct = float(token_row["bundle_pct"] or 0)
+    dev_pct = float(token_row["dev_pct"] or 0)
+    new_keywords = json.loads(token_row["narrative_tags"] or "[]")
+    now = int(time.time())
+
+    fp_row = conn.execute(
+        "SELECT * FROM team_fingerprints WHERE funding_source = ?", (funding_source,)
+    ).fetchone()
+
+    if fp_row is None:
+        import uuid
+        conn.execute(
+            """INSERT INTO team_fingerprints
+               (fingerprint_id, funding_source, known_mints, outcome_labels,
+                avg_bundle_pct, avg_dev_pct, rug_rate, moon_rate,
+                last_seen, description_keywords)
+               VALUES (?,?,?,?,?,?,?,?,?,?)
+               ON CONFLICT(funding_source) DO UPDATE SET
+                   known_mints          = excluded.known_mints,
+                   outcome_labels       = excluded.outcome_labels,
+                   rug_rate             = excluded.rug_rate,
+                   moon_rate            = excluded.moon_rate,
+                   last_seen            = excluded.last_seen,
+                   description_keywords = excluded.description_keywords""",
+            (
+                str(uuid.uuid4()), funding_source,
+                json.dumps([token_mint]),
+                json.dumps([outcome_label] if outcome_label else []),
+                bundle_pct, dev_pct,
+                1.0 if outcome_label == "rug" else 0.0,
+                1.0 if outcome_label == "moon" else 0.0,
+                now, json.dumps(new_keywords),
+            ),
+        )
+    else:
+        mints = json.loads(fp_row["known_mints"] or "[]")
+        labels = json.loads(fp_row["outcome_labels"] or "[]")
+        keywords = list(set(json.loads(fp_row["description_keywords"] or "[]") + new_keywords))
+        if token_mint not in mints:
+            mints.append(token_mint)
+        if outcome_label:
+            labels.append(outcome_label)
+        n = len(labels) or 1
+        prev_n = max(len(mints) - 1, 1)
+        conn.execute(
+            """UPDATE team_fingerprints SET
+                   known_mints          = ?,
+                   outcome_labels       = ?,
+                   avg_bundle_pct       = ?,
+                   avg_dev_pct          = ?,
+                   rug_rate             = ?,
+                   moon_rate            = ?,
+                   last_seen            = ?,
+                   description_keywords = ?
+               WHERE funding_source = ?""",
+            (
+                json.dumps(mints), json.dumps(labels),
+                round((float(fp_row["avg_bundle_pct"] or 0) * prev_n + bundle_pct) / len(mints), 3),
+                round((float(fp_row["avg_dev_pct"] or 0) * prev_n + dev_pct) / len(mints), 3),
+                labels.count("rug") / n, labels.count("moon") / n,
+                now, json.dumps(keywords),
+                funding_source,
+            ),
+        )
     conn.commit()
 
 

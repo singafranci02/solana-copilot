@@ -31,6 +31,10 @@ def main() -> None:
            FROM team_clusters tc
            JOIN coin_outcomes co
              ON co.token_mint = tc.token_mint
+            AND co.check_offset_h = 4      -- one outcome per token, not 1h+4h+24h
+           JOIN graduation_events ge
+             ON ge.token_mint = tc.token_mint
+            AND ge.pipeline_version >= 2   -- pre-v2 clusters contain pool addresses
            WHERE tc.funding_source IS NOT NULL
              AND tc.funding_source != 'cex'
              AND co.classified IS NOT NULL
@@ -46,7 +50,7 @@ def main() -> None:
 
     for row in rows:
         update_funder_reputation(
-            funder=row["funding_source"],
+            funding_source=row["funding_source"],
             token_mint=row["token_mint"],
             outcome=row["classified"],
             bundle_pct=float(row["bundle_pct"] or 0),

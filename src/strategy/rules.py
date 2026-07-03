@@ -273,6 +273,12 @@ def structural_read(ctx: dict[str, Any]) -> StructuralRead:
                 f"({len(funder_rep.graduated_mints)} launches)"
             )
 
+    # Proven wallets from wallet_stats (win_rate ≥ 0.6 with n ≥ 15, gated upstream)
+    proven_count = int(ctx.get("proven_wallet_count") or 0)
+    if proven_count >= 2:
+        score += 1
+        factors.append(f"{proven_count} proven wallets among BC buyers (≥60% win rate, n≥15)")
+
     # ── Negative signals ──────────────────────────────────────────────────────
 
     if dist_signal == "DISTRIBUTING":
