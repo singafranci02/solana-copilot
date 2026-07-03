@@ -46,9 +46,11 @@ class SolanaTrackerClient:
 
     async def _get(self, path: str, params: dict | None = None, retries: int = 4) -> Any:
         assert self._session is not None, "use as async context manager"
+        from src.common.api_usage import record
         url = f"{_BASE_URL}{path}"
         backoff = 1.0
         for attempt in range(retries):
+            record("solana_tracker", path)
             async with self._semaphore:
                 try:
                     async with self._session.get(url, params=params or {}) as resp:
@@ -73,14 +75,20 @@ class SolanaTrackerClient:
         self,
         mint: str,
         since_ts: int | None = None,
-        max_pages: int = 50,
+        until_ts: int | None = None,
+        max_pages: int | None = None,
         sort: str = "DESC",
     ) -> list[Swap]:
         """Full trade history for a mint, normalized to Swap. Walks the cursor.
 
-        DESC order (newest first) + since_ts → early-stop once a page's oldest trade
-        predates since_ts. Returns trades with timestamp >= since_ts (if given).
+        DESC (newest first) + since_ts → early-stop once a page's oldest trade
+        predates since_ts. ASC (oldest first) + until_ts → early-stop once a
+        page's newest trade passes until_ts. Returns trades inside
+        [since_ts, until_ts] when given. max_pages defaults to the configured
+        trades_max_pages (API-budget cap — each page is one request).
         """
+        if max_pages is None:
+            max_pages = settings.trades_max_pages
         out: list[Swap] = []
         cursor: Any = None
         for _ in range(max_pages):
@@ -97,10 +105,15 @@ class SolanaTrackerClient:
             for sw in page_swaps:
                 if since_ts is not None and sw.timestamp < since_ts:
                     continue
+                if until_ts is not None and sw.timestamp > until_ts:
+                    continue
                 out.append(sw)
-            # early-stop: oldest trade on this DESC page is already before the window
+            # early-stop: this page already reached past the requested window
             oldest = min((s.timestamp for s in page_swaps), default=0)
+            newest = max((s.timestamp for s in page_swaps), default=0)
             if since_ts is not None and sort == "DESC" and oldest < since_ts:
+                break
+            if until_ts is not None and sort == "ASC" and newest > until_ts:
                 break
             if not data.get("hasNextPage"):
                 break

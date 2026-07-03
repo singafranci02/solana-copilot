@@ -101,17 +101,25 @@ async def reconstruct_bc_holders(
     holder_wallets: list[str] | None,
     token_created_at: int,
     graduated_at: int,
+    structural: frozenset[str] = frozenset(),
 ) -> tuple[dict[str, BcAccumulation], list[Swap]]:
     """Reconstruct BC accumulation from the token's trade history (Solana Tracker).
 
     One mint-level call returns ALL bonding-curve traders (not just top holders),
     filtered to the BC window [token_created_at, graduated_at]. `holder_wallets` is
     no longer needed for fetching. Returns (per-wallet BcAccumulation, BC swaps).
+
+    `structural` drops swaps signed by pool/curve/program accounts (e.g. the
+    migration transaction) so they never become token_buyers or bundle members.
     """
-    raw = await client.get_token_trades(token_mint, since_ts=token_created_at)
+    raw = await client.get_token_trades(
+        token_mint, since_ts=token_created_at, until_ts=graduated_at, sort="ASC",
+    )
     bc_swaps = dedup_swaps(
         filter_token_swaps_window(raw, token_mint, token_created_at, graduated_at)
     )
+    if structural:
+        bc_swaps = [s for s in bc_swaps if s.signer not in structural]
 
     by_wallet: dict[str, list[Swap]] = {}
     for s in bc_swaps:

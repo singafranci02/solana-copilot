@@ -113,35 +113,41 @@ def build_team_cluster_post_grad(
     buyers: list[TokenBuyer],
     bc_top_holders: list[dict],
     cex_addresses: frozenset[str],
+    structural_addresses: frozenset[str] = frozenset(),
 ) -> TeamCluster | None:
     """Identify the team cluster using graduation-time holder data.
 
     Strategy:
-      1. From bc_top_holders (Helius snapshot at graduation), exclude CEX wallets.
+      1. From bc_top_holders (holder snapshot at graduation), exclude CEX wallets
+         and structural accounts (pool/curve/program — see structural_accounts.py).
       2. Cross-reference with BC-phase buyers: wallets that both bought early AND
          still hold at graduation are the highest-confidence team/sniper candidates.
-      3. If no overlap found, fall back to top non-CEX holders directly.
+      3. If no overlap found, fall back to top non-excluded holders directly.
       4. Compute supply_pct_at_graduation from the holder snapshot.
       5. Detect BC snipers: did the earliest team buy happen within 30s of launch?
 
     Args:
         token_mint: Mint address of the graduated token.
         buyers: TokenBuyer records collected during BC phase.
-        bc_top_holders: [{wallet, pct, ui_amount}] from Helius at graduation.
+        bc_top_holders: [{wallet, pct, ui_amount}] snapshot at graduation.
         cex_addresses: Known CEX hot wallet addresses to exclude.
+        structural_addresses: Pool/curve/program accounts to exclude — without
+            this the PumpSwap pool (majority holder post-migration) lands in the
+            top-5 fallback and inflates team supply_pct.
 
     Returns:
         TeamCluster or None if no plausible team can be identified.
     """
+    excluded = cex_addresses | structural_addresses
     eligible_holders = [
         h for h in bc_top_holders
-        if h.get("wallet") and h["wallet"] not in cex_addresses
+        if h.get("wallet") and h["wallet"] not in excluded
     ]
     if not eligible_holders:
         return None
 
     holder_map = {h["wallet"]: h["pct"] for h in eligible_holders}
-    buyer_set = {b.wallet_address for b in buyers if b.wallet_address not in cex_addresses}
+    buyer_set = {b.wallet_address for b in buyers if b.wallet_address not in excluded}
 
     # Wallets that bought in BC phase AND still hold at graduation
     overlap = [addr for addr in buyer_set if addr in holder_map]

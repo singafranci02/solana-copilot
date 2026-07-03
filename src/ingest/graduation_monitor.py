@@ -161,52 +161,118 @@ async def _handle_graduation(
     pool_address: str | None,
     detection_lag: int,
 ) -> None:
-    """Persist the graduation and run full structural analysis."""
+    """Persist the graduation and run full structural analysis.
+
+    NOTE: `pool_address` from the PumpPortal migrate payload is a VENUE LABEL
+    ('pump-amm' / 'raydium-cpmm'), not an address — stored as migration_venue.
+    The real AMM pool accounts come from the token-info response.
+    """
     from src.ingest.solana_tracker import SolanaTrackerClient
+    from src.analyzer.structural_accounts import (
+        structural_set, extract_pool_accounts, extract_total_supply,
+    )
+    from src.analyzer.project_classifier import (
+        _extract_meta_fields, extract_creation,
+    )
+    from src.common.cex_wallets import get_all_cex_addresses
 
     conn = get_connection()
     try:
-        # Ensure the token row exists (we may have missed the launch)
-        token_row = conn.execute(
-            "SELECT mint, symbol, created_at FROM tokens WHERE mint = ?", (mint,)
-        ).fetchone()
+        now = int(time.time())
 
-        if token_row is None:
-            # DexScreener is the primary (free) name source now
-            ds_symbol, ds_name = await _dexscreener_symbol_name(mint)
-            symbol = ds_symbol or "UNKNOWN"
-            name = ds_name or "Unknown"
-            created_at = int(time.time())
+        # Token-info FIRST: it carries the real created_time (fixes BC-window
+        # reconstruction), creator wallet, pool accounts, total supply, and the
+        # classification metadata — one request serving five consumers.
+        async with SolanaTrackerClient() as st:
+            try:
+                token_info = await st.get_token_info(mint)
+            except Exception as exc:
+                logger.warning("token-info fetch failed for %s: %s", mint[:8], exc)
+                token_info = None
+
+            meta = _extract_meta_fields(mint, token_info)
+            creator_wallet, created_time = extract_creation(token_info)
+            pool_accounts = extract_pool_accounts(token_info)
+            total_supply = extract_total_supply(token_info)
+
+            token_row = conn.execute(
+                "SELECT mint, symbol, created_at FROM tokens WHERE mint = ?", (mint,)
+            ).fetchone()
+
+            # Launch-time seen by pump_monitor wins; token-info creation time next;
+            # `now` only as a flagged last resort (corrupts bc_duration otherwise).
+            row_created = (
+                int(token_row["created_at"])
+                if token_row is not None and token_row["created_at"] else None
+            )
+            if row_created and row_created < now - 300 and (
+                not created_time or row_created <= created_time + 60
+            ):
+                token_created_at, created_at_source = row_created, "launch_ws"
+            elif created_time:
+                token_created_at, created_at_source = created_time, "token_info"
+            else:
+                token_created_at, created_at_source = now, "fallback_now"
+
+            if token_row is None:
+                symbol = meta.symbol or "UNKNOWN"
+                name = meta.name or "Unknown"
+                if symbol == "UNKNOWN":
+                    ds_symbol, ds_name = await _dexscreener_symbol_name(mint)
+                    symbol, name = ds_symbol or "UNKNOWN", ds_name or "Unknown"
+                conn.execute(
+                    """INSERT OR IGNORE INTO tokens
+                       (mint, symbol, name, launchpad, created_at, narrative_tags)
+                       VALUES (?, ?, ?, 'pump.fun', ?, '[]')""",
+                    (mint, symbol, name, token_created_at),
+                )
+                from src.common import supabase_sync as sb
+                asyncio.create_task(sb.token(
+                    mint, symbol, name, token_created_at,
+                    created_at_source=created_at_source,
+                    creator_wallet=creator_wallet,
+                    total_supply=total_supply,
+                ))
+            else:
+                symbol = token_row["symbol"] or "?"
+
             conn.execute(
-                """INSERT OR IGNORE INTO tokens
-                   (mint, symbol, name, launchpad, created_at, narrative_tags)
-                   VALUES (?, ?, ?, 'pump.fun', ?, '[]')""",
-                (mint, symbol, name, created_at),
+                """UPDATE tokens SET created_at = ?, created_at_source = ?,
+                       creator_wallet = COALESCE(?, creator_wallet),
+                       total_supply = ?
+                   WHERE mint = ?""",
+                (token_created_at, created_at_source, creator_wallet,
+                 total_supply, mint),
             )
             conn.commit()
-            from src.common import supabase_sync as sb
-            asyncio.create_task(sb.token(mint, symbol, name, created_at))
-            token_created_at = created_at
-        else:
-            symbol = token_row["symbol"] or "?"
-            token_created_at = int(token_row["created_at"]) if token_row["created_at"] else int(time.time())
 
-        now = int(time.time())
-        conn.execute(
-            """INSERT OR REPLACE INTO graduation_events
-               (token_mint, graduated_at, detection_lag_seconds,
-                pumpswap_pool_address, bc_top_holders_json)
-               VALUES (?, ?, ?, ?, '[]')""",
-            (mint, now, detection_lag, pool_address),
-        )
-        conn.commit()
+            amm_pool_address = next(iter(sorted(pool_accounts)), None)
+            for pool in (token_info or {}).get("pools") or []:
+                if isinstance(pool, dict) and isinstance(pool.get("poolId"), str):
+                    amm_pool_address = pool["poolId"]
+                    break
 
-        # Fetch holders at graduation + reconstruct BC accumulation from the token's
-        # full trade history (Solana Tracker, by mint).
-        async with SolanaTrackerClient() as st:
+            conn.execute(
+                """INSERT OR REPLACE INTO graduation_events
+                   (token_mint, graduated_at, detection_lag_seconds,
+                    pumpswap_pool_address, migration_venue, amm_pool_address,
+                    pool_accounts_json, pipeline_version, bc_top_holders_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, 2, '[]')""",
+                (mint, now, detection_lag, amm_pool_address, pool_address,
+                 amm_pool_address, json.dumps(sorted(pool_accounts))),
+            )
+            conn.commit()
+
+            # Holders at graduation, with pool/curve/program accounts excluded so
+            # they never surface as "top holders" or team members.
+            structural = structural_set(token_info, get_all_cex_addresses(conn))
             accounts = await st.get_token_holders(mint)
-            bc_top_holders = _parse_bc_holders(accounts)
-            await _reconstruct_bc(st, mint, bc_top_holders, token_created_at, now, conn)
+            accounts = [a for a in accounts if a.get("address") not in structural]
+            bc_top_holders = _parse_bc_holders(accounts, total_supply)
+            await _reconstruct_bc(
+                st, mint, bc_top_holders, token_created_at, now, conn,
+                structural=structural,
+            )
 
         conn.execute(
             "UPDATE graduation_events SET bc_top_holders_json = ? WHERE token_mint = ?",
@@ -235,7 +301,7 @@ async def _handle_graduation(
             token_mint=mint,
             graduated_at=now,
             detection_lag_seconds=detection_lag,
-            pumpswap_pool_address=pool_address,
+            pumpswap_pool_address=amm_pool_address,
             bc_top_holders=bc_top_holders,
         )
 
@@ -244,7 +310,10 @@ async def _handle_graduation(
             symbol, len(buyers), len(bc_top_holders),
         )
 
-        await analyse_graduation(grad_event, buyers, conn, symbol=symbol)
+        await analyse_graduation(
+            grad_event, buyers, conn, symbol=symbol,
+            structural=structural, meta=meta,
+        )
 
     except Exception:
         logger.exception("graduation analysis failed for %s", mint[:8])
@@ -258,6 +327,8 @@ async def analyse_graduation(
     conn,
     *,
     symbol: str = "?",
+    structural: frozenset[str] = frozenset(),
+    meta=None,
 ) -> None:
     """Full structural analysis pipeline for a graduated token."""
     from src.analyzer.team_detect import build_team_cluster_post_grad
@@ -273,7 +344,8 @@ async def analyse_graduation(
     cex_addresses = get_all_cex_addresses(conn)
 
     team_cluster = build_team_cluster_post_grad(
-        event.token_mint, buyers, event.bc_top_holders, cex_addresses
+        event.token_mint, buyers, event.bc_top_holders, cex_addresses,
+        structural_addresses=structural,
     )
 
     # F4a: resolve the team's funding source so funder_reputation can populate
@@ -367,6 +439,7 @@ async def analyse_graduation(
         bc_top_holders_json=event.bc_top_holders,
         smart_money_count=len(sm_buyers),
         dominant_factors_json=read.dominant_factors,
+        pipeline_version=2,
     ))
     if team_cluster:
         asyncio.create_task(sb.team_cluster(
@@ -380,7 +453,7 @@ async def analyse_graduation(
         ))
 
     # Classify project-vs-meme + alert on real projects (fire-and-forget, non-fatal)
-    asyncio.create_task(_classify_and_notify(event.token_mint, symbol, read, conn))
+    asyncio.create_task(_classify_and_notify(event.token_mint, symbol, read, conn, meta=meta))
 
     # Schedule price outcome checks at 1h / 4h / 24h from graduation
     # Baseline: ~$69K USD — Pump.fun bonding curve always migrates near this MC
@@ -392,14 +465,23 @@ async def analyse_graduation(
     await schedule_distribution_checks(event.token_mint, event.graduated_at)
 
 
-async def _classify_and_notify(token_mint: str, symbol: str, read, conn) -> None:
-    """Classify project vs meme; store it; alert on project AND verdict != SKIP."""
-    from src.analyzer.project_classifier import fetch_token_meta, classify_project, _is_real_website
-    from src.ingest.solana_tracker import SolanaTrackerClient
+async def _classify_and_notify(token_mint: str, symbol: str, read, conn, meta=None) -> None:
+    """Classify project vs meme; store it; alert on project AND verdict != SKIP.
+
+    `meta` is the already-extracted token-info metadata from _handle_graduation
+    (saves one API request); fetched fresh only when absent (e.g. backfills).
+    """
+    from src.analyzer.project_classifier import (
+        fetch_token_meta, fill_meta_gaps, classify_project, _is_real_website,
+    )
     from src.common import supabase_sync as sb
     try:
-        async with SolanaTrackerClient() as st:
-            meta = await fetch_token_meta(token_mint, st)
+        if meta is not None:
+            meta = await fill_meta_gaps(meta)
+        else:
+            from src.ingest.solana_tracker import SolanaTrackerClient
+            async with SolanaTrackerClient() as st:
+                meta = await fetch_token_meta(token_mint, st)
         cls = await classify_project(meta)
 
         own = get_connection()
@@ -462,6 +544,7 @@ _BC_RECONSTRUCT_TOP_N = 8   # cap holders reconstructed per graduation (Helius b
 async def _reconstruct_bc(
     helius, mint: str, bc_top_holders: list[dict],
     token_created_at: int, graduated_at: int, conn,
+    structural: frozenset[str] = frozenset(),
 ) -> None:
     """F1: reconstruct BC accumulation for top holders + backfill token_buyers."""
     from src.analyzer.bc_reconstruct import (
@@ -473,6 +556,7 @@ async def _reconstruct_bc(
     try:
         profiles, bc_swaps = await reconstruct_bc_holders(
             helius, mint, wallets, token_created_at, graduated_at,
+            structural=structural,
         )
     except Exception as exc:
         logger.debug("BC reconstruction failed for %s: %s", mint[:8], exc)
@@ -666,11 +750,16 @@ async def _dexscreener_symbol_name(mint: str) -> tuple[str | None, str | None]:
         return None, None
 
 
-def _parse_bc_holders(accounts: list[dict]) -> list[dict]:
-    """Convert Helius largest-accounts response to ranked [{wallet, pct, ui_amount}]."""
+def _parse_bc_holders(accounts: list[dict], total_supply: float | None = None) -> list[dict]:
+    """Convert a top-holders response to ranked [{wallet, pct, ui_amount}].
+
+    Caller must pass accounts already filtered of structural (pool/curve/CEX)
+    addresses. pct is computed over the REAL total supply when given — summing
+    the returned top-100 both misranks holders and inflates every pct.
+    """
     if not accounts:
         return []
-    total = sum(float(a.get("uiAmount") or 0) for a in accounts)
+    total = total_supply or sum(float(a.get("uiAmount") or 0) for a in accounts)
     if total == 0:
         return []
     result = []

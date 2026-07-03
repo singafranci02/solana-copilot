@@ -85,14 +85,26 @@ async def _run_many(table: str, records: list[dict[str, Any]], conflict_col: str
 # ── Public sync functions (one per table) ─────────────────────────────────────
 # Each returns a coroutine — callers should wrap in asyncio.create_task().
 
-async def token(mint: str, symbol: str, name: str, created_at: int) -> None:
-    await _run("tokens", {
+async def token(
+    mint: str, symbol: str, name: str, created_at: int,
+    created_at_source: str | None = None,
+    creator_wallet: str | None = None,
+    total_supply: float | None = None,
+) -> None:
+    record: dict[str, Any] = {
         "mint": mint,
         "symbol": symbol,
         "name": name,
         "launchpad": "pump.fun",
         "created_at": created_at,
-    }, conflict_col="mint")
+    }
+    if created_at_source is not None:
+        record["created_at_source"] = created_at_source
+    if creator_wallet is not None:
+        record["creator_wallet"] = creator_wallet
+    if total_supply is not None:
+        record["total_supply"] = total_supply
+    await _run("tokens", record, conflict_col="mint")
 
 
 async def graduation_event(
@@ -105,8 +117,8 @@ async def graduation_event(
     bc_top_holders_json: list | None = None,
     smart_money_count: int = 0,
     dominant_factors_json: list | None = None,
+    pipeline_version: int = 1,
 ) -> None:
-    import json
     await _run("graduation_events", {
         "token_mint": token_mint,
         "graduated_at": graduated_at,
@@ -117,6 +129,7 @@ async def graduation_event(
         "bc_top_holders_json": bc_top_holders_json or [],
         "smart_money_count": smart_money_count,
         "dominant_factors_json": dominant_factors_json or [],
+        "pipeline_version": pipeline_version,
     })
 
 

@@ -17,7 +17,10 @@ CREATE TABLE IF NOT EXISTS tokens (
     top10_pct               REAL,                     -- % supply held by top 10 wallets
     bundle_pct              REAL,                     -- % bought in coordinated bundle at launch
     dev_pct                 REAL,                     -- % supply held by detected dev cluster
-    narrative_tags          TEXT NOT NULL DEFAULT '[]' -- JSON array of narrative labels
+    narrative_tags          TEXT NOT NULL DEFAULT '[]', -- JSON array of narrative labels
+    created_at_source      TEXT,                     -- 'launch_ws' | 'token_info' | 'fallback_now'
+    creator_wallet         TEXT,                     -- token deployer (token-info creation.creator)
+    total_supply           REAL                      -- real supply (pump.fun standard 1B)
 );
 
 CREATE INDEX IF NOT EXISTS idx_tokens_created_at  ON tokens (created_at);
@@ -175,7 +178,11 @@ CREATE TABLE IF NOT EXISTS graduation_events (
     structural_verdict      TEXT CHECK (structural_verdict IN ('SKIP','WATCH','STRUCTURALLY_SOUND',NULL)),
     verdict_confidence      REAL,                         -- 0.0–1.0
     smart_money_count       INTEGER NOT NULL DEFAULT 0,
-    dominant_factors_json   TEXT NOT NULL DEFAULT '[]'    -- JSON string[] from StructuralRead
+    dominant_factors_json   TEXT NOT NULL DEFAULT '[]',   -- JSON string[] from StructuralRead
+    migration_venue         TEXT,                         -- 'pump-amm' | 'raydium-cpmm' (WS label)
+    amm_pool_address        TEXT,                         -- real pool address (token-info pools[])
+    pool_accounts_json      TEXT NOT NULL DEFAULT '[]',   -- structural accounts excluded from holders
+    pipeline_version        INTEGER NOT NULL DEFAULT 1    -- 2+ = clean data (training gate)
 );
 
 CREATE INDEX IF NOT EXISTS idx_grad_events_graduated_at ON graduation_events(graduated_at);
@@ -421,4 +428,15 @@ CREATE TABLE IF NOT EXISTS cex_hotwallets (
     label       TEXT,
     confirmed   INTEGER NOT NULL DEFAULT 0 CHECK (confirmed IN (0, 1)),
     added_at    INTEGER NOT NULL
+);
+
+-- ── api_usage ─────────────────────────────────────────────────────────────────
+-- Per-day request accounting for external data providers. Ground truth for the
+-- Solana Tracker monthly budget (200k requests). Best-effort writes only.
+CREATE TABLE IF NOT EXISTS api_usage (
+    day       TEXT NOT NULL,                    -- YYYY-MM-DD (UTC)
+    provider  TEXT NOT NULL,                    -- 'solana_tracker' | 'rpc'
+    endpoint  TEXT NOT NULL,                    -- path template, e.g. '/tokens/{mint}/holders'
+    count     INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (day, provider, endpoint)
 );

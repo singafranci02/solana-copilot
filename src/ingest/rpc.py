@@ -35,10 +35,12 @@ class RpcClient:
 
     async def _call(self, method: str, params: list, retries: int = 3) -> Any:
         assert self._session is not None and self._url, "RPC_URL not configured"
+        from src.common.api_usage import record
         self._id += 1
         body = {"jsonrpc": "2.0", "id": self._id, "method": method, "params": params}
         backoff = 1.0
         for attempt in range(retries):
+            record("rpc", method)
             async with self._semaphore:
                 try:
                     async with self._session.post(self._url, json=body) as resp:

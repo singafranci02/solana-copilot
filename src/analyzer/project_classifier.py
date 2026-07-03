@@ -107,17 +107,34 @@ async def _fetch_dexscreener_info(mint: str) -> dict:
     return {}
 
 
-async def fetch_token_meta(mint: str, st_client=None) -> TokenMeta:
-    """Assemble token metadata from Solana Tracker, filling gaps from DexScreener."""
-    meta = TokenMeta(mint=mint)
-    if st_client is not None:
-        try:
-            meta = _extract_meta_fields(mint, await st_client.get_token_info(mint))
-        except Exception as exc:
-            logger.debug("ST token-info failed for %s: %s", mint[:8], exc)
+def extract_creation(raw: dict | None) -> tuple[str | None, int | None]:
+    """(creator_wallet, created_time_seconds) from a token-info response.
 
+    Solana Tracker trade times are milliseconds but creation.created_time is
+    seconds — normalize defensively in case that ever flips.
+    """
+    if not isinstance(raw, dict):
+        return None, None
+    tok = raw.get("token") if isinstance(raw.get("token"), dict) else raw
+    creation = tok.get("creation") if isinstance(tok.get("creation"), dict) else {}
+    creator = creation.get("creator")
+    created = creation.get("created_time")
+    try:
+        created = int(created) if created else None
+        if created and created > 10**12:
+            created //= 1000
+    except (TypeError, ValueError):
+        created = None
+    if not isinstance(creator, str) or len(creator) < 30 \
+            or creator == "11111111111111111111111111111111":
+        creator = None   # missing / system-program placeholder, not a real deployer
+    return creator, created
+
+
+async def fill_meta_gaps(meta: TokenMeta) -> TokenMeta:
+    """Fill missing website/socials from DexScreener (free)."""
     if not (meta.website or meta.twitter or meta.telegram):
-        info = await _fetch_dexscreener_info(mint)
+        info = await _fetch_dexscreener_info(meta.mint)
         websites = info.get("websites") or []
         if websites and not meta.website:
             meta.website = (websites[0] or {}).get("url")
@@ -129,6 +146,17 @@ async def fetch_token_meta(mint: str, st_client=None) -> TokenMeta:
             elif plat == "telegram" and not meta.telegram:
                 meta.telegram = handle
     return meta
+
+
+async def fetch_token_meta(mint: str, st_client=None) -> TokenMeta:
+    """Assemble token metadata from Solana Tracker, filling gaps from DexScreener."""
+    meta = TokenMeta(mint=mint)
+    if st_client is not None:
+        try:
+            meta = _extract_meta_fields(mint, await st_client.get_token_info(mint))
+        except Exception as exc:
+            logger.debug("ST token-info failed for %s: %s", mint[:8], exc)
+    return await fill_meta_gaps(meta)
 
 
 # ── classification ───────────────────────────────────────────────────────────────

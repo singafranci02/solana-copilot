@@ -89,12 +89,25 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
         if not accounts:
             return None
 
-        # Filter out CEX wallets from the analysis
-        accounts = [a for a in accounts if a.get("address") not in cex_addresses]
+        # Exclude CEX + structural accounts (AMM pool, curve, programs). The
+        # PumpSwap pool is the largest "holder" post-migration — leaving it in
+        # corrupts total supply, team pct, and the tracked top-20 set.
+        from src.analyzer.structural_accounts import (
+            structural_set, PUMP_FUN_TOTAL_SUPPLY,
+        )
+        excluded = structural_set(
+            None, cex_addresses, extra=_load_pool_accounts(token_mint, conn)
+        )
+        accounts = [a for a in accounts if a.get("address") not in excluded]
 
-        total_supply = sum(float(a.get("uiAmount") or 0) for a in accounts)
-        if total_supply == 0:
-            return None
+        supply_row = conn.execute(
+            "SELECT total_supply FROM tokens WHERE mint = ?", (token_mint,)
+        ).fetchone()
+        total_supply = (
+            float(supply_row["total_supply"])
+            if supply_row and supply_row["total_supply"]
+            else PUMP_FUN_TOTAL_SUPPLY
+        )
 
         current_team_pct = sum(
             float(a.get("uiAmount") or 0) / total_supply * 100
@@ -133,7 +146,7 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
             # F2: track team ∪ top-20 current holders (not just the team cluster)
             top_holders = {
                 a.get("address") for a in accounts
-                if a.get("address") and a.get("address") not in cex_addresses
+                if a.get("address") and a.get("address") not in excluded
             }
             tracked = sorted(team_addresses | top_holders)
             smart_money_set = {w.address for w in get_smart_money_wallets(conn)}
@@ -465,6 +478,20 @@ def _load_graduated_at(token_mint: str, conn) -> int:
         "SELECT graduated_at FROM graduation_events WHERE token_mint = ?", (token_mint,)
     ).fetchone()
     return int(row["graduated_at"]) if row and row["graduated_at"] else 0
+
+
+def _load_pool_accounts(token_mint: str, conn) -> set[str]:
+    """Per-mint pool/curve accounts captured at graduation (pipeline_version ≥ 2)."""
+    row = conn.execute(
+        "SELECT pool_accounts_json FROM graduation_events WHERE token_mint = ?",
+        (token_mint,),
+    ).fetchone()
+    if not row or not row["pool_accounts_json"]:
+        return set()
+    try:
+        return {a for a in json.loads(row["pool_accounts_json"]) if isinstance(a, str)}
+    except Exception:
+        return set()
 
 
 def _load_grad_positions(token_mint: str, conn) -> dict[str, float]:

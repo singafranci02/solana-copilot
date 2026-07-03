@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     # On-chain data (Solana Tracker = primary trades/holders; RPC = funding tracing only)
     solana_tracker_api_key: str = Field(default="", alias="SOLANA_TRACKER_API_KEY")
     rpc_url: str = Field(default="", alias="RPC_URL")   # free Alchemy/Ankr Solana endpoint
+    # Max cursor pages per get_token_trades call (~100 trades/page). Each page is
+    # one request against the 200k/month budget — check api_usage before raising.
+    trades_max_pages: int = Field(default=6, alias="TRADES_MAX_PAGES")
     # Deprecated — Helius free tier exhausted; kept only as a fallback RPC if RPC_URL is blank
     helius_api_key: str = Field(default="", alias="HELIUS_API_KEY")
 

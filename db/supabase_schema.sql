@@ -324,3 +324,16 @@ LEFT JOIN holder_snapshots hs_24h
                               AND hs_24h.check_offset_h  = 24
 LEFT JOIN funder_reputation fr ON fr.funding_source    = tc.funding_source
 ORDER BY ge.graduated_at DESC;
+
+-- ── Pipeline v2 migration (2026-07) ───────────────────────────────────────────
+-- Run once in the Supabase SQL editor. Real created_at provenance, creator
+-- wallet, structural-account capture, and the training-data quality gate.
+ALTER TABLE tokens ADD COLUMN IF NOT EXISTS created_at_source TEXT;
+ALTER TABLE tokens ADD COLUMN IF NOT EXISTS creator_wallet TEXT;
+ALTER TABLE tokens ADD COLUMN IF NOT EXISTS total_supply DOUBLE PRECISION;
+ALTER TABLE graduation_events ADD COLUMN IF NOT EXISTS migration_venue TEXT;
+ALTER TABLE graduation_events ADD COLUMN IF NOT EXISTS amm_pool_address TEXT;
+ALTER TABLE graduation_events ADD COLUMN IF NOT EXISTS pool_accounts_json JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE graduation_events ADD COLUMN IF NOT EXISTS pipeline_version INTEGER NOT NULL DEFAULT 1;
+-- One-time learning-table reset at v2 deploy: see db/migrations/2026-07-pipeline-v2-reset.sql
+-- (not inlined here — this file must stay safe to re-run in full).
