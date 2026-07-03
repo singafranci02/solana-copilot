@@ -111,12 +111,22 @@ async def reconstruct_bc_holders(
 
     `structural` drops swaps signed by pool/curve/program accounts (e.g. the
     migration transaction) so they never become token_buyers or bundle members.
+
+    ASC from the start of history — deliberately NOT since_ts=token_created_at:
+    Solana Tracker's creation.created_time is sometimes the indexing moment
+    (≈ graduation), which would empty the window. The first trade on the tape
+    IS the launch; token_created_at only tightens the window when it's earlier.
     """
     raw = await client.get_token_trades(
-        token_mint, since_ts=token_created_at, until_ts=graduated_at, sort="ASC",
+        token_mint, until_ts=graduated_at, sort="ASC",
     )
+    effective_created = token_created_at
+    if raw:
+        first_trade_ts = min(s.timestamp for s in raw)
+        if not token_created_at or first_trade_ts < token_created_at:
+            effective_created = first_trade_ts
     bc_swaps = dedup_swaps(
-        filter_token_swaps_window(raw, token_mint, token_created_at, graduated_at)
+        filter_token_swaps_window(raw, token_mint, effective_created, graduated_at)
     )
     if structural:
         bc_swaps = [s for s in bc_swaps if s.signer not in structural]
@@ -126,7 +136,7 @@ async def reconstruct_bc_holders(
         by_wallet.setdefault(s.signer, []).append(s)
 
     profiles = {
-        wallet: classify_accumulation(ws, token_created_at)
+        wallet: classify_accumulation(ws, effective_created)
         for wallet, ws in by_wallet.items()
     }
     return profiles, bc_swaps

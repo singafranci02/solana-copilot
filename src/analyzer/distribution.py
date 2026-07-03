@@ -288,8 +288,10 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
             signal.value,
         )
 
-        # Sync to Supabase (fire-and-forget)
-        import asyncio
+        # Sync to Supabase (fire-and-forget). NOTE: no local `import asyncio`
+        # here — a function-level import would shadow the module-level one and
+        # make every earlier asyncio.create_task in this function raise
+        # UnboundLocalError (this exact bug killed 400+ distribution checks).
         from src.common import supabase_sync as sb
         asyncio.create_task(sb.post_grad_behavior(
             token_mint=token_mint,

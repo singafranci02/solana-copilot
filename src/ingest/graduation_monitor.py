@@ -44,6 +44,9 @@ PUMP_FUN_API = "https://frontend-api.pump.fun"  # REST fallback only
 
 MIN_GRADUATION_MC_USD = 50_000.0   # sanity-check lower bound
 
+# Wait for ST/DexScreener to index the migration AMM pool before analysing
+_POOL_INDEX_DELAY_S = 45
+
 
 # ── internal event struct ─────────────────────────────────────────────────────
 
@@ -176,6 +179,12 @@ async def _handle_graduation(
     )
     from src.common.cex_wallets import get_all_cex_addresses
 
+    # Give Solana Tracker / DexScreener time to index the freshly created AMM
+    # pool — fetching at T+0 misses it in pools[] and the pool then pollutes
+    # top holders (observed live: pool as 42% "top holder"). Analysis quality
+    # at +45s is identical; distribution checks are at 1h+ anyway.
+    await asyncio.sleep(_POOL_INDEX_DELAY_S)
+
     conn = get_connection()
     try:
         now = int(time.time())
@@ -275,6 +284,19 @@ async def _handle_graduation(
                 st, mint, bc_top_holders, token_created_at, now, conn,
                 structural=structural,
             )
+
+        # The tape is ground truth for launch time — ST's created_time is
+        # sometimes the indexing moment (≈ graduation), corrupting bc_duration
+        # and first-buy offsets. First trade wins when it's meaningfully earlier.
+        if bc_swaps:
+            first_trade_ts = min(s.timestamp for s in bc_swaps)
+            if first_trade_ts < token_created_at - 60:
+                token_created_at = first_trade_ts
+                conn.execute(
+                    "UPDATE tokens SET created_at = ?, created_at_source = 'first_trade' WHERE mint = ?",
+                    (token_created_at, mint),
+                )
+                conn.commit()
 
         # Funding + wallet age for the top holders (free RPC, cached), then
         # launch coordination WITH funder/fresh maps — shared-funder edges and
@@ -779,6 +801,10 @@ async def _resolve_wallet_funding(
             uncached.append(addr)
 
     if uncached:
+        # RPC phase first, DB writes after — writing inside the loop would hold
+        # a SQLite write transaction open across slow awaits and lock out every
+        # other service ("database is locked" storms).
+        gathered: list = []
         try:
             async with RpcClient() as rpc:
                 for addr in uncached:
@@ -789,22 +815,26 @@ async def _resolve_wallet_funding(
                     funder_by_wallet[addr] = info.funder
                     if info.first_seen:
                         first_seen[addr] = info.first_seen
-                    _persist_funding_info(conn, info)
+                    gathered.append(info)
                     # Hop 2: fresh intermediary funder → trace who funded IT
                     f = info.funder
                     if f and f != "cex" and not conn.execute(
                         "SELECT 1 FROM wallet_funding WHERE wallet = ? AND hop = 1", (f,)
                     ).fetchone():
                         try:
-                            finfo = await extract_funding_info_rpc(
+                            gathered.append(await extract_funding_info_rpc(
                                 rpc, f, fresh_gate=_FRESH_FUNDER_SIG_COUNT,
-                            )
-                            _persist_funding_info(conn, finfo)
+                            ))
                         except Exception:
                             pass
-            conn.commit()
         except Exception as exc:
             logger.debug("funding resolution failed: %s", exc)
+        try:
+            for info in gathered:
+                _persist_funding_info(conn, info)
+            conn.commit()
+        except Exception as exc:
+            logger.debug("funding persistence failed: %s", exc)
 
     return funder_by_wallet, first_seen
 
