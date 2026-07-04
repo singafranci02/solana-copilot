@@ -68,6 +68,11 @@ def migrate() -> None:
         _add_column_if_missing(conn, "bc_flow_features", "distinct_slots_first_20_buys", "INTEGER")
         _add_column_if_missing(conn, "bc_flow_features", "max_same_slot_group", "INTEGER")
         _add_column_if_missing(conn, "bc_flow_features", "bundled_adjacent_count", "INTEGER")
+        # Phase D: exit-choreography rollup on team_fingerprints
+        _add_column_if_missing(conn, "team_fingerprints", "avg_exit_spread_s", "REAL")
+        _add_column_if_missing(conn, "team_fingerprints", "leader_wallet", "TEXT")
+        _add_column_if_missing(conn, "team_fingerprints", "leader_consistency", "REAL")
+        _add_column_if_missing(conn, "team_fingerprints", "choreography_sample_count", "INTEGER NOT NULL DEFAULT 0")
         # Holder/whale tracking
         _add_column_if_missing(conn, "post_grad_swaps", "is_smart_money", "INTEGER NOT NULL DEFAULT 0")
         _add_column_if_missing(conn, "post_grad_swaps", "tx_signature", "TEXT")

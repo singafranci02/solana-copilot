@@ -159,7 +159,11 @@ CREATE TABLE IF NOT EXISTS team_fingerprints (
     description_keywords TEXT NOT NULL DEFAULT '[]',    -- JSON — common words in their descriptions
     avg_first_buy_offset_s REAL NOT NULL DEFAULT 0.0,   -- structural averages (team_memory)
     avg_sniper_rate     REAL NOT NULL DEFAULT 0.0,
-    sample_count        INTEGER NOT NULL DEFAULT 0
+    sample_count        INTEGER NOT NULL DEFAULT 0,
+    avg_exit_spread_s   REAL,                            -- exit choreography (Phase D)
+    leader_wallet       TEXT,
+    leader_consistency  REAL,
+    choreography_sample_count INTEGER NOT NULL DEFAULT 0
 );
 
 -- UNIQUE: one fingerprint per funder — both writers (structural averages +
@@ -572,3 +576,22 @@ CREATE TABLE IF NOT EXISTS wallet_behavior (
 
 CREATE INDEX IF NOT EXISTS idx_bc_accum_wallet ON bc_accumulation(wallet_address);
 CREATE INDEX IF NOT EXISTS idx_pgs_wallet ON post_grad_swaps(wallet_address);
+
+-- ── team_member_behavior ──────────────────────────────────────────────────────
+-- Per-team-member EXIT CHOREOGRAPHY (Phase D): who sells first, in what order,
+-- how much, at each check. The behavioral-economics core — a coordinated team
+-- exits in a recognizable sequence (leader dumps, others follow); organic
+-- holders don't. Feeds wallet_behavior.avg_exit_order and funder choreography.
+CREATE TABLE IF NOT EXISTS team_member_behavior (
+    token_mint          TEXT NOT NULL REFERENCES tokens(mint),
+    wallet              TEXT NOT NULL,
+    exit_order          INTEGER,             -- 1 = first team seller (NULL if never sold)
+    first_sell_offset_s REAL,                -- seconds from graduation to first sell
+    sold_pct_1h  REAL, sold_pct_4h  REAL, sold_pct_24h REAL,
+    is_first_seller     INTEGER NOT NULL DEFAULT 0,
+    participated_coordinated_sell INTEGER NOT NULL DEFAULT 0,
+    updated_at          INTEGER NOT NULL,
+    PRIMARY KEY (token_mint, wallet)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tmb_wallet ON team_member_behavior(wallet);

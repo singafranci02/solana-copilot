@@ -70,15 +70,12 @@ def price_sol(swap: Swap) -> float | None:
     return None
 
 
-def detect_coordinated_sells(swaps: list[Swap], window_s: int = COORDINATED_WINDOW_S) -> int:
-    """Count time windows in which ≥2 distinct wallets sold.
-
-    Walks sells in timestamp order; opens a window at the first sell and counts
-    one coordinated event if that window collects sells from ≥2 distinct wallets,
-    then resumes after the window closes.
-    """
+def coordinated_sell_windows(
+    swaps: list[Swap], window_s: int = COORDINATED_WINDOW_S
+) -> list[set[str]]:
+    """Return the wallet set of each window in which ≥2 distinct wallets sold."""
     sells = sorted((s for s in swaps if s.side == "sell"), key=lambda s: s.timestamp)
-    events = 0
+    windows: list[set[str]] = []
     i = 0
     n = len(sells)
     while i < n:
@@ -89,10 +86,14 @@ def detect_coordinated_sells(swaps: list[Swap], window_s: int = COORDINATED_WIND
             wallets.add(sells[j].signer)
             j += 1
         if len(wallets) >= 2:
-            events += 1
-        # advance past this window
+            windows.append(wallets)
         i = j
-    return events
+    return windows
+
+
+def detect_coordinated_sells(swaps: list[Swap], window_s: int = COORDINATED_WINDOW_S) -> int:
+    """Count time windows in which ≥2 distinct wallets sold (int wrapper)."""
+    return len(coordinated_sell_windows(swaps, window_s))
 
 
 def compute_metrics(

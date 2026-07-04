@@ -171,6 +171,11 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
                 metrics = compute_metrics(
                     team_only_swaps, grad_positions, sniper_set or team_addresses
                 )
+                # Phase D: exit choreography — who sells first, in what order
+                _record_exit_choreography(
+                    conn, token_mint, team_only_swaps, grad_positions,
+                    graduated_at, team_addresses, offset_h,
+                )
                 # F2: new smart-money entrants post-graduation
                 swap_wallets = {s.signer for s in team_swaps if s.side == "buy"}
                 entrants = detect_new_entrants(swap_wallets, grad_holder_set, smart_money_set)
@@ -342,6 +347,32 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
         return behavior
     finally:
         conn.close()
+
+
+def _record_exit_choreography(
+    conn, token_mint, team_only_swaps, grad_positions, graduated_at,
+    team_addresses, offset_h,
+) -> None:
+    """Compute + persist per-member exit choreography for this check, and roll it
+    into the funder fingerprint at 4h (the canonical outcome checkpoint)."""
+    from src.analyzer.exit_choreography import (
+        compute_exit_choreography, upsert_team_member_behavior, update_funder_choreography,
+    )
+    from src.analyzer.post_grad_swaps import coordinated_sell_windows
+
+    windows = coordinated_sell_windows(team_only_swaps)
+    choreo = compute_exit_choreography(
+        team_only_swaps, grad_positions, graduated_at, set(team_addresses),
+        coordinated_windows=windows,
+    )
+    upsert_team_member_behavior(conn, token_mint, choreo, offset_h)
+    if offset_h == 4:
+        row = conn.execute(
+            "SELECT funding_source FROM team_clusters WHERE token_mint = ? LIMIT 1",
+            (token_mint,),
+        ).fetchone()
+        if row and row["funding_source"]:
+            update_funder_choreography(conn, row["funding_source"], choreo)
 
 
 def _detect_postgrad_coordination(
