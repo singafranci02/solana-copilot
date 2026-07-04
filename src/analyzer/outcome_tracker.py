@@ -282,6 +282,13 @@ def _update_wallet_stats_for_buyers(
     for address in addresses:
         update_wallet_stats(address, classified, is_graduated, conn)
 
+    # Refresh cross-coin behavioral fingerprints for the same wallets (Phase C)
+    try:
+        from src.analyzer.wallet_behavior import update_wallet_behavior
+        update_wallet_behavior(addresses, conn)
+    except Exception:
+        logger.debug("wallet_behavior update failed for %s", token_mint[:8])
+
     if addresses:
         try:
             loop = asyncio.get_running_loop()

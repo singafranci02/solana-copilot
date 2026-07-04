@@ -546,3 +546,29 @@ CREATE TABLE IF NOT EXISTS team_members (
 );
 
 CREATE INDEX IF NOT EXISTS idx_team_members_wallet ON team_members(wallet);
+
+-- ── wallet_behavior ───────────────────────────────────────────────────────────
+-- Per-wallet CROSS-COIN behavioral fingerprint (Phase C). Aggregates a wallet's
+-- habits over every coin it traded — sizing, timing, style, exit behavior. The
+-- behavioral-similarity edge uses this to catch teams that rotate wallets AND
+-- funders but keep operational habits. Gate: n_coins_bc >= 3 before it feeds
+-- similarity edges. Recomputed from SQL at the 4h outcome (alongside wallet_stats).
+CREATE TABLE IF NOT EXISTS wallet_behavior (
+    address                TEXT PRIMARY KEY,
+    n_coins_bc             INTEGER NOT NULL DEFAULT 0,
+    sniper_rate            REAL,                       -- frac coins style='sniped' or offset<120s
+    avg_first_buy_offset_s REAL, std_first_buy_offset_s REAL,
+    avg_buy_size_sol       REAL, cv_buy_size REAL,     -- coefficient of variation of buy size
+    pct_sniped             REAL, pct_gradual REAL, pct_single REAL,
+    avg_hold_duration_s    REAL,                       -- first buy → first sell
+    exit_one_shot_frac     REAL,                       -- avg(largest single sell / total sold)
+    avg_exit_order         REAL,                       -- from team_member_behavior (Phase D)
+    n_coins_exit           INTEGER NOT NULL DEFAULT 0,
+    pnl_proxy              REAL,                       -- wallet_stats.win_rate snapshot
+    avg_slot_reaction      REAL,                       -- mean slot_offset_from_first (Phase B)
+    sig_count              INTEGER, wallet_age_days REAL,
+    last_updated           INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_bc_accum_wallet ON bc_accumulation(wallet_address);
+CREATE INDEX IF NOT EXISTS idx_pgs_wallet ON post_grad_swaps(wallet_address);

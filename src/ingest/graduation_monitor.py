@@ -379,10 +379,16 @@ async def _handle_graduation(
                     if prev is None or off < prev:
                         first_buy_offset[s.signer] = off
             fresh_map = fresh_flags(first_seen_map, first_buy_offset, now)
+        # Behavioral-similarity vectors for this coin's buyers (Phase C) — catches
+        # teams that rotate wallets AND funders but keep operational habits.
+        from src.analyzer.wallet_behavior import load_behavior_vectors
+        behavior_vectors = load_behavior_vectors(
+            [s.signer for s in bc_swaps if s.side == "buy"], conn
+        )
         _detect_launch_coordination(
             mint, bc_swaps, conn, total_supply=total_supply,
             funder_by_wallet=funder_by_wallet, fresh=fresh_map,
-            real_slots=bool(micro_slot_by_sig),
+            real_slots=bool(micro_slot_by_sig), behavior_vectors=behavior_vectors,
         )
 
         if bc_swaps:
@@ -768,6 +774,7 @@ def _detect_launch_coordination(
     funder_by_wallet: dict[str, str | None] | None = None,
     fresh: dict[str, str] | None = None,
     real_slots: bool = False,
+    behavior_vectors: dict[str, tuple[float, ...]] | None = None,
 ) -> None:
     """Run the coordination engine on bonding-curve swaps; store phase='launch'.
 
@@ -783,7 +790,7 @@ def _detect_launch_coordination(
         cc = analyze_coin(
             mint, bc_swaps, total_supply=total_supply,
             funder_by_wallet=funder_by_wallet, fresh=fresh,
-            same_slot_real=real_slots,
+            behavior_vectors=behavior_vectors, same_slot_real=real_slots,
         )
         upsert_coordination(conn, cc, source="live", phase="launch")
     except Exception as exc:
