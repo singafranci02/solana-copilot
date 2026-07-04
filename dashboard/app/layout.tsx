@@ -17,24 +17,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <span className="text-zinc-200 font-semibold tracking-tight">solana-copilot</span>
           </div>
           <nav className="flex items-center gap-1 ml-2">
-            <Link
-              href="/"
-              className="px-3 py-1 rounded text-xs font-mono text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-            >
-              Feed
-            </Link>
-            <Link
-              href="/algorithm"
-              className="px-3 py-1 rounded text-xs font-mono text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-            >
-              Algorithm
-            </Link>
-            <Link
-              href="/insights"
-              className="px-3 py-1 rounded text-xs font-mono text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-            >
-              Insights
-            </Link>
+            {[
+              ["/", "Feed"],
+              ["/system", "System"],
+              ["/algorithm", "Algorithm"],
+              ["/insights", "Insights"],
+            ].map(([href, label]) => (
+              <Link
+                key={href}
+                href={href}
+                className="px-3 py-1 rounded text-xs font-mono text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+              >
+                {label}
+              </Link>
+            ))}
           </nav>
         </header>
         <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">

@@ -99,6 +99,27 @@ async def _watchdog_loop() -> None:
             await _watchdog.check()
         except Exception:
             pass
+        try:
+            await _sync_api_usage()
+        except Exception:
+            pass
+
+
+async def _sync_api_usage() -> None:
+    """Push today's + yesterday's API-usage counts to Supabase (System page)."""
+    from src.common.api_usage import flush
+    from src.common import supabase_sync as sb
+    flush()   # ensure pending in-memory counts are persisted first
+    conn = get_connection()
+    try:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT day, provider, endpoint, count FROM api_usage "
+            "WHERE day >= date('now','-1 day')"
+        )]
+    finally:
+        conn.close()
+    if rows:
+        await sb.api_usage_batch(rows)
 
 
 # ── internal event struct ─────────────────────────────────────────────────────
@@ -401,6 +422,14 @@ async def _handle_graduation(
             if micro_features is not None:
                 from src.analyzer.microstructure import upsert_micro_features
                 upsert_micro_features(conn, mint, micro_features)
+            # Mirror the full flow+microstructure row to Supabase (dashboard)
+            ff = conn.execute(
+                "SELECT * FROM bc_flow_features WHERE token_mint = ?", (mint,)
+            ).fetchone()
+            if ff:
+                from src.common import supabase_sync as sb
+                row = {k: ff[k] for k in ff.keys() if k != "token_mint"}
+                asyncio.create_task(sb.bc_flow_features(mint, row))
 
         conn.execute(
             "UPDATE graduation_events SET bc_top_holders_json = ? WHERE token_mint = ?",

@@ -351,3 +351,28 @@ async def team_members_batch(rows: list[dict[str, Any]]) -> None:
 async def wallet_behavior_batch(rows: list[dict[str, Any]]) -> None:
     """Mirror per-wallet behavioral fingerprints (Phase C)."""
     await _run_many("wallet_behavior", rows, conflict_col="address")
+
+
+async def bc_flow_features(token_mint: str, row: dict[str, Any]) -> None:
+    """Mirror BC order-flow + microstructure features for a mint (dashboard)."""
+    await _run("bc_flow_features", {"token_mint": token_mint, **row})
+
+
+async def creator_reputation(
+    creator_wallet: str, graduated_mints: list[str], rug_count: int,
+    moon_count: int, ok_count: int, rug_rate: float, last_seen: int | None,
+    is_serial_rugger: bool,
+) -> None:
+    """Mirror deployer track record (serial-deployer badge)."""
+    await _run("creator_reputation", {
+        "creator_wallet": creator_wallet,
+        "graduated_mints": graduated_mints,
+        "rug_count": rug_count, "moon_count": moon_count, "ok_count": ok_count,
+        "rug_rate": round(rug_rate, 4), "last_seen": last_seen,
+        "is_serial_rugger": is_serial_rugger,
+    }, conflict_col="creator_wallet")
+
+
+async def api_usage_batch(rows: list[dict[str, Any]]) -> None:
+    """Mirror per-day API request counts (System page budget gauges)."""
+    await _run_many("api_usage", rows, conflict_col="day,provider,endpoint")

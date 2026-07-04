@@ -465,10 +465,24 @@ async def _update_funder_reputation_from_distribution(
 
     # Serial-deployer track record (keyed by creator, independent of funder)
     if token_row and token_row["creator_wallet"]:
-        from src.analyzer.smart_money import update_creator_reputation
+        from src.analyzer.smart_money import update_creator_reputation, get_creator_reputation
         update_creator_reputation(
             token_row["creator_wallet"], token_mint, outcome_row["classified"], conn
         )
+        cr_row = conn.execute(
+            "SELECT * FROM creator_reputation WHERE creator_wallet = ?",
+            (token_row["creator_wallet"],),
+        ).fetchone()
+        if cr_row:
+            from src.common import supabase_sync as sb
+            asyncio.create_task(sb.creator_reputation(
+                creator_wallet=cr_row["creator_wallet"],
+                graduated_mints=json.loads(cr_row["graduated_mints"] or "[]"),
+                rug_count=cr_row["rug_count"], moon_count=cr_row["moon_count"],
+                ok_count=cr_row["ok_count"], rug_rate=cr_row["rug_rate"],
+                last_seen=cr_row["last_seen"],
+                is_serial_rugger=bool(cr_row["is_serial_rugger"]),
+            ))
 
     update_funder_reputation(
         funder_row["funding_source"],

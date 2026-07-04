@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase, isConfigured } from "@/lib/supabase";
-import type { GraduationRow, Verdict } from "@/lib/types";
+import type { GraduationRow, Verdict, TeamMember } from "@/lib/types";
 import { formatMint, formatDate } from "@/lib/types";
 import { VerdictBadge } from "./VerdictBadge";
 import { OutcomeChip } from "./OutcomeChip";
@@ -149,8 +149,6 @@ function TokenCard({ row }: { row: GraduationRow }) {
     : "border-zinc-800";
 
   const solscanUrl = `https://solscan.io/token/${row.token_mint}`;
-  const hasTeamActivity =
-    (row.team_buy_count_24h ?? 0) > 0 || (row.team_sell_count_24h ?? 0) > 0;
 
   return (
     <div className={`rounded-lg border ${borderColor} bg-zinc-900/60 overflow-hidden`}>
@@ -204,10 +202,14 @@ function TokenCard({ row }: { row: GraduationRow }) {
         {/* Signals row */}
         <div className="flex flex-wrap gap-1.5">
           <SmBadge count={row.smart_money_count} />
-          <TeamBadge pct={row.supply_pct_at_graduation} />
+          <TeamBadge pct={row.supply_pct_at_graduation} members={row.member_count} />
           {row.is_bc_sniper && <Pill color="orange">⚡ sniper</Pill>}
           <FunderBadge rugRate={row.funder_rug_rate} isKnownRugger={row.is_known_rugger} />
+          <CreatorBadge isSerial={row.is_serial_rugger} rugRate={row.creator_rug_rate} n={row.creator_n} />
         </div>
+
+        {/* Behavioral microstructure row — the "how it works" signals */}
+        <BehavioralRow row={row} />
 
         {/* Factor pills — what drove the verdict */}
         <FactorTags factors={row.dominant_factors_json} />
@@ -242,16 +244,89 @@ function TokenCard({ row }: { row: GraduationRow }) {
             onClick={() => setExpanded((e) => !e)}
             className="ml-auto text-xs font-mono text-zinc-500 hover:text-zinc-300 transition-colors"
           >
-            {expanded ? "hide team activity ▲" : `team activity${hasTeamActivity ? "" : " (none yet)"} ▼`}
+            {expanded ? "hide team detail ▲" : "team detail ▼"}
           </button>
         </div>
       </div>
 
-      {expanded && <TeamTimeline row={row} />}
+      {expanded && (
+        <>
+          <TeamEvidence mint={row.token_mint} />
+          <TeamTimeline row={row} />
+        </>
+      )}
     </div>
   );
 }
 
+
+// ── team-membership evidence (Phase A) ────────────────────────────────────────
+
+const EVIDENCE_LABELS: Record<string, (v: unknown) => string> = {
+  overlap: (v) => `bought+held (${v})`,
+  coord: (v) => `coordinated ${(Number(v) * 100).toFixed(0)}%`,
+  funding: (v) => v === "creator_linked" ? "funded by creator" : v === "shared_funder" ? "shared funder" : String(v),
+  slot_offset: (v) => Number(v) === 0 ? "launch-slot buy" : `+${v} slots`,
+  fallback_top_holder: () => "top-holder fallback",
+};
+
+function TeamEvidence({ mint }: { mint: string }) {
+  const [rows, setRows] = useState<TeamMember[] | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("team_members")
+        .select("*")
+        .eq("token_mint", mint)
+        .order("score", { ascending: false })
+        .limit(12);
+      setRows((data as TeamMember[]) ?? []);
+    })();
+  }, [mint]);
+
+  if (rows === null) return <div className="border-t border-zinc-800 px-4 py-3 text-zinc-600 text-xs font-mono">loading team evidence…</div>;
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="border-t border-zinc-800 px-4 py-3">
+      <p className="text-zinc-600 text-xs uppercase tracking-wide mb-2">
+        Team detection — why each wallet scored (Phase A)
+      </p>
+      <div className="space-y-1">
+        {rows.map((m) => {
+          const ev = m.evidence_json || {};
+          const chips = Object.entries(ev)
+            .filter(([k]) => k in EVIDENCE_LABELS)
+            .map(([k, v]) => EVIDENCE_LABELS[k](v));
+          return (
+            <div key={m.wallet} className="flex items-center gap-2 text-xs">
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${m.is_member ? "bg-green-500" : "bg-zinc-700"}`} />
+              <a
+                href={`https://solscan.io/account/${m.wallet}`}
+                target="_blank" rel="noopener noreferrer"
+                className="font-mono text-zinc-400 hover:text-zinc-200 w-24 truncate shrink-0"
+              >
+                {m.wallet.slice(0, 4)}…{m.wallet.slice(-4)}
+              </a>
+              <span className={`font-mono tabular-nums w-10 shrink-0 ${m.is_member ? "text-green-400" : "text-zinc-600"}`}>
+                {m.score.toFixed(2)}
+              </span>
+              <div className="flex flex-wrap gap-1 min-w-0">
+                {chips.map((c, i) => (
+                  <span key={i} className="text-zinc-500 bg-zinc-800/60 rounded px-1.5 py-0.5 font-mono">{c}</span>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-zinc-700 text-[11px] mt-2 font-mono">
+        green = counted as team (score ≥ 0.35) · grey = candidate below threshold
+      </p>
+    </div>
+  );
+}
 
 // ── small UI helpers ──────────────────────────────────────────────────────────
 
@@ -291,10 +366,43 @@ function SmBadge({ count }: { count: number }) {
   return <Pill color="yellow">{count} SM</Pill>;
 }
 
-function TeamBadge({ pct }: { pct: number | null }) {
+function TeamBadge({ pct, members }: { pct: number | null; members: number | null }) {
   if (pct === null) return null;
   const color = pct >= 50 ? "red" : pct >= 30 ? "yellow" : "zinc";
-  return <Pill color={color}>{pct.toFixed(1)}% team</Pill>;
+  const label = members && members > 0 ? `${members}w · ${pct.toFixed(1)}% team` : `${pct.toFixed(1)}% team`;
+  return <Pill color={color}>{label}</Pill>;
+}
+
+function CreatorBadge({ isSerial, rugRate, n }: { isSerial: boolean | null; rugRate: number | null; n: number | null }) {
+  if (isSerial) return <Pill color="red">serial rugger ⚠ ({n})</Pill>;
+  if (rugRate !== null && n !== null && n >= 4 && rugRate >= 0.5)
+    return <Pill color="yellow">creator {(rugRate * 100).toFixed(0)}% rug ({n})</Pill>;
+  return null;
+}
+
+// The behavioral microstructure signals — the finest-resolution "how it works" row.
+function BehavioralRow({ row }: { row: GraduationRow }) {
+  const snipes = row.launch_slot_snipe_count ?? 0;
+  const bundles = row.bundled_adjacent_count ?? 0;
+  const creatorLinked = row.creator_linked_count ?? 0;
+  const launchBundled = row.launch_bundled_pct ?? 0;
+  const hasMicro = row.launch_slot_snipe_count !== null;
+  if (!hasMicro && creatorLinked === 0 && launchBundled === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {snipes > 0 && <Pill color="red">◎ {snipes} launch-slot snipe{snipes > 1 ? "s" : ""}</Pill>}
+      {bundles > 0 && <Pill color="orange">⧉ {bundles} atomic bundle{bundles > 1 ? "s" : ""}</Pill>}
+      {creatorLinked > 0 && <Pill color="red">↳ {creatorLinked} creator-funded</Pill>}
+      {launchBundled >= 5 && <Pill color="yellow">{launchBundled.toFixed(0)}% bundled buy</Pill>}
+      {hasMicro && snipes === 0 && bundles === 0 && (
+        <span className="text-zinc-600 text-xs font-mono">◎ no launch-slot coordination</span>
+      )}
+      {row.max_score !== null && row.max_score > 0 && (
+        <span className="text-zinc-600 text-xs font-mono">top team score {row.max_score.toFixed(2)}</span>
+      )}
+    </div>
+  );
 }
 
 function FunderBadge({ rugRate, isKnownRugger }: { rugRate: number | null; isKnownRugger: boolean | null }) {
