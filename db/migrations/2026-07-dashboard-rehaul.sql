@@ -57,23 +57,31 @@ CREATE TABLE IF NOT EXISTS api_usage (
     PRIMARY KEY (day, provider, endpoint)
 );
 
+-- Exit choreography (Phase D) — who sells first, in what order.
+CREATE TABLE IF NOT EXISTS team_member_behavior (
+    token_mint          TEXT NOT NULL,
+    wallet              TEXT NOT NULL,
+    exit_order          INTEGER,
+    first_sell_offset_s DOUBLE PRECISION,
+    sold_pct_1h DOUBLE PRECISION, sold_pct_4h DOUBLE PRECISION, sold_pct_24h DOUBLE PRECISION,
+    is_first_seller     BOOLEAN NOT NULL DEFAULT FALSE,
+    participated_coordinated_sell BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at          BIGINT,
+    PRIMARY KEY (token_mint, wallet)
+);
+CREATE INDEX IF NOT EXISTS idx_tmb_wallet ON team_member_behavior(wallet);
+
 -- ── RLS + read-only anon policy (idempotent) ──────────────────────────────────
 DO $$
 DECLARE t TEXT;
 BEGIN
-    FOREACH t IN ARRAY ARRAY['team_members','wallet_behavior','bc_flow_features','creator_reputation','api_usage']
+    FOREACH t IN ARRAY ARRAY['team_members','wallet_behavior','bc_flow_features','creator_reputation','api_usage','team_member_behavior']
     LOOP
         EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
         EXECUTE format('DROP POLICY IF EXISTS "read-only anon" ON %I', t);
         EXECUTE format('CREATE POLICY "read-only anon" ON %I FOR SELECT USING (true)', t);
     END LOOP;
 END $$;
-
--- ── team_fingerprints choreography columns (Phase D) ──────────────────────────
-ALTER TABLE team_fingerprints ADD COLUMN IF NOT EXISTS avg_exit_spread_s DOUBLE PRECISION;
-ALTER TABLE team_fingerprints ADD COLUMN IF NOT EXISTS leader_wallet TEXT;
-ALTER TABLE team_fingerprints ADD COLUMN IF NOT EXISTS leader_consistency DOUBLE PRECISION;
-ALTER TABLE team_fingerprints ADD COLUMN IF NOT EXISTS choreography_sample_count INTEGER NOT NULL DEFAULT 0;
 
 -- ── extended feed view ────────────────────────────────────────────────────────
 DROP VIEW IF EXISTS graduation_feed;

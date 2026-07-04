@@ -377,10 +377,24 @@ ALTER TABLE wallet_behavior ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "read-only anon" ON wallet_behavior;
 CREATE POLICY "read-only anon" ON wallet_behavior FOR SELECT USING (true);
 
-ALTER TABLE team_fingerprints ADD COLUMN IF NOT EXISTS avg_exit_spread_s DOUBLE PRECISION;
-ALTER TABLE team_fingerprints ADD COLUMN IF NOT EXISTS leader_wallet TEXT;
-ALTER TABLE team_fingerprints ADD COLUMN IF NOT EXISTS leader_consistency DOUBLE PRECISION;
-ALTER TABLE team_fingerprints ADD COLUMN IF NOT EXISTS choreography_sample_count INTEGER NOT NULL DEFAULT 0;
+-- team_fingerprints is LOCAL-ONLY (not mirrored); its Phase D choreography
+-- columns live only in SQLite. The dashboard reads exit choreography from
+-- team_member_behavior instead.
+CREATE TABLE IF NOT EXISTS team_member_behavior (
+    token_mint          TEXT NOT NULL,
+    wallet              TEXT NOT NULL,
+    exit_order          INTEGER,
+    first_sell_offset_s DOUBLE PRECISION,
+    sold_pct_1h DOUBLE PRECISION, sold_pct_4h DOUBLE PRECISION, sold_pct_24h DOUBLE PRECISION,
+    is_first_seller     BOOLEAN NOT NULL DEFAULT FALSE,
+    participated_coordinated_sell BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at          BIGINT,
+    PRIMARY KEY (token_mint, wallet)
+);
+ALTER TABLE team_member_behavior ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "read-only anon" ON team_member_behavior;
+CREATE POLICY "read-only anon" ON team_member_behavior FOR SELECT USING (true);
+CREATE INDEX IF NOT EXISTS idx_tmb_wallet ON team_member_behavior(wallet);
 
 -- Dashboard-rehaul tables + extended feed view (2026-07). Idempotent; re-runnable.
 CREATE TABLE IF NOT EXISTS bc_flow_features (

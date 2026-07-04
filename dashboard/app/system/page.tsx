@@ -84,7 +84,7 @@ export default function SystemPage() {
       cnt(supabase.from("wallet_behavior").select("*", { count: "exact", head: true }).gte("n_coins_bc", 3)),
       supabase.from("funder_reputation").select("rug_count,moon_count,ok_count"),
       cnt(supabase.from("wallet_graph").select("*", { count: "exact", head: true })),
-      cnt(supabase.from("team_fingerprints").select("*", { count: "exact", head: true }).gte("choreography_sample_count", 1)),
+      supabase.from("team_member_behavior").select("token_mint").not("exit_order", "is", null),
       supabase.from("graduation_feed").select("verdict,outcome_24h").not("outcome_24h", "is", null).limit(3000),
     ]);
 
@@ -94,6 +94,7 @@ export default function SystemPage() {
     const rpcToday = apiT.filter(r => r.provider === "rpc").reduce((a, r) => a + r.count, 0);
     const microRows = (microAgg.data as any[]) || [];
     const funderRows = (funders.data as any[]) || [];
+    const choreoMints = new Set(((choreo.data as { token_mint: string }[]) || []).map(r => r.token_mint)).size;
     const feedRows = (feed.data as { verdict: string | null; outcome_24h: string | null }[]) || [];
     const correct = feedRows.filter(r =>
       r.verdict && ((r.verdict === "SKIP" && r.outcome_24h === "rug") || (r.verdict !== "SKIP" && r.outcome_24h !== "rug"))
@@ -110,7 +111,7 @@ export default function SystemPage() {
       creatorLinkedTotal: creatorLinked,
       walletFp3: wfp,
       funders8: funderRows.filter(f => (f.rug_count + f.moon_count + f.ok_count) >= 8).length,
-      walletGraph: wg, choreoFunders: choreo,
+      walletGraph: wg, choreoFunders: choreoMints,
       resolved: feedRows.length, correct,
     });
     setLoading(false);
@@ -196,7 +197,7 @@ export default function SystemPage() {
           <Bar label="Wallet fingerprints" current={s.walletFp3} target={20} unit="wallets ≥3 coins" />
           <Bar label="Funder reputations" current={s.funders8} target={5} unit="funders ≥8 launches" />
           <Bar label="Wallet co-appearance graph" current={s.walletGraph} target={50} unit="edges" />
-          <Bar label="Exit choreography" current={s.choreoFunders} target={8} unit="funders profiled" />
+          <Bar label="Exit choreography" current={s.choreoFunders} target={20} unit="tokens tracked" />
         </div>
         <p className="text-zinc-600 text-xs mt-3">
           These grow only from the bot&apos;s own observations. A meter fills as clean pipeline-v2 data

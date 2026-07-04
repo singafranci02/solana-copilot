@@ -376,3 +376,8 @@ async def creator_reputation(
 async def api_usage_batch(rows: list[dict[str, Any]]) -> None:
     """Mirror per-day API request counts (System page budget gauges)."""
     await _run_many("api_usage", rows, conflict_col="day,provider,endpoint")
+
+
+async def team_member_behavior_batch(rows: list[dict[str, Any]]) -> None:
+    """Mirror per-member exit choreography (Phase D — who sells first)."""
+    await _run_many("team_member_behavior", rows, conflict_col="token_mint,wallet")

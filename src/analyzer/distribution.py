@@ -366,6 +366,19 @@ def _record_exit_choreography(
         coordinated_windows=windows,
     )
     upsert_team_member_behavior(conn, token_mint, choreo, offset_h)
+    # Mirror the per-member exit rows to Supabase (dashboard choreography)
+    rows = [dict(r) for r in conn.execute(
+        "SELECT token_mint, wallet, exit_order, first_sell_offset_s, "
+        "sold_pct_1h, sold_pct_4h, sold_pct_24h, is_first_seller, "
+        "participated_coordinated_sell, updated_at "
+        "FROM team_member_behavior WHERE token_mint = ?", (token_mint,)
+    )]
+    for r in rows:
+        r["is_first_seller"] = bool(r["is_first_seller"])
+        r["participated_coordinated_sell"] = bool(r["participated_coordinated_sell"])
+    if rows:
+        from src.common import supabase_sync as sb
+        asyncio.create_task(sb.team_member_behavior_batch(rows))
     if offset_h == 4:
         row = conn.execute(
             "SELECT funding_source FROM team_clusters WHERE token_mint = ? LIMIT 1",
