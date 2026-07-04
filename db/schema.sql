@@ -502,7 +502,13 @@ CREATE TABLE IF NOT EXISTS bc_flow_features (
     top5_buyer_share          REAL NOT NULL DEFAULT 0.0,   -- share of SOL-in [0,1]
     gini_buy_size             REAL NOT NULL DEFAULT 0.0,   -- buy-size inequality [0,1]
     sol_in                    REAL NOT NULL DEFAULT 0.0,
-    sol_out                   REAL NOT NULL DEFAULT 0.0
+    sol_out                   REAL NOT NULL DEFAULT 0.0,
+    launch_slot_snipe_count      INTEGER,                  -- Phase B slot-level microstructure
+    buys_first_slot              INTEGER,
+    buys_first_3_slots           INTEGER,
+    distinct_slots_first_20_buys INTEGER,
+    max_same_slot_group          INTEGER,
+    bundled_adjacent_count       INTEGER
 );
 
 -- ── graduation_feature_snapshot ───────────────────────────────────────────────

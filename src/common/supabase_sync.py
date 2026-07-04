@@ -341,3 +341,13 @@ async def wallet_stats_batch(rows: list[dict[str, Any]]) -> None:
 async def wallet_graph_pairs_batch(rows: list[dict[str, Any]]) -> None:
     """Mirror wallet_graph pairs (dashboard 'wallet graph' maturity meter)."""
     await _run_many("wallet_graph", rows, conflict_col="wallet_a,wallet_b")
+
+
+async def team_members_batch(rows: list[dict[str, Any]]) -> None:
+    """Mirror per-wallet team-membership scores (Phase A)."""
+    await _run_many("team_members", rows, conflict_col="token_mint,wallet")
+
+
+async def wallet_behavior_batch(rows: list[dict[str, Any]]) -> None:
+    """Mirror per-wallet behavioral fingerprints (Phase C)."""
+    await _run_many("wallet_behavior", rows, conflict_col="address")

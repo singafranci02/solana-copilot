@@ -339,3 +339,43 @@ ALTER TABLE graduation_events ADD COLUMN IF NOT EXISTS pool_accounts_json JSONB 
 ALTER TABLE graduation_events ADD COLUMN IF NOT EXISTS pipeline_version INTEGER NOT NULL DEFAULT 1;
 -- One-time learning-table reset at v2 deploy: see db/migrations/2026-07-pipeline-v2-reset.sql
 -- (not inlined here — this file must stay safe to re-run in full).
+
+-- ── Behavioral-economics upgrade (2026-07) ────────────────────────────────────
+-- Run once in the Supabase SQL editor. Mirrors the Phase A/C dashboard tables
+-- and Phase D choreography columns. All idempotent.
+CREATE TABLE IF NOT EXISTS team_members (
+    token_mint    TEXT NOT NULL,
+    wallet        TEXT NOT NULL,
+    score         DOUBLE PRECISION NOT NULL,
+    is_member     BOOLEAN NOT NULL DEFAULT FALSE,
+    evidence_json JSONB NOT NULL DEFAULT '{}',
+    computed_at   BIGINT,
+    PRIMARY KEY (token_mint, wallet)
+);
+ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "read-only anon" ON team_members FOR SELECT USING (true);
+CREATE INDEX IF NOT EXISTS idx_team_members_wallet ON team_members(wallet);
+
+CREATE TABLE IF NOT EXISTS wallet_behavior (
+    address                TEXT PRIMARY KEY,
+    n_coins_bc             INTEGER NOT NULL DEFAULT 0,
+    sniper_rate            DOUBLE PRECISION,
+    avg_first_buy_offset_s DOUBLE PRECISION, std_first_buy_offset_s DOUBLE PRECISION,
+    avg_buy_size_sol       DOUBLE PRECISION, cv_buy_size DOUBLE PRECISION,
+    pct_sniped             DOUBLE PRECISION, pct_gradual DOUBLE PRECISION, pct_single DOUBLE PRECISION,
+    avg_hold_duration_s    DOUBLE PRECISION,
+    exit_one_shot_frac     DOUBLE PRECISION,
+    avg_exit_order         DOUBLE PRECISION,
+    n_coins_exit           INTEGER NOT NULL DEFAULT 0,
+    pnl_proxy              DOUBLE PRECISION,
+    avg_slot_reaction      DOUBLE PRECISION,
+    sig_count              INTEGER, wallet_age_days DOUBLE PRECISION,
+    last_updated           BIGINT NOT NULL DEFAULT 0
+);
+ALTER TABLE wallet_behavior ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "read-only anon" ON wallet_behavior FOR SELECT USING (true);
+
+ALTER TABLE team_fingerprints ADD COLUMN IF NOT EXISTS avg_exit_spread_s DOUBLE PRECISION;
+ALTER TABLE team_fingerprints ADD COLUMN IF NOT EXISTS leader_wallet TEXT;
+ALTER TABLE team_fingerprints ADD COLUMN IF NOT EXISTS leader_consistency DOUBLE PRECISION;
+ALTER TABLE team_fingerprints ADD COLUMN IF NOT EXISTS choreography_sample_count INTEGER NOT NULL DEFAULT 0;

@@ -292,6 +292,26 @@ def structural_read(ctx: dict[str, Any]) -> StructuralRead:
             f"({len(funder_rep.graduated_mints)} launches, below significance threshold)"
         )
 
+    # Launch-slot snipes — a deterministic on-chain insider fact (no gate needed):
+    # buying in the very first slot of the curve is not humanly reactable.
+    launch_slot_snipes = int(ctx.get("launch_slot_snipe_count") or 0)
+    if launch_slot_snipes >= 3:
+        score -= 1
+        factors.append(
+            f"{launch_slot_snipes} wallets bought in the launch slot — coordinated snipe"
+        )
+
+    # Funder exit-leader consistency (n>=8 gate) — a team whose exits are always
+    # led by the same wallet is an operated ring, not an organic holder base.
+    leader_consistency = ctx.get("funder_leader_consistency")
+    choreo_n = int(ctx.get("funder_choreography_n") or 0)
+    if leader_consistency is not None and leader_consistency >= 0.7 and choreo_n >= 8:
+        score -= 1
+        factors.append(
+            f"funder's exits led by the same wallet {leader_consistency*100:.0f}% "
+            f"of the time (n={choreo_n}) — operated ring"
+        )
+
     # Serial-deployer signal (creator_reputation, n>=8 gate for the hard flag)
     creator_rep = ctx.get("creator_rep")
     if creator_rep:

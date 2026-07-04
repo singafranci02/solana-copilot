@@ -134,3 +134,19 @@ def test_feature_snapshot_written(conn):
     assert row["pipeline_version"] == 2
     assert feats["unique_bc_buyers"] == 42
     assert feats["verdict"] == read.verdict
+
+
+def test_structural_read_launch_slot_snipe_factor():
+    from src.strategy.rules import structural_read
+    r = structural_read({"launch_slot_snipe_count": 4})
+    assert any("launch slot" in f for f in r.dominant_factors)
+    assert not any("launch slot" in f for f in structural_read({"launch_slot_snipe_count": 2}).dominant_factors)
+
+
+def test_structural_read_leader_consistency_gated():
+    from src.strategy.rules import structural_read
+    r = structural_read({"funder_leader_consistency": 0.8, "funder_choreography_n": 9})
+    assert any("operated ring" in f for f in r.dominant_factors)
+    # below the n>=8 gate → no factor
+    r2 = structural_read({"funder_leader_consistency": 0.8, "funder_choreography_n": 5})
+    assert not any("operated ring" in f for f in r2.dominant_factors)

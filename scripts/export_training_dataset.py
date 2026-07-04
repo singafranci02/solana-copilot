@@ -35,6 +35,9 @@ def export(out_path: str) -> int:
                       bff.n_trades, bff.n_buyers, bff.n_sellers, bff.buys_first_60s,
                       bff.same_second_bundle_count, bff.top5_buyer_share,
                       bff.gini_buy_size, bff.sol_in, bff.sol_out,
+                      bff.launch_slot_snipe_count, bff.buys_first_slot,
+                      bff.buys_first_3_slots, bff.distinct_slots_first_20_buys,
+                      bff.max_same_slot_group, bff.bundled_adjacent_count,
                       cc.bundled_supply_pct, cc.largest_entity_supply_pct,
                       cc.largest_entity_wallet_count, cc.largest_entity_fresh_ratio,
                       tcl.is_project, tcl.has_website
@@ -55,11 +58,24 @@ def export(out_path: str) -> int:
             for col in (
                 "n_trades", "n_buyers", "n_sellers", "buys_first_60s",
                 "same_second_bundle_count", "top5_buyer_share", "gini_buy_size",
-                "sol_in", "sol_out", "bundled_supply_pct",
+                "sol_in", "sol_out", "launch_slot_snipe_count", "buys_first_slot",
+                "buys_first_3_slots", "distinct_slots_first_20_buys",
+                "max_same_slot_group", "bundled_adjacent_count", "bundled_supply_pct",
                 "largest_entity_supply_pct", "largest_entity_wallet_count",
                 "largest_entity_fresh_ratio", "is_project", "has_website",
             ):
                 row[col] = r[col]
+
+            # Exit-choreography labels (team_member_behavior aggregated per coin)
+            ch = conn.execute(
+                """SELECT COUNT(*) n, MIN(first_sell_offset_s) lead_sell_s,
+                          MAX(exit_order) last_order
+                   FROM team_member_behavior
+                   WHERE token_mint = ? AND exit_order IS NOT NULL""",
+                (r["token_mint"],),
+            ).fetchone()
+            row["label_team_sellers"] = ch["n"] if ch else None
+            row["label_leader_first_sell_s"] = ch["lead_sell_s"] if ch else None
 
             # Labels — supervised targets only
             for off in LABEL_OFFSETS:

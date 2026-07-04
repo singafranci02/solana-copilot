@@ -492,6 +492,12 @@ async def analyse_graduation(
     if scored:
         member_set = set(team_cluster.member_addresses) if team_cluster else set()
         upsert_team_members(conn, event.token_mint, scored, member_set)
+        from src.common import supabase_sync as sb
+        asyncio.create_task(sb.team_members_batch([
+            {"token_mint": event.token_mint, "wallet": w, "score": sc,
+             "is_member": int(w in member_set), "evidence_json": ev}
+            for w, (sc, ev) in scored.items()
+        ]))
 
     # F4a: resolve the team's funding source so funder_reputation can populate
     if team_cluster and not team_cluster.funding_source:
@@ -550,6 +556,25 @@ async def analyse_graduation(
     unique_bc_buyers = len(set(b.wallet_address for b in buyers))
     proven_wallet_count = _count_proven_buyers(buyers, conn)
 
+    # Behavioral signals (Phases B/D) for the verdict + snapshot
+    micro_row = conn.execute(
+        "SELECT launch_slot_snipe_count, max_same_slot_group, bundled_adjacent_count "
+        "FROM bc_flow_features WHERE token_mint = ?", (event.token_mint,)
+    ).fetchone()
+    launch_slot_snipe_count = int(micro_row["launch_slot_snipe_count"] or 0) if micro_row else 0
+    leader_consistency = choreo_n = None
+    if team_cluster and team_cluster.funding_source:
+        fp = conn.execute(
+            "SELECT leader_consistency, choreography_sample_count "
+            "FROM team_fingerprints WHERE funding_source = ?",
+            (team_cluster.funding_source,),
+        ).fetchone()
+        if fp:
+            leader_consistency = fp["leader_consistency"]
+            choreo_n = fp["choreography_sample_count"]
+
+    team_scores = [sc for sc, _ in scored.values()] if scored else []
+
     ctx = {
         "token_mint": event.token_mint,
         "team_cluster": team_cluster,
@@ -565,6 +590,12 @@ async def analyse_graduation(
         "unique_bc_buyers": unique_bc_buyers,
         "proven_wallet_count": proven_wallet_count,
         "creator_rep": creator_rep,
+        "launch_slot_snipe_count": launch_slot_snipe_count,
+        "funder_leader_consistency": leader_consistency,
+        "funder_choreography_n": choreo_n,
+        "team_score_max": max(team_scores) if team_scores else 0.0,
+        "team_score_mean": round(sum(team_scores) / len(team_scores), 4) if team_scores else 0.0,
+        "scored_member_count": len(team_cluster.member_addresses) if team_cluster else 0,
     }
     read = structural_read(ctx)
 
@@ -1085,9 +1116,34 @@ def _snapshot_features(event: GraduationEvent, ctx: dict, read, conn) -> None:
         "expected_dump_start_h": mem.expected_dump_start_h if mem else None,
         "creator_n": cr.get("n", 0),
         "creator_rug_rate": cr.get("rug_rate"),
+        # Behavioral microstructure + team-scoring features (Phases A/B/D)
+        "team_score_max": ctx.get("team_score_max"),
+        "team_score_mean": ctx.get("team_score_mean"),
+        "scored_member_count": ctx.get("scored_member_count"),
+        "launch_slot_snipe_count": ctx.get("launch_slot_snipe_count"),
+        "funder_leader_consistency": ctx.get("funder_leader_consistency"),
+        "funder_choreography_n": ctx.get("funder_choreography_n"),
         "verdict": read.verdict,
         "confidence": read.confidence,
     }
+    # Pull remaining microstructure/coordination features from the row just written
+    fx = conn.execute(
+        """SELECT max_same_slot_group, bundled_adjacent_count, buys_first_3_slots
+           FROM bc_flow_features WHERE token_mint = ?""",
+        (event.token_mint,),
+    ).fetchone()
+    if fx:
+        features["max_same_slot_group"] = fx["max_same_slot_group"]
+        features["bundled_adjacent_count"] = fx["bundled_adjacent_count"]
+        features["buys_first_3_slots"] = fx["buys_first_3_slots"]
+    cc = conn.execute(
+        """SELECT bundled_supply_pct, largest_entity_supply_pct
+           FROM coin_coordination WHERE token_mint = ? AND phase = 'launch'""",
+        (event.token_mint,),
+    ).fetchone()
+    if cc:
+        features["bundled_supply_pct"] = cc["bundled_supply_pct"]
+        features["largest_entity_supply_pct"] = cc["largest_entity_supply_pct"]
     conn.execute(
         """INSERT INTO graduation_feature_snapshot
                (token_mint, pipeline_version, features_json, snapped_at)
