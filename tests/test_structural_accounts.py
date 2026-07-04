@@ -73,7 +73,7 @@ def test_team_cluster_fallback_excludes_structural():
         {"wallet": WALLET_A, "pct": 5.0, "ui_amount": 50_000_000.0},
         {"wallet": WALLET_B, "pct": 3.0, "ui_amount": 30_000_000.0},
     ]
-    tc = build_team_cluster_post_grad(
+    tc, _scored = build_team_cluster_post_grad(
         "M" * 44, [], holders, frozenset(),
         structural_addresses=frozenset({POOL_ID}),
     )
@@ -93,7 +93,7 @@ def test_team_cluster_overlap_branch_excludes_structural():
         TokenBuyer(token_mint="M" * 44, wallet_address=WALLET_A,
                    sol_amount=1.0, tokens_received=1.0, bought_at=100),
     ]
-    tc = build_team_cluster_post_grad(
+    tc, _scored = build_team_cluster_post_grad(
         "M" * 44, buyers, holders, frozenset(),
         structural_addresses=frozenset({POOL_ID}),
     )

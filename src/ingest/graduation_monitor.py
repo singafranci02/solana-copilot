@@ -455,7 +455,7 @@ async def analyse_graduation(
     meta=None,
 ) -> None:
     """Full structural analysis pipeline for a graduated token."""
-    from src.analyzer.team_detect import build_team_cluster_post_grad
+    from src.analyzer.team_detect import build_team_cluster_post_grad, upsert_team_members
     from src.analyzer.distribution import schedule_distribution_checks
     from src.analyzer.smart_money import (
         get_smart_money_wallets,
@@ -467,10 +467,25 @@ async def analyse_graduation(
 
     cex_addresses = get_all_cex_addresses(conn)
 
-    team_cluster = build_team_cluster_post_grad(
+    # Ensure the creator's own funder is traced (cached) so the funded-by-creator
+    # insider fingerprint can fire — creator is rarely in the top-holder set.
+    creator_row = conn.execute(
+        "SELECT creator_wallet FROM tokens WHERE mint = ?", (event.token_mint,)
+    ).fetchone()
+    if creator_row and creator_row["creator_wallet"]:
+        await _resolve_wallet_funding([creator_row["creator_wallet"]], conn)
+
+    # Assemble per-wallet evidence maps for probabilistic team scoring (all from
+    # data already gathered this graduation — zero extra API).
+    evidence = _gather_team_evidence(event.token_mint, buyers, conn)
+    team_cluster, scored = build_team_cluster_post_grad(
         event.token_mint, buyers, event.bc_top_holders, cex_addresses,
-        structural_addresses=structural,
+        structural_addresses=structural, graduated_at=event.graduated_at,
+        **evidence,
     )
+    if scored:
+        member_set = set(team_cluster.member_addresses) if team_cluster else set()
+        upsert_team_members(conn, event.token_mint, scored, member_set)
 
     # F4a: resolve the team's funding source so funder_reputation can populate
     if team_cluster and not team_cluster.funding_source:
@@ -912,6 +927,77 @@ async def _resolve_wallet_funding(
             logger.debug("funding persistence failed: %s", exc)
 
     return funder_by_wallet, first_seen
+
+
+def _gather_team_evidence(mint: str, buyers, conn) -> dict:
+    """Build the per-wallet evidence maps for score_team_membership from data
+    already persisted this graduation (launch entities, funding, freshness,
+    microstructure). Also resolves the creator's own funder (cached)."""
+    # launch coordination entities → wallet → edge_sources
+    entity_edges: dict[str, set[str]] = {}
+    for row in conn.execute(
+        """SELECT member_addresses, edge_sources FROM coordinated_entities
+           WHERE token_mint = ? AND phase = 'launch'""",
+        (mint,),
+    ):
+        try:
+            members = json.loads(row["member_addresses"] or "[]")
+            srcs = set(json.loads(row["edge_sources"] or "[]"))
+        except Exception:
+            continue
+        for w in members:
+            entity_edges.setdefault(w, set()).update(srcs)
+
+    # funding + freshness for all buyers (cached in wallet_funding / wallets)
+    addrs = list({b.wallet_address for b in buyers} | set(entity_edges))
+    funder_by_wallet: dict[str, str | None] = {}
+    first_seen: dict[str, int] = {}
+    sig_count: dict[str, int] = {}
+    if addrs:
+        placeholders = ",".join("?" * len(addrs))
+        for row in conn.execute(
+            f"""SELECT wf.wallet, wf.funder, wf.sig_count, w.first_seen
+                FROM wallet_funding wf LEFT JOIN wallets w ON w.address = wf.wallet
+                WHERE wf.hop = 1 AND wf.wallet IN ({placeholders})""",
+            addrs,
+        ):
+            funder_by_wallet[row["wallet"]] = row["funder"]
+            if row["sig_count"] is not None:
+                sig_count[row["wallet"]] = int(row["sig_count"])
+            if row["first_seen"] is not None:
+                first_seen[row["wallet"]] = int(row["first_seen"])
+
+    # min slot_offset per wallet (Phase B microstructure)
+    slot_offset: dict[str, int] = {}
+    for row in conn.execute(
+        """SELECT wallet, MIN(slot_offset_from_first) mo FROM bc_microstructure
+           WHERE token_mint = ? AND slot_offset_from_first IS NOT NULL
+           GROUP BY wallet""",
+        (mint,),
+    ):
+        slot_offset[row["wallet"]] = int(row["mo"])
+
+    creator_row = conn.execute(
+        "SELECT creator_wallet FROM tokens WHERE mint = ?", (mint,)
+    ).fetchone()
+    creator_wallet = creator_row["creator_wallet"] if creator_row else None
+    creator_funder = None
+    if creator_wallet:
+        cf = conn.execute(
+            "SELECT funder FROM wallet_funding WHERE wallet = ? AND hop = 1",
+            (creator_wallet,),
+        ).fetchone()
+        creator_funder = cf["funder"] if cf else None
+
+    return {
+        "entity_edges": entity_edges,
+        "funder_by_wallet": funder_by_wallet,
+        "creator_wallet": creator_wallet,
+        "creator_funder": creator_funder,
+        "first_seen": first_seen,
+        "sig_count": sig_count,
+        "slot_offset": slot_offset,
+    }
 
 
 async def _resolve_microstructure(mint: str, bc_swaps, conn):

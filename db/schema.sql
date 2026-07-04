@@ -530,3 +530,19 @@ CREATE TABLE IF NOT EXISTS bc_microstructure (
 );
 
 CREATE INDEX IF NOT EXISTS idx_bc_micro_wallet ON bc_microstructure(wallet);
+
+-- ── team_members ──────────────────────────────────────────────────────────────
+-- Per-wallet team-membership evidence score (Phase A probabilistic detection).
+-- team_clusters.member_addresses holds the is_member=1 subset; this table keeps
+-- the full scored candidate set + evidence breakdown for audit and training.
+CREATE TABLE IF NOT EXISTS team_members (
+    token_mint    TEXT NOT NULL REFERENCES tokens(mint),
+    wallet        TEXT NOT NULL,
+    score         REAL NOT NULL,
+    is_member     INTEGER NOT NULL DEFAULT 0 CHECK (is_member IN (0,1)),
+    evidence_json TEXT NOT NULL DEFAULT '{}',   -- {overlap, coord, coord_edges, funding, slot_offset...}
+    computed_at   INTEGER NOT NULL,
+    PRIMARY KEY (token_mint, wallet)
+);
+
+CREATE INDEX IF NOT EXISTS idx_team_members_wallet ON team_members(wallet);
