@@ -353,6 +353,7 @@ CREATE TABLE IF NOT EXISTS team_members (
     PRIMARY KEY (token_mint, wallet)
 );
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "read-only anon" ON team_members;
 CREATE POLICY "read-only anon" ON team_members FOR SELECT USING (true);
 CREATE INDEX IF NOT EXISTS idx_team_members_wallet ON team_members(wallet);
 
@@ -373,6 +374,7 @@ CREATE TABLE IF NOT EXISTS wallet_behavior (
     last_updated           BIGINT NOT NULL DEFAULT 0
 );
 ALTER TABLE wallet_behavior ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "read-only anon" ON wallet_behavior;
 CREATE POLICY "read-only anon" ON wallet_behavior FOR SELECT USING (true);
 
 ALTER TABLE team_fingerprints ADD COLUMN IF NOT EXISTS avg_exit_spread_s DOUBLE PRECISION;
@@ -392,6 +394,7 @@ CREATE TABLE IF NOT EXISTS bc_flow_features (
     max_same_slot_group INTEGER, bundled_adjacent_count INTEGER
 );
 ALTER TABLE bc_flow_features ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "read-only anon" ON bc_flow_features;
 CREATE POLICY "read-only anon" ON bc_flow_features FOR SELECT USING (true);
 
 CREATE TABLE IF NOT EXISTS creator_reputation (
@@ -402,6 +405,7 @@ CREATE TABLE IF NOT EXISTS creator_reputation (
     last_seen BIGINT, is_serial_rugger BOOLEAN NOT NULL DEFAULT FALSE
 );
 ALTER TABLE creator_reputation ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "read-only anon" ON creator_reputation;
 CREATE POLICY "read-only anon" ON creator_reputation FOR SELECT USING (true);
 
 CREATE TABLE IF NOT EXISTS api_usage (
@@ -410,6 +414,7 @@ CREATE TABLE IF NOT EXISTS api_usage (
     PRIMARY KEY (day, provider, endpoint)
 );
 ALTER TABLE api_usage ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "read-only anon" ON api_usage;
 CREATE POLICY "read-only anon" ON api_usage FOR SELECT USING (true);
 
 -- Extended feed view: adds microstructure, launch coordination, team-scoring
