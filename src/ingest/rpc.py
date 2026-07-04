@@ -72,6 +72,26 @@ class RpcClient:
             [signature, {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0}],
         )
 
+    async def get_block_signatures(self, slot: int) -> list[str] | None:
+        """Ordered tx signatures in a block — intra-block index = position in list.
+
+        signatures-only keeps the payload tiny. Returns None if the RPC pruned
+        the block or getBlock is disabled (blocks are seconds old at graduation,
+        so pruning is not a practical issue when resolved inline).
+        """
+        result = await self._call(
+            "getBlock",
+            [slot, {
+                "transactionDetails": "signatures",
+                "rewards": False,
+                "maxSupportedTransactionVersion": 0,
+            }],
+        )
+        if not isinstance(result, dict):
+            return None
+        sigs = result.get("signatures")
+        return sigs if isinstance(sigs, list) else None
+
 
 @dataclass
 class FundingInfo:

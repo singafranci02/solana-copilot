@@ -510,3 +510,23 @@ CREATE TABLE IF NOT EXISTS graduation_feature_snapshot (
     features_json    TEXT NOT NULL DEFAULT '{}',
     snapped_at       INTEGER NOT NULL
 );
+
+-- ── bc_microstructure ─────────────────────────────────────────────────────────
+-- Slot + intra-block ordering of the first N BC buys (Phase B, resolved via free
+-- RPC). The finest behavioral resolution on Solana: launch-slot snipes and
+-- same-block (Jito) bundles that second-granularity timestamps hide.
+CREATE TABLE IF NOT EXISTS bc_microstructure (
+    token_mint             TEXT NOT NULL REFERENCES tokens(mint),
+    wallet                 TEXT NOT NULL,
+    tx_signature           TEXT NOT NULL,
+    slot                   INTEGER,             -- real slot (NULL if RPC pruned)
+    block_index            INTEGER,             -- intra-block transaction position
+    slot_offset_from_first INTEGER,             -- slots after the first resolved buy
+    same_slot_rank         INTEGER,             -- order within our same-slot group
+    same_slot_group_size   INTEGER,
+    is_bundled             INTEGER NOT NULL DEFAULT 0,  -- same slot + adjacent index (atomic/Jito)
+    resolved_at            INTEGER,
+    PRIMARY KEY (token_mint, tx_signature)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bc_micro_wallet ON bc_microstructure(wallet);

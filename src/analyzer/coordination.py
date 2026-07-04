@@ -190,6 +190,32 @@ def edges_lockstep_sells(swaps: list[Swap], window_s: int = 2) -> set[tuple[str,
     return edges
 
 
+def edges_behavioral(
+    vectors: dict[str, tuple[float, ...]], threshold: float = 0.92
+) -> set[tuple[str, str]]:
+    """Link wallets whose cross-coin behavioral fingerprints are near-identical.
+
+    Catches teams that rotate wallets AND funders but keep operational habits
+    (sizing, timing, exit style). Cosine ≥ threshold; degenerate (near-zero)
+    vectors are skipped. Callers pass only wallets that clear the n_coins_bc≥3
+    gate, and only the current coin's participants (O(k²), never global).
+    """
+    import math
+
+    items = [(w, v) for w, v in vectors.items() if math.sqrt(sum(x * x for x in v)) > 0.1]
+    edges: set[tuple[str, str]] = set()
+    for i in range(len(items)):
+        wi, vi = items[i]
+        ni = math.sqrt(sum(x * x for x in vi))
+        for j in range(i + 1, len(items)):
+            wj, vj = items[j]
+            nj = math.sqrt(sum(x * x for x in vj))
+            dot = sum(a * b for a, b in zip(vi, vj))
+            if ni > 0 and nj > 0 and dot / (ni * nj) >= threshold:
+                edges.add(_pair(wi, wj))
+    return edges
+
+
 def edges_shared_funder(funder_by_wallet: dict[str, str | None]) -> set[tuple[str, str]]:
     """Link wallets sharing a non-CEX funder. Takes a precomputed map (stays pure)."""
     by_funder: dict[str, list[str]] = {}
@@ -324,12 +350,19 @@ def analyze_coin(
     total_supply: float | None = None,
     funder_by_wallet: dict[str, str | None] | None = None,
     fresh: dict[str, str] | None = None,
+    behavior_vectors: dict[str, tuple[float, ...]] | None = None,
     *,
     slot_window: int = 0,
     size_tol: float = 0.005,   # near-exact only — buy-size over-links if too loose
     lockstep_s: int = 2,
+    same_slot_real: bool = False,
 ) -> CoinCoordination:
-    """Single entry point — both drivers call this. Pure."""
+    """Single entry point — both drivers call this. Pure.
+
+    same_slot_real: Swap.slot carries true block slots (not the second-proxy),
+    so same-slot edges are genuine same-block bundles → labeled same_slot_real.
+    behavior_vectors: per-wallet cross-coin fingerprints for behavioral edges.
+    """
     swaps = _dedup(swaps)
 
     labeled: dict[tuple[str, str], set[str]] = {}
@@ -337,11 +370,13 @@ def analyze_coin(
         for e in es:
             labeled.setdefault(e, set()).add(label)
 
-    _add(edges_same_slot(swaps, slot_window), "same_slot")
+    _add(edges_same_slot(swaps, slot_window), "same_slot_real" if same_slot_real else "same_slot")
     _add(edges_buy_size_fingerprint(swaps, size_tol), "buy_size")
     _add(edges_lockstep_sells(swaps, lockstep_s), "lockstep_sell")
     if funder_by_wallet:
         _add(edges_shared_funder(funder_by_wallet), "funder")
+    if behavior_vectors:
+        _add(edges_behavioral(behavior_vectors), "behavioral")
 
     all_edges = set(labeled.keys())
     entities = assemble_entities(swaps, all_edges, fresh, total_supply, labeled)

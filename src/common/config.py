@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     # Max cursor pages per get_token_trades call (~100 trades/page). Each page is
     # one request against the 200k/month budget — check api_usage before raising.
     trades_max_pages: int = Field(default=6, alias="TRADES_MAX_PAGES")
+    # First N BC buys resolved to slot/block-index per graduation (free RPC).
+    microstructure_first_n_buys: int = Field(default=50, alias="MICROSTRUCTURE_FIRST_N_BUYS")
     # Deprecated — Helius free tier exhausted; kept only as a fallback RPC if RPC_URL is blank
     helius_api_key: str = Field(default="", alias="HELIUS_API_KEY")
 

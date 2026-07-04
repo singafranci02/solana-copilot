@@ -357,6 +357,17 @@ async def _handle_graduation(
         # fresh-wallet ratios were structurally zero before this.
         top_wallets = [h["wallet"] for h in bc_top_holders[:_BC_RECONSTRUCT_TOP_N] if h.get("wallet")]
         funder_by_wallet, first_seen_map = await _resolve_wallet_funding(top_wallets, conn)
+
+        # Slot-level microstructure: resolve real slots for the earliest buys and
+        # remap Swap.slot (second-proxy → real slot) so same-slot coordination
+        # becomes true same-BLOCK bundling. Runs before coordination.
+        micro_slot_by_sig, micro_features = await _resolve_microstructure(mint, bc_swaps, conn)
+        if micro_slot_by_sig:
+            for s in bc_swaps:
+                real = micro_slot_by_sig.get(s.tx_signature)
+                if real is not None:
+                    s.slot = real
+
         fresh_map: dict[str, str] = {}
         if first_seen_map:
             from src.analyzer.coordination import fresh_flags
@@ -371,6 +382,7 @@ async def _handle_graduation(
         _detect_launch_coordination(
             mint, bc_swaps, conn, total_supply=total_supply,
             funder_by_wallet=funder_by_wallet, fresh=fresh_map,
+            real_slots=bool(micro_slot_by_sig),
         )
 
         if bc_swaps:
@@ -380,6 +392,9 @@ async def _handle_graduation(
             upsert_bc_flow_features(
                 conn, mint, compute_bc_flow_features(bc_swaps, token_created_at)
             )
+            if micro_features is not None:
+                from src.analyzer.microstructure import upsert_micro_features
+                upsert_micro_features(conn, mint, micro_features)
 
         conn.execute(
             "UPDATE graduation_events SET bc_top_holders_json = ? WHERE token_mint = ?",
@@ -737,11 +752,14 @@ def _detect_launch_coordination(
     total_supply: float | None = None,
     funder_by_wallet: dict[str, str | None] | None = None,
     fresh: dict[str, str] | None = None,
+    real_slots: bool = False,
 ) -> None:
     """Run the coordination engine on bonding-curve swaps; store phase='launch'.
 
     funder_by_wallet + fresh unlock shared-funder edges and fresh-wallet ratios
     in the entity clustering (previously never passed — always empty).
+    real_slots=True means Swap.slot carries true block slots (Phase B remap), so
+    same-slot edges are genuine same-block bundles — labeled same_slot_real.
     """
     from src.analyzer.coordination import analyze_coin, upsert_coordination
     if not bc_swaps:
@@ -750,6 +768,7 @@ def _detect_launch_coordination(
         cc = analyze_coin(
             mint, bc_swaps, total_supply=total_supply,
             funder_by_wallet=funder_by_wallet, fresh=fresh,
+            same_slot_real=real_slots,
         )
         upsert_coordination(conn, cc, source="live", phase="launch")
     except Exception as exc:
@@ -893,6 +912,40 @@ async def _resolve_wallet_funding(
             logger.debug("funding persistence failed: %s", exc)
 
     return funder_by_wallet, first_seen
+
+
+async def _resolve_microstructure(mint: str, bc_swaps, conn):
+    """Resolve slot + intra-block order for the first N BC buys (free RPC).
+
+    Returns (slot_by_tx_signature, MicroFeatures). RPC phase gathers, then one
+    batched write — never a write txn across an await (SQLite-lock discipline).
+    """
+    from src.analyzer.microstructure import (
+        resolve_microstructure, upsert_microstructure, MicroFeatures,
+    )
+    from src.ingest.rpc import RpcClient
+
+    if not bc_swaps or not settings.rpc_url:
+        return {}, None
+    buys = sorted((s for s in bc_swaps if s.side == "buy"), key=lambda s: s.timestamp)
+    try:
+        async with RpcClient() as rpc:
+            rows, feats, slot_by_sig = await resolve_microstructure(
+                rpc, mint, buys, settings.microstructure_first_n_buys,
+            )
+    except Exception as exc:
+        logger.debug("microstructure resolution failed for %s: %s", mint[:8], exc)
+        return {}, None
+    try:
+        upsert_microstructure(conn, rows)
+    except Exception as exc:
+        logger.debug("microstructure persist failed for %s: %s", mint[:8], exc)
+    if rows:
+        logger.info(
+            "microstructure %s — %d buys resolved, %d launch-slot snipes, %d bundled",
+            mint[:8], len(rows), feats.launch_slot_snipe_count, feats.bundled_adjacent_count,
+        )
+    return slot_by_sig, (feats if rows else None)
 
 
 async def _resolve_funding_source(member_addresses: list[str], conn) -> str | None:

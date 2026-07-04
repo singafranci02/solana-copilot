@@ -61,6 +61,13 @@ def migrate() -> None:
         _add_column_if_missing(conn, "post_grad_behavior", "total_sell_count", "INTEGER")
         _add_column_if_missing(conn, "post_grad_behavior", "unique_buyers", "INTEGER")
         _add_column_if_missing(conn, "post_grad_behavior", "retail_net_sol", "REAL")
+        # Phase B: slot-level microstructure features on bc_flow_features
+        _add_column_if_missing(conn, "bc_flow_features", "launch_slot_snipe_count", "INTEGER")
+        _add_column_if_missing(conn, "bc_flow_features", "buys_first_slot", "INTEGER")
+        _add_column_if_missing(conn, "bc_flow_features", "buys_first_3_slots", "INTEGER")
+        _add_column_if_missing(conn, "bc_flow_features", "distinct_slots_first_20_buys", "INTEGER")
+        _add_column_if_missing(conn, "bc_flow_features", "max_same_slot_group", "INTEGER")
+        _add_column_if_missing(conn, "bc_flow_features", "bundled_adjacent_count", "INTEGER")
         # Holder/whale tracking
         _add_column_if_missing(conn, "post_grad_swaps", "is_smart_money", "INTEGER NOT NULL DEFAULT 0")
         _add_column_if_missing(conn, "post_grad_swaps", "tx_signature", "TEXT")
