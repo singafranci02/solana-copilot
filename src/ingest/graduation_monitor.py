@@ -247,7 +247,7 @@ async def _handle_graduation(
     """
     from src.ingest.solana_tracker import SolanaTrackerClient
     from src.analyzer.structural_accounts import (
-        structural_set, extract_pool_accounts, extract_total_supply,
+        structural_set, extract_pool_accounts, extract_total_supply, extract_market_state,
     )
     from src.analyzer.project_classifier import (
         _extract_meta_fields, extract_creation,
@@ -278,6 +278,8 @@ async def _handle_graduation(
             creator_wallet, created_time = extract_creation(token_info)
             pool_accounts = extract_pool_accounts(token_info)
             total_supply = extract_total_supply(token_info)
+            # NON-RECOVERABLE point-in-time market + holder state (zero extra API)
+            market = extract_market_state(token_info)
 
             token_row = conn.execute(
                 "SELECT mint, symbol, created_at FROM tokens WHERE mint = ?", (mint,)
@@ -346,6 +348,15 @@ async def _handle_graduation(
                    VALUES (?, ?, ?, ?, ?, ?, ?, 2, '[]')""",
                 (mint, now, detection_lag, amm_pool_address, pool_address,
                  amm_pool_address, json.dumps(sorted(pool_accounts))),
+            )
+            conn.execute(
+                """INSERT OR REPLACE INTO graduation_market
+                   (token_mint, captured_at, holder_count, liquidity_usd,
+                    market_cap_usd, price_usd, txns_buys, txns_sells, txns_total)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (mint, now, market["holder_count"], market["liquidity_usd"],
+                 market["market_cap_usd"], market["price_usd"],
+                 market["txns_buys"], market["txns_sells"], market["txns_total"]),
             )
             conn.commit()
 
@@ -1173,6 +1184,17 @@ def _snapshot_features(event: GraduationEvent, ctx: dict, read, conn) -> None:
     if cc:
         features["bundled_supply_pct"] = cc["bundled_supply_pct"]
         features["largest_entity_supply_pct"] = cc["largest_entity_supply_pct"]
+    # Point-in-time market state (non-recoverable; captured at graduation)
+    gm = conn.execute(
+        """SELECT holder_count, liquidity_usd, market_cap_usd, txns_total
+           FROM graduation_market WHERE token_mint = ?""",
+        (event.token_mint,),
+    ).fetchone()
+    if gm:
+        features["holder_count_at_grad"] = gm["holder_count"]
+        features["liquidity_usd_at_grad"] = gm["liquidity_usd"]
+        features["market_cap_usd_at_grad"] = gm["market_cap_usd"]
+        features["txns_total_at_grad"] = gm["txns_total"]
     conn.execute(
         """INSERT INTO graduation_feature_snapshot
                (token_mint, pipeline_version, features_json, snapped_at)

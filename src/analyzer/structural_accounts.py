@@ -71,6 +71,48 @@ def extract_total_supply(token_info_raw: dict | None) -> float:
     return PUMP_FUN_TOTAL_SUPPLY
 
 
+def _num(x):
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return None
+
+
+def extract_market_state(token_info_raw: dict | None) -> dict:
+    """Point-in-time market state from the token-info response we already fetch.
+
+    NON-RECOVERABLE: liquidity/market-cap/txn state and holder count at the
+    graduation instant cannot be re-queried later. Zero extra API cost — the
+    token-info call is already made for classification. Values are best-effort;
+    missing fields come back None.
+    """
+    out = {
+        "holder_count": None, "liquidity_usd": None, "market_cap_usd": None,
+        "price_usd": None, "txns_buys": None, "txns_sells": None, "txns_total": None,
+    }
+    if not isinstance(token_info_raw, dict):
+        return out
+    h = token_info_raw.get("holders")
+    out["holder_count"] = int(h) if isinstance(h, (int, float)) else None
+    # highest-liquidity pool = the live venue
+    best, best_liq = None, -1.0
+    for p in token_info_raw.get("pools") or []:
+        if not isinstance(p, dict):
+            continue
+        liq = _num((p.get("liquidity") or {}).get("usd"))
+        if liq is not None and liq > best_liq:
+            best, best_liq = p, liq
+    if best:
+        out["liquidity_usd"] = _num((best.get("liquidity") or {}).get("usd"))
+        out["market_cap_usd"] = _num((best.get("marketCap") or {}).get("usd"))
+        out["price_usd"] = _num((best.get("price") or {}).get("usd"))
+        txns = best.get("txns") or {}
+        out["txns_buys"] = txns.get("buys") if isinstance(txns.get("buys"), int) else None
+        out["txns_sells"] = txns.get("sells") if isinstance(txns.get("sells"), int) else None
+        out["txns_total"] = txns.get("total") if isinstance(txns.get("total"), int) else None
+    return out
+
+
 def structural_set(
     token_info_raw: dict | None = None,
     cex_addresses: frozenset[str] | set[str] = frozenset(),

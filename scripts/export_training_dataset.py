@@ -40,7 +40,11 @@ def export(out_path: str) -> int:
                       bff.max_same_slot_group, bff.bundled_adjacent_count,
                       cc.bundled_supply_pct, cc.largest_entity_supply_pct,
                       cc.largest_entity_wallet_count, cc.largest_entity_fresh_ratio,
-                      tcl.is_project, tcl.has_website
+                      tcl.is_project, tcl.has_website,
+                      gm.holder_count AS holder_count_at_grad,
+                      gm.liquidity_usd AS liquidity_usd_at_grad,
+                      gm.market_cap_usd AS market_cap_usd_at_grad,
+                      gm.txns_total AS txns_total_at_grad
                FROM graduation_feature_snapshot gfs
                JOIN graduation_events ge
                  ON ge.token_mint = gfs.token_mint AND ge.pipeline_version >= 2
@@ -48,6 +52,7 @@ def export(out_path: str) -> int:
                LEFT JOIN coin_coordination cc
                  ON cc.token_mint = gfs.token_mint AND cc.phase = 'launch'
                LEFT JOIN token_classification tcl ON tcl.token_mint = gfs.token_mint
+               LEFT JOIN graduation_market gm ON gm.token_mint = gfs.token_mint
                ORDER BY ge.graduated_at""",
         ).fetchall()
 
@@ -63,6 +68,8 @@ def export(out_path: str) -> int:
                 "max_same_slot_group", "bundled_adjacent_count", "bundled_supply_pct",
                 "largest_entity_supply_pct", "largest_entity_wallet_count",
                 "largest_entity_fresh_ratio", "is_project", "has_website",
+                "holder_count_at_grad", "liquidity_usd_at_grad",
+                "market_cap_usd_at_grad", "txns_total_at_grad",
             ):
                 row[col] = r[col]
 

@@ -99,3 +99,25 @@ def test_team_cluster_overlap_branch_excludes_structural():
     )
     assert tc is not None
     assert tc.member_addresses == [WALLET_A]
+
+
+def test_extract_market_state():
+    from src.analyzer.structural_accounts import extract_market_state
+    raw = {
+        "holders": 423,
+        "pools": [
+            {"liquidity": {"usd": 5000.0}, "marketCap": {"usd": 12000.0},
+             "price": {"usd": 0.00004}, "txns": {"buys": 10, "sells": 4, "total": 14}},
+            {"liquidity": {"usd": 60000.0}, "marketCap": {"usd": 69000.0},
+             "price": {"usd": 0.00006}, "txns": {"buys": 100, "sells": 40, "total": 140}},
+        ],
+    }
+    m = extract_market_state(raw)
+    assert m["holder_count"] == 423
+    assert m["liquidity_usd"] == 60000.0        # highest-liquidity pool wins
+    assert m["market_cap_usd"] == 69000.0
+    assert m["txns_total"] == 140
+    # tolerant of junk
+    empty = extract_market_state(None)
+    assert empty["holder_count"] is None and empty["liquidity_usd"] is None
+    assert extract_market_state({"pools": []})["market_cap_usd"] is None

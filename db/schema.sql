@@ -601,3 +601,21 @@ CREATE TABLE IF NOT EXISTS team_member_behavior (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tmb_wallet ON team_member_behavior(wallet);
+
+-- ── graduation_market ─────────────────────────────────────────────────────────
+-- Point-in-time market + holder state at the graduation instant, extracted from
+-- the token-info response we already fetch (zero extra API). NON-RECOVERABLE —
+-- historical liquidity/market-cap/holder state cannot be re-queried later, so we
+-- capture it now even ahead of using it. One row per graduation.
+CREATE TABLE IF NOT EXISTS graduation_market (
+    token_mint      TEXT PRIMARY KEY REFERENCES tokens(mint),
+    captured_at     INTEGER NOT NULL,
+    holder_count    INTEGER,                     -- total holders at graduation
+    liquidity_usd   REAL,
+    market_cap_usd  REAL,
+    price_usd       REAL,
+    txns_buys       INTEGER,
+    txns_sells      INTEGER,
+    txns_total      INTEGER,
+    source          TEXT NOT NULL DEFAULT 'solana_tracker'
+);
