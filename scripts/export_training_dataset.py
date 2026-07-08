@@ -44,7 +44,9 @@ def export(out_path: str) -> int:
                       gm.holder_count AS holder_count_at_grad,
                       gm.liquidity_usd AS liquidity_usd_at_grad,
                       gm.market_cap_usd AS market_cap_usd_at_grad,
-                      gm.txns_total AS txns_total_at_grad
+                      gm.txns_total AS txns_total_at_grad,
+                      gs.tg_members, gs.website_live, gs.website_domain_age_days,
+                      gs.has_twitter AS social_has_twitter
                FROM graduation_feature_snapshot gfs
                JOIN graduation_events ge
                  ON ge.token_mint = gfs.token_mint AND ge.pipeline_version >= 2
@@ -53,6 +55,7 @@ def export(out_path: str) -> int:
                  ON cc.token_mint = gfs.token_mint AND cc.phase = 'launch'
                LEFT JOIN token_classification tcl ON tcl.token_mint = gfs.token_mint
                LEFT JOIN graduation_market gm ON gm.token_mint = gfs.token_mint
+               LEFT JOIN graduation_social gs ON gs.token_mint = gfs.token_mint
                ORDER BY ge.graduated_at""",
         ).fetchall()
 
@@ -70,6 +73,8 @@ def export(out_path: str) -> int:
                 "largest_entity_fresh_ratio", "is_project", "has_website",
                 "holder_count_at_grad", "liquidity_usd_at_grad",
                 "market_cap_usd_at_grad", "txns_total_at_grad",
+                "tg_members", "website_live", "website_domain_age_days",
+                "social_has_twitter",
             ):
                 row[col] = r[col]
 

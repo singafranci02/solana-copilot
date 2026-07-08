@@ -685,6 +685,11 @@ async def analyse_graduation(
     # Classify project-vs-meme + alert on real projects (fire-and-forget, non-fatal)
     asyncio.create_task(_classify_and_notify(event.token_mint, symbol, read, conn, meta=meta))
 
+    # Point-in-time social capture (free sources; non-recoverable). Own connection
+    # since it runs long after this one closes.
+    if meta is not None:
+        asyncio.create_task(_capture_social_bg(event.token_mint, meta))
+
     # Schedule price outcome checks at 1h / 4h / 24h from graduation
     # Baseline: ~$69K USD — Pump.fun bonding curve always migrates near this MC
     from src.analyzer.outcome_tracker import schedule_checks
@@ -1076,6 +1081,23 @@ def _gather_team_evidence(mint: str, buyers, conn) -> dict:
         "sig_count": sig_count,
         "slot_offset": slot_offset,
     }
+
+
+async def _capture_social_bg(mint: str, meta) -> None:
+    """Gather free point-in-time social signals, then one batched write."""
+    from src.analyzer.social_capture import capture_social, upsert_social
+    try:
+        data = await capture_social(meta)
+    except Exception as exc:
+        logger.debug("social capture failed for %s: %s", mint[:8], exc)
+        return
+    conn = get_connection()
+    try:
+        upsert_social(conn, mint, data)
+    except Exception as exc:
+        logger.debug("social persist failed for %s: %s", mint[:8], exc)
+    finally:
+        conn.close()
 
 
 async def _resolve_microstructure(mint: str, bc_swaps, conn):

@@ -619,3 +619,21 @@ CREATE TABLE IF NOT EXISTS graduation_market (
     txns_total      INTEGER,
     source          TEXT NOT NULL DEFAULT 'solana_tracker'
 );
+
+-- ── graduation_social ─────────────────────────────────────────────────────────
+-- Point-in-time social state at graduation, free sources only (Phase 5, partial).
+-- NON-RECOVERABLE — Telegram member count, website liveness, and domain age at
+-- graduation cannot be re-queried later. Twitter follower counts need a paid API
+-- and are deferred; only Twitter presence is recorded here.
+CREATE TABLE IF NOT EXISTS graduation_social (
+    token_mint              TEXT PRIMARY KEY REFERENCES tokens(mint),
+    captured_at             INTEGER NOT NULL,
+    has_twitter             INTEGER NOT NULL DEFAULT 0,
+    has_telegram            INTEGER NOT NULL DEFAULT 0,
+    has_website             INTEGER NOT NULL DEFAULT 0,
+    tg_members              INTEGER,                 -- Telegram subscribers/members
+    website_live            INTEGER,                 -- reachable at graduation (0/1)
+    website_status          INTEGER,                 -- HTTP status
+    website_final_url        TEXT,                   -- after redirects
+    website_domain_age_days INTEGER                  -- WHOIS creation → age (best-effort)
+);
