@@ -79,3 +79,51 @@ exist yet — that's a data-maturity gap, not a verdict on the signal.
   fitted, calibrated model must lift, with a **calibrated** probability (Brier < 0.26).
 - **Rug-avoidance edge +4h: −14.4pt** — a better model should widen this while
   keeping a usable SOUND count.
+
+
+---
+
+# Update — 2026-07-12 (10 days of data, 2.8× the original sample)
+
+Re-run of the same harness. **Replay fidelity still 100%** (3617/3617).
+
+## Data
+- **3,617** pipeline-v2 snapshots, span **2026-07-03 → 2026-07-12**.
+- Verdict mix: **SKIP 3138 (87%) · WATCH 423 · SOUND 56 (1.5%)**.
+
+## will_distribute (primary)
+| horizon | n | base | PR-AUC | lift | SKIP⇒dist P / R / F1 | Brier |
+|---|---|---|---|---|---|---|
+| +1h | 3485 | 58.2% | 0.574 | 0.99× | 0.651 / 0.968 / 0.779 | 0.278 |
+| +4h | 3182 | 63.5% | 0.627 | 0.99× | 0.702 / 0.958 / 0.811 | 0.244 |
+| +24h | 1655 | 68.9% | 0.660 | 0.96× | 0.749 / 0.959 / 0.841 | 0.214 |
+
+**Ranking power is still ~zero (lift ≈ 1.0×)** — the rule SKIPs 87% of coins and
+rides the base rate. Confidence remains uncalibrated. This is the Phase-3 gap.
+
+## Economic — rug-avoidance (the thesis) — STRONGER with more data
+| horizon | SOUND rug | buy-all rug | edge | SOUND median mult |
+|---|---|---|---|---|
+| +1h | **53.7%** (n=54) | 82.9% | **−29.2 pts** | 0.23× vs 0.02× |
+| +4h | **72.9%** (n=48) | 89.2% | **−16.3 pts** | 0.13× vs 0.02× |
+| +24h | **58.3%** (n=12) | 92.5% | **−34.2 pts** | 0.27× vs 0.02× |
+
+Random control ≈ buy-all, so the edge is signal, not selection luck. SOUND moons
+at 8.3% vs 0.9% baseline at 24h (n=12 — noisy, but directionally right).
+
+## Read
+The engine is an **excellent filter, a poor ranker**. The rare SOUND call (~1.5%,
+≈5/day) roughly halves rug rate vs buying everything — a real, defensible edge that
+is strengthening. But 87% of coins sit in an undifferentiated SKIP bucket with no
+discrimination inside it, and moon-prediction is nil (PR-AUC 0.02) exactly as
+predicted (structure ⇒ rug-avoidance, not winner-picking).
+
+## Drift watch (Phase 6)
+Distribute base rate climbed **56.8% → 68.6%** over the 10 days — the environment is
+getting more extractive. Track this; it inflates apparent SKIP accuracy over time.
+
+## What Phase 3 must beat
+- **+4h distribution PR-AUC 0.627** (vs 0.635 base — i.e. beat *chance*, with a
+  **calibrated** probability, Brier < 0.244).
+- **+24h rug-avoidance edge −34.2 pts** — widen it while keeping a usable SOUND count.
+- Now fitting on **3,182 labeled 4h rows** (vs 1,098 at the original baseline).
