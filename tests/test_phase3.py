@@ -150,3 +150,14 @@ def test_structural_read_leader_consistency_gated():
     # below the n>=8 gate → no factor
     r2 = structural_read({"funder_leader_consistency": 0.8, "funder_choreography_n": 5})
     assert not any("operated ring" in f for f in r2.dominant_factors)
+
+
+def test_model_verdict_is_failsafe(monkeypatch):
+    """A missing/broken artifact must NEVER break the live pipeline — returns None."""
+    from src.strategy import model_verdict
+    monkeypatch.setattr(model_verdict, "_cache", None)
+    monkeypatch.setattr(model_verdict, "_load_failed", False)
+    monkeypatch.setattr(model_verdict, "_ARTIFACT", Path("/nonexistent/model.pkl"))
+    assert model_verdict.predict({"team_supply_pct": 10.0}) is None
+    # and it must not retry-thrash: the failure is cached
+    assert model_verdict._load_failed is True

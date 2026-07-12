@@ -687,6 +687,10 @@ async def analyse_graduation(
 
     _snapshot_features(event, ctx, read, conn)
 
+    # Fitted-model SECOND OPINION (shadow) — recorded beside the live rule verdict,
+    # never overrides it. Fail-safe: any problem returns None and is ignored.
+    _record_model_second_opinion(event.token_mint, read, conn)
+
     _print_graduation_alert(event, symbol, team_cluster, sm_buyers, funder_rep, read)
 
     # Sync to Supabase (fire-and-forget — never blocks analysis)
@@ -1259,6 +1263,33 @@ def _snapshot_features(event: GraduationEvent, ctx: dict, read, conn) -> None:
         (event.token_mint, json.dumps(features), int(time.time())),
     )
     conn.commit()
+
+
+def _record_model_second_opinion(token_mint: str, read, conn) -> None:
+    """Shadow-predict with the fitted model and store it beside the rule verdict.
+
+    Reads the SAME frozen snapshot the rules saw, so the comparison is apples-to-
+    apples and leak-free. Never affects the live verdict.
+    """
+    try:
+        from src.strategy import model_verdict
+        row = conn.execute(
+            "SELECT features_json FROM graduation_feature_snapshot WHERE token_mint = ?",
+            (token_mint,),
+        ).fetchone()
+        if not row:
+            return
+        pred = model_verdict.predict(json.loads(row["features_json"] or "{}"))
+        if not pred:
+            return
+        model_verdict.upsert_prediction(conn, token_mint, pred, read.verdict)
+        logger.info(
+            "model 2nd-opinion %s — p_distribute=%.2f p_rug=%.2f (rules said %s)",
+            token_mint[:8], pred.get("p_distribute") or 0.0,
+            pred.get("p_rug") or 0.0, read.verdict,
+        )
+    except Exception:
+        logger.debug("model second opinion failed for %s", token_mint[:8])
 
 
 def _count_proven_buyers(buyers: list[TokenBuyer], conn) -> int:

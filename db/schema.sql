@@ -648,3 +648,16 @@ CREATE TABLE IF NOT EXISTS mirror_counts (
     value       INTEGER NOT NULL DEFAULT 0,
     updated_at  INTEGER NOT NULL
 );
+
+-- ── model_predictions ─────────────────────────────────────────────────────────
+-- SHADOW predictions from the fitted model (Phase 3), recorded beside the live
+-- rule verdict. The live verdict is still verdict_rules_v2 — this is a second
+-- opinion for comparison on live data. No promotion without eval/drift.py's gate.
+CREATE TABLE IF NOT EXISTS model_predictions (
+    token_mint     TEXT PRIMARY KEY REFERENCES tokens(mint),
+    model_version  TEXT NOT NULL,
+    p_distribute   REAL,          -- P(team distributes within 4h)
+    p_rug          REAL,          -- P(MC < 0.5x within 4h)
+    rule_verdict   TEXT,          -- what the live ruleset said, for A/B comparison
+    predicted_at   INTEGER NOT NULL
+);
