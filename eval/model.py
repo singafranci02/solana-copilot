@@ -51,6 +51,13 @@ def build_matrix(samples, keys: list[str]) -> np.ndarray:
     return np.hstack([X, M])
 
 
+def build_matrix_nan(samples, keys: list[str]) -> np.ndarray:
+    """Raw features with NaN for missing — GBM (HistGradientBoosting) splits on NaN
+    natively, which is stronger than 0-fill + indicators."""
+    return np.array([[float(s.features[k]) if s.features.get(k) is not None else np.nan
+                      for k in keys] for s in samples])
+
+
 # ── model (pure numpy — no sklearn in this env) ───────────────────────────────
 
 def fit_logistic(Z: np.ndarray, y: np.ndarray, lam: float = 1e-2,
@@ -65,6 +72,71 @@ def fit_logistic(Z: np.ndarray, y: np.ndarray, lam: float = 1e-2,
 
 def predict(Z: np.ndarray, w: np.ndarray, b: float) -> np.ndarray:
     return 1.0 / (1.0 + np.exp(-(Z @ w + b)))
+
+
+# ── pluggable trainers: return a fitted predictor callable p(X)->prob ──────────
+
+def train_logistic(Xtr, ytr):
+    """Median-impute (train stats) + missing-indicators + standardize + L2 logistic.
+
+    Imputation stats come from TRAIN only. Missingness is kept as its own feature —
+    it is signal here (a field is absent because a stage didn't fire).
+    """
+    med = np.nanmedian(Xtr, axis=0)
+    med = np.where(np.isnan(med), 0.0, med)          # all-NaN column → 0
+
+    def prep(X):
+        M = np.isnan(X).astype(float)
+        return np.hstack([np.where(np.isnan(X), med, X), M])
+
+    A = prep(Xtr)
+    mu, sd = A.mean(0), A.std(0) + 1e-9
+    w, b = fit_logistic(np.clip((A - mu) / sd, -5, 5), ytr)
+    return lambda X: predict(np.clip((prep(X) - mu) / sd, -5, 5), w, b)
+
+
+def _impute_prep(Xtr):
+    """Median-impute (train stats) + missing-indicators. Shared by the tree models."""
+    med = np.nanmedian(Xtr, axis=0)
+    med = np.where(np.isnan(med), 0.0, med)
+
+    def prep(X):
+        M = np.isnan(X).astype(float)
+        return np.hstack([np.where(np.isnan(X), med, X), M])
+    return prep
+
+
+def train_gbm(Xtr, ytr):
+    """Gradient-boosted trees — captures the non-linear concentration × speed ×
+    reputation interactions a linear score cannot.
+
+    Uses the classic GradientBoostingClassifier rather than HistGradientBoosting:
+    the histogram binner trips a numpy-2.4 stride bug on this build. We impute
+    explicitly instead of relying on native NaN handling.
+    """
+    from sklearn.ensemble import GradientBoostingClassifier
+    prep = _impute_prep(Xtr)
+    m = GradientBoostingClassifier(
+        n_estimators=300, learning_rate=0.05, max_depth=3,
+        subsample=0.8, min_samples_leaf=30, random_state=0)
+    m.fit(prep(Xtr), ytr)
+    return lambda X: m.predict_proba(prep(X))[:, 1]
+
+
+TRAINERS = {"logistic": train_logistic, "gbm": train_gbm}
+
+
+def platt_fit(p: np.ndarray, y: np.ndarray):
+    """1-D Platt scaling: logistic on logit(score). Robust for extreme base rates."""
+    z = np.log(np.clip(p, 1e-6, 1 - 1e-6) / (1 - np.clip(p, 1e-6, 1 - 1e-6)))
+    w, b = fit_logistic(z.reshape(-1, 1), y, lam=0.0, iters=2000, lr=0.5)
+    return (w, b)
+
+
+def platt_apply(cal, p: np.ndarray) -> np.ndarray:
+    w, b = cal
+    z = np.log(np.clip(p, 1e-6, 1 - 1e-6) / (1 - np.clip(p, 1e-6, 1 - 1e-6)))
+    return predict(z.reshape(-1, 1), w, b)
 
 
 def isotonic_fit(p: np.ndarray, y: np.ndarray):
@@ -121,17 +193,22 @@ def _label(s, horizon: int, target: str):
 
 
 def walk_forward(samples, horizon: int, n_folds: int, drop: set[str],
-                 target: str = "distribute"):
-    """Expanding-window folds. Returns pooled OUT-OF-TIME predictions."""
+                 target: str = "distribute", model: str = "logistic",
+                 calib: str = "isotonic"):
+    """Expanding-window folds. Returns pooled OUT-OF-TIME predictions.
+
+    model ∈ {logistic, gbm}; calib ∈ {none, isotonic, platt}. The calibrator is
+    fit on a time-inner-split of TRAIN only — never on the evaluation slice.
+    """
     labeled = [s for s in samples if _label(s, horizon, target) is not None]
     labeled.sort(key=lambda s: s.graduated_at)
     keys = feature_names(labeled, drop)
-    X = build_matrix(labeled, keys)
+    X = build_matrix_nan(labeled, keys)       # NaN-aware; logistic nan_to_num's it
     y = np.array([_label(s, horizon, target) for s in labeled])
+    trainer = TRAINERS[model]
 
     n = len(labeled)
-    start = int(n * 0.4)                      # first fold trains on the first 40%
-    edges = np.linspace(start, n, n_folds + 1).astype(int)
+    edges = np.linspace(int(n * 0.4), n, n_folds + 1).astype(int)
 
     oot_p, oot_pc, oot_y, oot_idx = [], [], [], []
     for f in range(n_folds):
@@ -139,23 +216,26 @@ def walk_forward(samples, horizon: int, n_folds: int, drop: set[str],
         if te_end - tr_end < 10 or tr_end < 50:
             continue
         Xtr, ytr = X[:tr_end], y[:tr_end]
-        Xte, yte = X[tr_end:te_end], y[tr_end:te_end]
 
-        mu, sd = Xtr.mean(0), Xtr.std(0) + 1e-9
-        Ztr = np.clip((Xtr - mu) / sd, -5, 5)
-        Zte = np.clip((Xte - mu) / sd, -5, 5)
+        # calibrator on an inner time-split of train
+        cal = None
+        if calib != "none":
+            icut = int(len(Xtr) * 0.8)
+            if icut > 40 and len(ytr[icut:]) > 20:
+                inner = trainer(Xtr[:icut], ytr[:icut])
+                pin = inner(Xtr[icut:])
+                cal = (calib, isotonic_fit(pin, ytr[icut:]) if calib == "isotonic"
+                       else platt_fit(pin, ytr[icut:]))
 
-        # inner split of TRAIN (by time) to fit the calibrator — never on test
-        icut = int(len(Ztr) * 0.8)
-        w, b = fit_logistic(Ztr[:icut], ytr[:icut])
-        cal = isotonic_fit(predict(Ztr[icut:], w, b), ytr[icut:])
-        # refit on full train for the final predictor
-        w, b = fit_logistic(Ztr, ytr)
-
-        p = predict(Zte, w, b)
-        oot_p.append(p)
-        oot_pc.append(isotonic_apply(cal, p))
-        oot_y.append(yte)
+        pred = trainer(Xtr, ytr)              # final predictor on full train
+        p = pred(X[tr_end:te_end])
+        if cal is None:
+            pc = p
+        elif cal[0] == "isotonic":
+            pc = isotonic_apply(cal[1], p)
+        else:
+            pc = platt_apply(cal[1], p)
+        oot_p.append(p); oot_pc.append(pc); oot_y.append(y[tr_end:te_end])
         oot_idx.extend(range(tr_end, te_end))
 
     if not oot_p:
@@ -172,16 +252,19 @@ def main() -> None:
     folds = int(args[args.index("--folds") + 1]) if "--folds" in args else 5
     drop = {args[args.index("--drop") + 1]} if "--drop" in args else set()
     target = args[args.index("--target") + 1] if "--target" in args else "distribute"
+    model = args[args.index("--model") + 1] if "--model" in args else "logistic"
+    calib = args[args.index("--calib") + 1] if "--calib" in args else "isotonic"
 
     samples = load_samples()
-    res = walk_forward(samples, horizon, folds, drop, target)
+    res = walk_forward(samples, horizon, folds, drop, target, model, calib)
     if res is None:
         print("not enough data for walk-forward yet")
         return
     p_raw, p_cal, y, te, keys, X, yall = res
 
-    print(f"EXPANDING WALK-FORWARD · target={target} · +{horizon}h · {folds} folds · "
-          f"out-of-time n={len(y)}  (features={X.shape[1]}, dropped={sorted(drop) or 'none'})")
+    print(f"EXPANDING WALK-FORWARD · model={model} · calib={calib} · target={target} · "
+          f"+{horizon}h · {folds} folds · out-of-time n={len(y)}  "
+          f"(features={X.shape[1]}, dropped={sorted(drop) or 'none'})")
     print(f"span {day_bucket(te[0].graduated_at)} → {day_bucket(te[-1].graduated_at)}")
 
     base = y.mean()
@@ -218,11 +301,14 @@ def main() -> None:
             print(f"  {'rule SOUND':<22}{int(sm.sum()):>5}{r:>7.1%}{r - rb:>+8.1%}{1 - r:>16.1%}")
         print(f"  {'ALL (buy-all)':<22}{int(have.sum()):>5}{rb:>7.1%}{0:>+8.1%}{1 - rb:>16.1%}")
 
-    # feature importance from a full-sample refit (direction + magnitude)
-    mu, sd = X.mean(0), X.std(0) + 1e-9
-    w, _ = fit_logistic(np.clip((X - mu) / sd, -5, 5), yall)
+    # feature importance from a full-sample logistic refit (direction + magnitude)
+    Xf = build_matrix(te, keys)   # 0-fill+indicator form for interpretable coefs
+    yf = y
+    mu, sd = Xf.mean(0), Xf.std(0) + 1e-9
+    w, _ = fit_logistic(np.clip((Xf - mu) / sd, -5, 5), yf)
     names = keys + [k + "__missing" for k in keys]
-    print("\n══ top features (+ predicts DISTRIBUTE, − predicts clean) ══")
+    sign = "DISTRIBUTE" if target == "distribute" else "RUG"
+    print(f"\n══ top features (+ predicts {sign}, − predicts clean) ══")
     for i in np.argsort(-np.abs(w))[:14]:
         print(f"  {names[i]:<34}{w[i]:+.3f}")
 

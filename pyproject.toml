@@ -24,6 +24,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3.4",
+    "scikit-learn>=1.5",   # eval/ harness only — live services never import it
     "pytest-asyncio>=0.24.0",
     "httpx>=0.28.0",
 ]
@@ -38,6 +39,7 @@ packages = ["src"]
 [dependency-groups]
 dev = [
     "pytest>=8.3.4",
+    "scikit-learn>=1.5",   # eval/ harness only — live services never import it
     "pytest-asyncio>=0.24.0",
 ]
 
