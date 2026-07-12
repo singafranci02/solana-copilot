@@ -534,7 +534,7 @@ async def _update_funder_reputation_from_distribution(
 
     if cluster_row:
         members = json.loads(cluster_row["member_addresses"] or "[]")
-        update_wallet_graph(members, outcome=outcome_row["classified"], conn=conn)
+        update_wallet_graph(members, outcome=outcome_row["classified"], conn=conn, token_mint=token_mint)
 
         tc = TeamCluster(
             cluster_id=cluster_row["cluster_id"],

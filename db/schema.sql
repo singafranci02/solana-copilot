@@ -637,3 +637,14 @@ CREATE TABLE IF NOT EXISTS graduation_social (
     website_final_url        TEXT,                   -- after redirects
     website_domain_age_days INTEGER                  -- WHOIS creation → age (best-effort)
 );
+
+-- ── mirror_counts ─────────────────────────────────────────────────────────────
+-- Tiny aggregate mirror for the dashboard: a handful of maturity-meter counts
+-- (e.g. wallet_graph edges) synced periodically, so the dashboard never reads
+-- the multi-million-row firehose tables from Supabase. Local = master; these are
+-- cheap derived numbers.
+CREATE TABLE IF NOT EXISTS mirror_counts (
+    metric      TEXT PRIMARY KEY,
+    value       INTEGER NOT NULL DEFAULT 0,
+    updated_at  INTEGER NOT NULL
+);

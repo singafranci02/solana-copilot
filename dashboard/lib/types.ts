@@ -139,6 +139,7 @@ export type Database = {
       bc_flow_features: { Row: Record<string, unknown> };
       creator_reputation: { Row: Record<string, unknown> };
       api_usage: { Row: { day: string; provider: string; endpoint: string; count: number } };
+      mirror_counts: { Row: { metric: string; value: number; updated_at: number } };
       bc_microstructure: { Row: Record<string, unknown> };
       team_member_behavior: { Row: Record<string, unknown> };
       team_fingerprints: { Row: Record<string, unknown> };

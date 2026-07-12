@@ -40,13 +40,40 @@ _PUMP_RING_VELOCITY_24H      = 3     # launches/24h that flags a pump ring
 
 # ── Layer 1: wallet co-occurrence graph ───────────────────────────────────────
 
+_GRAPH_MEMBER_CAP = 20   # only pair the top-N scored members — O(k²) explodes on
+                         # loose "teams" (a 190-member coin = 17,955 pairs). The
+                         # high-confidence core carries the signal; the rest was
+                         # noise that bloated storage AND hurt the verdict (Phase-0
+                         # ablation: removing wallet_graph improved PR-AUC).
+
+
+def _cap_members(member_addresses: list[str], conn, token_mint: str | None) -> list[str]:
+    """Reduce to the top-_GRAPH_MEMBER_CAP members by team-membership score."""
+    members = list(dict.fromkeys(member_addresses))
+    if len(members) <= _GRAPH_MEMBER_CAP:
+        return members
+    if token_mint:
+        placeholders = ",".join("?" * len(members))
+        ranked = [r[0] for r in conn.execute(
+            f"""SELECT wallet FROM team_members
+                WHERE token_mint = ? AND wallet IN ({placeholders})
+                ORDER BY score DESC LIMIT ?""",
+            (token_mint, *members, _GRAPH_MEMBER_CAP),
+        )]
+        if ranked:
+            return ranked
+    return members[:_GRAPH_MEMBER_CAP]
+
+
 def update_wallet_graph(
     member_addresses: list[str],
     outcome: Optional[str],  # "rug" | "moon" | "ok" | None (at graduation time)
     conn,
+    token_mint: str | None = None,
 ) -> None:
-    """Upsert all wallet pairs from a team cluster into the co-occurrence graph.
+    """Upsert wallet pairs from a team cluster into the co-occurrence graph.
 
+    Only the top-_GRAPH_MEMBER_CAP scored members are paired (see the cap note).
     Called twice per token:
       1. At graduation (outcome=None) — registers the cluster.
       2. At 4h outcome — if outcome="rug", increments rug_co_appearances.
@@ -54,7 +81,7 @@ def update_wallet_graph(
     now = int(time.time())
     is_rug = outcome == "rug"
 
-    pairs = _canonical_pairs(member_addresses)
+    pairs = _canonical_pairs(_cap_members(member_addresses, conn, token_mint))
     if not pairs:
         return
 
@@ -85,31 +112,8 @@ def update_wallet_graph(
     logger.debug(
         "wallet_graph: %d pairs upserted (rug=%s)", len(pairs), is_rug
     )
-    _sync_graph_pairs(pairs, conn)
-
-
-def _sync_graph_pairs(pairs: list[tuple[str, str]], conn) -> None:
-    """Mirror the touched pairs to Supabase. No-op outside an event loop."""
-    import asyncio
-    from src.common import supabase_sync as sb
-
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        return   # sync context (scripts/tests) — Supabase mirror skipped
-
-    rows = []
-    for wallet_a, wallet_b in pairs:
-        r = conn.execute(
-            """SELECT wallet_a, wallet_b, co_appearances, rug_co_appearances,
-                      last_seen_together
-               FROM wallet_graph WHERE wallet_a = ? AND wallet_b = ?""",
-            (wallet_a, wallet_b),
-        ).fetchone()
-        if r:
-            rows.append(dict(r))
-    if rows:
-        loop.create_task(sb.wallet_graph_pairs_batch(rows))
+    # NOTE: wallet_graph pairs are NOT mirrored to Supabase — the dashboard only
+    # needs an edge COUNT (synced via mirror_counts), not 20M+ pair rows.
 
 
 def query_wallet_graph(
@@ -509,9 +513,12 @@ def gather_memory_signals(
     members = team_cluster.member_addresses
     funder = team_cluster.funding_source
 
-    # Layer 1: register cluster + query for external connections
-    update_wallet_graph(members, outcome=None, conn=conn)
-    graph_hits = query_wallet_graph(members, conn)
+    # Layer 1: register cluster + query for external connections. Pairing is
+    # capped to the top-scored members (see update_wallet_graph); the query uses
+    # the same capped set so the IN-clause stays small against the graph.
+    update_wallet_graph(members, outcome=None, conn=conn, token_mint=team_cluster.token_mint)
+    graph_hits = query_wallet_graph(
+        _cap_members(members, conn, team_cluster.token_mint), conn)
 
     # Layer 2: refresh and fetch velocity
     launches_24h, launches_7d = update_launch_velocity(funder, conn)

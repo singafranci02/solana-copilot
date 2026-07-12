@@ -47,7 +47,7 @@ export default function AlgorithmPage() {
       supabase.from("graduation_events").select("structural_verdict", { count: "exact" }),
       supabase.from("coin_outcomes").select("*", { count: "exact" }).eq("check_offset_h", 4),
       supabase.from("coin_outcomes").select("*", { count: "exact" }).eq("check_offset_h", 24),
-      supabase.from("wallet_graph").select("*", { count: "exact" }),
+      supabase.from("mirror_counts").select("metric,value").eq("metric", "wallet_graph_edges"),
       supabase.from("funder_reputation").select("*").gte("rug_count", 0),  // all funders
       supabase.from("wallet_stats").select("total_calls").gte("total_calls", 15),
       supabase.from("team_clusters").select("supply_pct_at_graduation"),
@@ -67,7 +67,7 @@ export default function AlgorithmPage() {
       skip: verdicts.filter(v => v.structural_verdict === "SKIP").length,
       outcomes_4h: co4h.count ?? 0,
       outcomes_24h: co24h.count ?? 0,
-      wallet_graph_pairs: wg.count ?? 0,
+      wallet_graph_pairs: ((wg.data as { value: number }[] | null) || [])[0]?.value ?? 0,
       funders_8plus: frData.filter(f => (f.rug_count + f.moon_count + f.ok_count) >= 8).length,
       wallets_15plus: ws.data?.length ?? 0,
       team_supply_low: tcData.filter(t => t.supply_pct_at_graduation < 20).length,

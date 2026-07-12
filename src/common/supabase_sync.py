@@ -381,3 +381,9 @@ async def api_usage_batch(rows: list[dict[str, Any]]) -> None:
 async def team_member_behavior_batch(rows: list[dict[str, Any]]) -> None:
     """Mirror per-member exit choreography (Phase D — who sells first)."""
     await _run_many("team_member_behavior", rows, conflict_col="token_mint,wallet")
+
+
+async def mirror_counts_batch(rows: list[dict[str, Any]]) -> None:
+    """Tiny aggregate mirror (dashboard maturity meters) — a few rows, not the
+    million-row firehose tables they summarize."""
+    await _run_many("mirror_counts", rows, conflict_col="metric")

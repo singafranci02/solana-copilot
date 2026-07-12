@@ -142,3 +142,17 @@ LEFT JOIN (
     FROM team_members GROUP BY token_mint
 ) tm ON tm.token_mint = ge.token_mint
 ORDER BY ge.graduated_at DESC;
+
+-- ── Storage-cost trim (2026-07) ───────────────────────────────────────────────
+-- The dashboard reads only an edge COUNT from wallet_graph, never the pairs.
+-- Stop mirroring 20M+ pair rows; publish a tiny aggregate instead. Run these to
+-- reclaim the space on Supabase (local SQLite keeps the full graph as master):
+CREATE TABLE IF NOT EXISTS mirror_counts (
+    metric TEXT PRIMARY KEY, value BIGINT NOT NULL DEFAULT 0, updated_at BIGINT NOT NULL
+);
+ALTER TABLE mirror_counts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "read-only anon" ON mirror_counts;
+CREATE POLICY "read-only anon" ON mirror_counts FOR SELECT USING (true);
+
+-- Reclaim the biggest mirrored table (23M+ rows) — the dashboard no longer uses it:
+TRUNCATE wallet_graph;

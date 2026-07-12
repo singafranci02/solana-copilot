@@ -83,7 +83,7 @@ export default function SystemPage() {
       cnt(supabase.from("team_members").select("*", { count: "exact", head: true }).eq("is_member", true).filter("evidence_json->>funding", "eq", "creator_linked")),
       cnt(supabase.from("wallet_behavior").select("*", { count: "exact", head: true }).gte("n_coins_bc", 3)),
       supabase.from("funder_reputation").select("rug_count,moon_count,ok_count"),
-      cnt(supabase.from("wallet_graph").select("*", { count: "exact", head: true })),
+      supabase.from("mirror_counts").select("metric,value").eq("metric", "wallet_graph_edges"),
       supabase.from("team_member_behavior").select("token_mint").not("exit_order", "is", null),
       supabase.from("graduation_feed").select("verdict,outcome_24h").not("outcome_24h", "is", null).limit(3000),
     ]);
@@ -111,7 +111,8 @@ export default function SystemPage() {
       creatorLinkedTotal: creatorLinked,
       walletFp3: wfp,
       funders8: funderRows.filter(f => (f.rug_count + f.moon_count + f.ok_count) >= 8).length,
-      walletGraph: wg, choreoFunders: choreoMints,
+      walletGraph: ((wg.data as { value: number }[]) || [])[0]?.value ?? 0,
+      choreoFunders: choreoMints,
       resolved: feedRows.length, correct,
     });
     setLoading(false);

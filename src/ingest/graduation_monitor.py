@@ -103,6 +103,38 @@ async def _watchdog_loop() -> None:
             await _sync_api_usage()
         except Exception:
             pass
+        try:
+            await _sync_mirror_counts()
+        except Exception:
+            pass
+
+
+async def _sync_mirror_counts() -> None:
+    """Publish tiny aggregate counts for the dashboard maturity meters, so it
+    never reads the multi-million-row firehose tables from Supabase."""
+    from src.common import supabase_sync as sb
+    now = int(time.time())
+    conn = get_connection()
+    try:
+        edges = conn.execute(
+            "SELECT COUNT(*) FROM wallet_graph WHERE co_appearances >= 2"
+        ).fetchone()[0]
+        rug_edges = conn.execute(
+            "SELECT COUNT(*) FROM wallet_graph WHERE rug_co_appearances >= 2"
+        ).fetchone()[0]
+        rows = [
+            {"metric": "wallet_graph_edges", "value": int(edges), "updated_at": now},
+            {"metric": "wallet_graph_rug_edges", "value": int(rug_edges), "updated_at": now},
+        ]
+        conn.executemany(
+            """INSERT INTO mirror_counts (metric, value, updated_at) VALUES (?, ?, ?)
+               ON CONFLICT(metric) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at""",
+            [(r["metric"], r["value"], r["updated_at"]) for r in rows],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    await sb.mirror_counts_batch(rows)
 
 
 async def _sync_api_usage() -> None:
