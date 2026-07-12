@@ -256,6 +256,22 @@ def main() -> None:
     calib = args[args.index("--calib") + 1] if "--calib" in args else "isotonic"
 
     samples = load_samples()
+    if "--with-topology" in args:
+        from src.common.db import get_connection
+        from eval.topology import load_topology
+        conn = get_connection()
+        try:
+            topo = load_topology(conn)
+        finally:
+            conn.close()
+        hit = 0
+        for s in samples:
+            t = topo.get(s.token_mint)
+            if t:
+                s.features = {**s.features, **t}
+                hit += 1
+        print(f"[topology merged into {hit}/{len(samples)} samples]")
+
     res = walk_forward(samples, horizon, folds, drop, target, model, calib)
     if res is None:
         print("not enough data for walk-forward yet")

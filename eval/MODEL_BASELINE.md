@@ -139,3 +139,43 @@ Trend **+0.094** (improving). The model's advantage over the rules is **stable a
 Current: **0.933 vs 0.644 (margin +0.289) → ✅ PASS** — eligible to run as a live
 *second opinion*. Hard-SKIP rules stay **in front of** any model (near-deterministic
 on-chain facts, not probabilities). No silent promotions.
+
+---
+
+# Phase 4 — Graph topology: TESTED, NEGATIVE RESULT (do not ship)
+
+Recorded **2026-07-13**. `uv run python -m eval.topology` then
+`uv run python -m eval.model --model gbm --calib platt --with-topology`.
+
+Rebuilt the per-launch wallet graph strictly from point-in-time sources
+(same-slot/same-block co-buys from `bc_microstructure`; shared non-CEX funder from
+`wallet_funding`; near-identical buy size from `bc_accumulation`) for 3,797
+launches, and computed the features the literature recommends: Freeman degree
+**centralization** (star-vs-cluster), **average degree**, **clustering coefficient**,
+connected components, and **Louvain** communities + modularity.
+
+## Result: no lift
+| target (+4h, GBM+Platt) | without topology | with topology |
+|---|---|---|
+| `distribute` | ROC **0.922** | ROC 0.920 |
+| `rug` | ROC **0.863** | ROC 0.863 |
+
+## But the features ARE predictive — they are REDUNDANT, not useless
+Trained on **topology alone**:
+| target | topology-only ROC | full model | rules |
+|---|---|---|---|
+| `distribute` | **0.778** | 0.922 | 0.580 |
+| `rug` | **0.800** | 0.863 | 0.575 |
+
+Topology on its own beats the ruleset by a mile (0.78–0.80 vs 0.58). It adds nothing
+on top of the existing feature set because our coordination features
+(`bundled_supply_pct`, `max_same_slot_group`, `launch_slot_snipe_count`,
+`team_score_*`, `unique_bc_buyers`) **already encode the same structure** by another
+route.
+
+## Decision
+**Do not ship Phase 4 into the live pipeline.** It is added complexity and compute
+for zero measured gain. The literature's topological recommendation is effectively
+already satisfied. Keep `eval/topology.py` as a research tool — it is the natural
+place to re-test if the coordination features are ever changed or evaded (topology
+would then be an independent fallback encoding).
