@@ -749,3 +749,11 @@ CREATE TABLE IF NOT EXISTS prewarn_alerts (
     threshold     REAL NOT NULL,
     model_version TEXT
 );
+
+-- Graduations skipped by the platform gate (non-pump.fun createdOn) — kept so the
+-- same mint is not re-analysed and the gate's behaviour is auditable.
+CREATE TABLE IF NOT EXISTS skipped_graduations (
+    token_mint TEXT PRIMARY KEY,
+    skipped_at INTEGER NOT NULL,
+    created_on TEXT
+);

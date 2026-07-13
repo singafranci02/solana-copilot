@@ -194,6 +194,18 @@ def stage_data(conn) -> list[Check]:
           AND lower(migration_venue) NOT IN ('pump-amm','pump')""").fetchone()[0]
     out.append(Check("data", "no non-pump.fun graduations analysed (48h)",
                      foreign == 0, f"{foreign} foreign-venue rows"))
+
+    # PLATFORM gate (the definitive one): every analysed graduation's token must be
+    # createdOn pump.fun, or metadata-less with the pump suffix. Mayhem migrates to
+    # PumpSwap AND shares the suffix — only createdOn separates it.
+    from src.ingest.graduation_monitor import _is_pump_fun_token
+    rows48 = conn.execute("""SELECT ge.token_mint m, t.created_on co
+        FROM graduation_events ge LEFT JOIN tokens t ON t.mint=ge.token_mint
+        WHERE ge.graduated_at > strftime('%s','now') - 172800""").fetchall()
+    bad_plat = sum(1 for r in rows48
+                   if (r["co"] or "") != "" and not _is_pump_fun_token(r["co"], r["m"]))
+    out.append(Check("data", "no non-pump.fun PLATFORM tokens analysed (48h)",
+                     bad_plat == 0, f"{bad_plat} of {len(rows48)}"))
     return out
 
 

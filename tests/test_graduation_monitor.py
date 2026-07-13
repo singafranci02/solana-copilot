@@ -136,3 +136,16 @@ def test_venue_gate_pump_only():
     assert not _is_allowed_venue("raydium-cpmm")
     assert not _is_allowed_venue("launchlab")
     assert not _is_allowed_venue("mayhem")
+
+
+def test_platform_gate_created_on_is_definitive():
+    """Mayhem migrates to PumpSwap AND shares the 'pump' mint suffix — only the
+    metadata createdOn separates it. Missing metadata falls back to the suffix."""
+    from src.ingest.graduation_monitor import _is_pump_fun_token
+    assert _is_pump_fun_token("https://pump.fun", "X" * 44)
+    assert _is_pump_fun_token("pump.fun", "X" * 44)
+    assert not _is_pump_fun_token("https://mayhem.fun", "SomeMintEndingInpump")
+    assert not _is_pump_fun_token("https://rapidlaunch.io", "SomeMintEndingInpump")
+    assert not _is_pump_fun_token("https://bags.fm", "X" * 44)
+    assert _is_pump_fun_token(None, "GJamcN2ZP31twgwBkRFJQYZYsw2dFBW6BtvSbbBLpUmP")
+    assert not _is_pump_fun_token(None, "25emjiLfw5AbCdEfGhIjKlMnOpQrStUvWxYz123456")

@@ -36,6 +36,7 @@ def migrate() -> None:
         _add_column_if_missing(conn, "graduation_events", "dominant_factors_json", "TEXT NOT NULL DEFAULT '[]'")
         # Pipeline v2: real created_at + structural-account capture (see structural_accounts.py)
         _add_column_if_missing(conn, "tokens", "created_at_source", "TEXT")
+        _add_column_if_missing(conn, "tokens", "created_on", "TEXT")
         _add_column_if_missing(conn, "tokens", "creator_wallet", "TEXT")
         _add_column_if_missing(conn, "tokens", "total_supply", "REAL")
         _add_column_if_missing(conn, "graduation_events", "migration_venue", "TEXT")

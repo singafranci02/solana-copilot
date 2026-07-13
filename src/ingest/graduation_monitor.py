@@ -53,6 +53,17 @@ MIN_GRADUATION_MC_USD = 50_000.0   # sanity-check lower bound
 _ALLOWED_VENUES = {"pump-amm", "pump"}
 
 
+def _is_pump_fun_token(created_on: str | None, mint: str) -> bool:
+    """The DEFINITIVE platform gate — the venue label is not enough: Mayhem (and
+    others) migrate to PumpSwap too, arriving as 'pump-amm', and Mayhem mints even
+    share the 'pump' vanity suffix. The token metadata's createdOn (the same field
+    GMGN's launchpad filter uses) is the discriminator. Missing metadata (~7% of
+    real pump.fun coins) falls back to the case-insensitive mint suffix."""
+    if created_on:
+        return "pump.fun" in created_on.lower()
+    return mint.lower().endswith("pump")
+
+
 def _is_allowed_venue(pool: str | None) -> bool:
     """True for pump.fun migrations. None or an actual pool ADDRESS (REST fallback
     path, which polls pump.fun's own API) passes; known foreign venue labels don't."""
@@ -326,6 +337,19 @@ async def _handle_graduation(
                 logger.warning("token-info fetch failed for %s: %s", mint[:8], exc)
                 token_info = None
 
+            tok = (token_info.get("token") if isinstance(token_info, dict)
+                   and isinstance(token_info.get("token"), dict) else token_info) or {}
+            created_on = tok.get("createdOn")
+            if not _is_pump_fun_token(created_on, mint):
+                logger.info("skipping non-pump.fun token %s (createdOn=%s)",
+                            mint[:8], created_on)
+                conn.execute(
+                    """INSERT OR IGNORE INTO skipped_graduations
+                           (token_mint, skipped_at, created_on) VALUES (?,?,?)""",
+                    (mint, now, created_on))
+                conn.commit()
+                return
+
             meta = _extract_meta_fields(mint, token_info)
             creator_wallet, created_time = extract_creation(token_info)
             pool_accounts = extract_pool_accounts(token_info)
@@ -377,10 +401,10 @@ async def _handle_graduation(
             conn.execute(
                 """UPDATE tokens SET created_at = ?, created_at_source = ?,
                        creator_wallet = COALESCE(?, creator_wallet),
-                       total_supply = ?
+                       total_supply = ?, created_on = ?
                    WHERE mint = ?""",
                 (token_created_at, created_at_source, creator_wallet,
-                 total_supply, mint),
+                 total_supply, created_on, mint),
             )
             conn.commit()
 
