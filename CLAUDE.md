@@ -79,6 +79,16 @@ the pump; a paid follower-count proxy for the same quantity will not do better.
 Never add a moon/10× head. Anything that only fires once the pump is visible in the price
 is **detection, not discrimination**, and has no value.
 
+## Team membership gate (team_detect.py)
+
+The membership score alone over-included badly (avg 86 "team" wallets/coin, max 628):
+additive weak evidence — a same-slot edge + early-buyer + fresh wallet — crossed the
+0.35 bar with no team-specific fact. Ground-truthed on the tape, those edge-carried
+members were 9.8% insiders (75% never sold); buyer∩holder members with corroboration
+were 26.7%. `passes_member_gate` therefore requires skin in the game: coordination
+edges CORROBORATE membership, they never CARRY it. Trajectory labels also require
+`n_price_points >= 30` — a thin tape misses the collapse and fakes a survivor.
+
 ## Pattern significance thresholds
 
 Every PatternResult carries `sample_size` and `is_significant` (True only when n≥30).
@@ -99,7 +109,7 @@ The real labels come from the swap tape, in `src/analyzer/trajectory.py`:
 |------------------|--------------------------------------------------------------|
 | collapse         | price < 0.5× the first post-graduation print                 |
 | moon (`reached_10x`) | ≥10× — **sustained**, confirmed by ≥3 prints at the level |
-| team exit        | first sell by a team member (median 6.2 min — ~3 min BEFORE the break) |
+| team exit        | first sell by a GATED team member (median 2.4 min; leads the collapse 80% of the time) |
 
 `MIN_TRADES_AT_PEAK = 3` is not optional: **78% of raw ≥10× maxes were single bad
 price prints** (one coin printed 2055× on one trade; its true peak was 1.11×). Without

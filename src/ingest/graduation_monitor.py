@@ -1297,9 +1297,9 @@ def _record_model_second_opinion(token_mint: str, read, conn) -> dict | None:
 
 
 # Fire the pre-warning only where the head is near-deterministic. Measured out-of-time
-# (n=1236): at p>=0.90 the "team exits within 10 min" head is 94.5% PRECISE and fires on
-# 25% of graduations. Below this it degrades fast (86.8% at 0.80), and a warning that is
-# wrong one time in seven trains people to ignore it.
+# on GATED team labels (n=1188): at p>=0.90 the "team exits within 10 min" head is 94.2%
+# PRECISE and fires on 23% of graduations. Below this it degrades fast (88.1% at 0.80),
+# and a warning that is wrong one time in eight trains people to ignore it.
 _PREWARN_THRESHOLD = 0.90
 
 
@@ -1326,9 +1326,9 @@ async def _prewarn_team_exit(conn, token_mint: str, pred: dict | None) -> None:
             f"\U000026a0️ <b>PRE-WARNING — ${symbol}</b>\n"
             f"Model says this team exits within <b>10 minutes</b> of graduation "
             f"(p={p:.2f}).\n"
-            f"At this confidence the call is right <b>~95%</b> of the time "
-            f"(out-of-time, n=1236).\n"
-            f"The median team sells at 2.3 min and the price breaks shortly after.\n"
+            f"At this confidence the call is right <b>~94%</b> of the time "
+            f"(out-of-time, n=1188).\n"
+            f"The median team sells at 2.4 min and leads the collapse 80% of the time.\n"
             f"<code>{token_mint}</code>"
         )
         logger.info("PRE-WARN team exit %s — p=%.2f", token_mint[:8], p)

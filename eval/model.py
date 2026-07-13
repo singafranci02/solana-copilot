@@ -182,14 +182,19 @@ _TRAJ: dict | None = None
 
 def _trajectory() -> dict:
     """Continuous-time labels from coin_trajectory (measured: median collapse is
-    10.5 min, so the old 1h/4h checkpoints were measuring the corpse)."""
+    10.5 min, so the old 1h/4h checkpoints were measuring the corpse).
+
+    Requires n_price_points >= 30: a thin tape simply misses the collapse and
+    mislabels the coin as a survivor (1-29 point tapes read a fake 77.8% survival
+    rate vs 13.0% on 100+ point tapes). A sparse trajectory is not a measurement."""
     global _TRAJ
     if _TRAJ is None:
         from src.common.db import get_connection
         conn = get_connection()
         try:
             _TRAJ = {r["token_mint"]: dict(r)
-                     for r in conn.execute("SELECT * FROM coin_trajectory")}
+                     for r in conn.execute(
+                         "SELECT * FROM coin_trajectory WHERE n_price_points >= 30")}
         except Exception:
             _TRAJ = {}
         finally:

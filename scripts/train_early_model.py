@@ -72,7 +72,8 @@ def load_rows(window_s: int = DEFAULT_WINDOW_S):
                  "SELECT token_mint, REPLACE(REPLACE(REPLACE(member_addresses,'[',''),']',''),'\"','') "
                  "AS member_addresses FROM team_clusters")}
     traj = {r["token_mint"]: dict(r) for r in conn.execute(
-        "SELECT token_mint, reached_10x, time_to_collapse_s, tape_span_s FROM coin_trajectory")}
+        "SELECT token_mint, reached_10x, time_to_collapse_s, tape_span_s "
+        "FROM coin_trajectory WHERE n_price_points >= 30")}   # thin tape = fake survivor
 
     swaps: dict[str, list] = {}
     for r in conn.execute(

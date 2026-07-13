@@ -120,6 +120,19 @@ def get_past_deployments(dev_wallet: str, conn=None) -> list[str]:
 _W_OVERLAP, _W_COORD, _W_FUNDING, _W_FRESH, _W_SNIPE = 0.35, 0.30, 0.20, 0.05, 0.10
 _MEMBER_THRESHOLD = 0.35
 _PERIPHERAL_THRESHOLD = 0.20
+
+# The score threshold alone over-included badly: additive weak evidence (a same-slot
+# edge + early-buyer status + a fresh wallet) crossed 0.35 with no team-specific fact,
+# producing "teams" averaging 86 wallets (max 628). Ground-truthed on our own tape
+# (n=240k member rows on collapsed coins, insider proxy = wallet exits BEFORE the
+# price breaks): edge-carried members were 9.8% insiders and 75% never sold at all,
+# vs 26.7% for buyer∩holder wallets with corroboration. So membership additionally
+# requires skin in the game — coordination edges CORROBORATE, they never CARRY:
+#   overlap == 1.0            bought during BC and still holds at graduation
+#   overlap >= 0.5 + evidence top-5 holder with any corroborating signal
+#   creator-funded + holding  the classic insider fingerprint, with a position
+# Measured effect: 86 -> 14 members/coin, insider precision 11.5% -> 25.4%.
+# Wallets that fail the gate persist as peripherals (is_member=0) for team memory.
 _COORD_EDGE_WEIGHT = {
     "funder": 0.9, "same_slot_real": 0.85, "same_slot": 0.7,
     "buy_size": 0.35, "lockstep_sell": 0.35, "behavioral": 0.5,
@@ -237,6 +250,23 @@ def score_team_membership(
     return scores
 
 
+def passes_member_gate(ev: dict) -> bool:
+    """Skin-in-the-game requirement for full membership (see comment on thresholds).
+
+    Pure and evidence-only, so the same gate can be re-applied to frozen
+    evidence_json rows during backfills. Peripherals (score >= 0.20 but failing
+    this) stay persisted with is_member=0.
+    """
+    ovl = ev.get("overlap", 0.0)
+    if ovl >= 1.0:
+        return True
+    corroborated = (bool(ev.get("coord_edges")) or "funding" in ev
+                    or ev.get("slot_offset", 99) <= 3)
+    if ovl >= 0.5 and corroborated:
+        return True
+    return ev.get("funding") == "creator_linked" and ovl > 0
+
+
 def build_team_cluster_post_grad(
     token_mint: str,
     buyers: list[TokenBuyer],
@@ -281,7 +311,8 @@ def build_team_cluster_post_grad(
         graduated_at=graduated_at,
     )
 
-    members = [w for w, (sc, _) in scored.items() if sc >= _MEMBER_THRESHOLD]
+    members = [w for w, (sc, ev) in scored.items()
+               if sc >= _MEMBER_THRESHOLD and passes_member_gate(ev)]
     if members:
         team_candidates = members
         fallback = False

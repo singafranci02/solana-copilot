@@ -94,3 +94,34 @@ def test_build_cluster_persists_scored_and_recovers_exited_member():
     # funder entity + shared-funder + early buy
     assert HOLDER in tc.member_addresses
     assert EXITED in scored
+
+# ── skin-in-the-game member gate ─────────────────────────────────────────────────
+# Ground truth (240k member rows): edge-carried wallets were 9.8% insiders and 75%
+# never sold; buyer∩holder+corroboration were 26.7%. Edges corroborate, never carry.
+
+from src.analyzer.team_detect import passes_member_gate
+
+
+def test_gate_edge_carried_early_buyer_is_not_a_member():
+    """The bloat path: early buyer + strong coord edges but no graduation position.
+    Scores over threshold, must NOT be a member (stays peripheral)."""
+    tc, scored = build_team_cluster_post_grad(
+        MINT, [_buyer(EXITED), _buyer(HOLDER)], [_holder(HOLDER, 8.0)], frozenset(),
+        entity_edges={EXITED: {"funder", "same_slot_real"}},
+        graduated_at=5000,
+    )
+    assert scored[EXITED][0] >= _MEMBER_THRESHOLD     # score alone would admit it
+    assert EXITED not in tc.member_addresses          # gate keeps it out
+    assert HOLDER in tc.member_addresses              # real holder stays in
+
+
+def test_gate_top5_holder_needs_corroboration():
+    assert passes_member_gate({"overlap": 0.5, "coord_edges": ["same_slot"]})
+    assert not passes_member_gate({"overlap": 0.5})            # bare top-5: no
+    assert passes_member_gate({"overlap": 1.0})                # buyer∩holder: always
+
+
+def test_gate_creator_funding_needs_a_position():
+    assert passes_member_gate({"overlap": 0.3, "funding": "creator_linked"})
+    assert not passes_member_gate({"overlap": 0.0, "funding": "creator_linked"})
+    assert not passes_member_gate({"overlap": 0.3, "funding": "shared_funder"})
