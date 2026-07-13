@@ -110,7 +110,9 @@ async def _do_early_check(token_mint: str, graduation_ts: int, minute: int) -> N
 
         # The actionable alert: team is exiting and price has not broken yet.
         if team_sells and traj.time_to_collapse_s is None:
-            await _alert_team_dumping(conn, token_mint, minute, traj)
+            from src.analyzer.sell_structure import grade_sell_structure
+            grade = grade_sell_structure(swaps, graduation_ts, team, minute * 60)
+            await _alert_team_dumping(conn, token_mint, minute, traj, grade)
     finally:
         conn.close()
 
@@ -149,11 +151,14 @@ def _score_attention(conn, token_mint: str, swaps, graduation_ts: int,
         return ""
 
 
-async def _alert_team_dumping(conn, token_mint: str, minute: int, traj) -> None:
+async def _alert_team_dumping(conn, token_mint: str, minute: int, traj, grade=None) -> None:
     """Fire once per coin: the team started selling and price hasn't collapsed yet.
 
-    Teams sell a median ~3 minutes before the price breaks, so this is the window
-    that matters. Analysis only — this is an observation, never a trade instruction.
+    Teams sell a median ~3 minutes before the price breaks, so this is the window that
+    matters. `grade` sizes the warning: one wallet trimming and stopping is a different
+    event from the whole cluster unloading (29.1% vs 11.3% chance the price recovers).
+
+    Analysis only — an observation for someone already holding, never a trade instruction.
     """
     already = conn.execute(
         "SELECT 1 FROM team_dump_alerts WHERE token_mint = ?", (token_mint,)
@@ -171,15 +176,24 @@ async def _alert_team_dumping(conn, token_mint: str, minute: int, traj) -> None:
 
     sym = conn.execute("SELECT symbol FROM tokens WHERE mint = ?", (token_mint,)).fetchone()
     symbol = (sym["symbol"] if sym else None) or token_mint[:8]
-    from src.notifications.telegram import send_message
-    await send_message(
-        f"🔴 <b>TEAM EXITING — ${symbol}</b>\n"
+
+    icon = {"CRITICAL": "\U0001f6a8", "ELEVATED": "\U0001f534"}.get(
+        getattr(grade, "severity", ""), "\U0001f7e0")
+    lines = [
+        f"{icon} <b>TEAM EXITING — ${symbol}</b>",
         f"Team started selling at <b>{(traj.time_to_team_exit_s or 0)/60:.1f} min</b> "
         f"post-graduation. Price has <b>not</b> collapsed yet "
-        f"(peak so far {traj.peak_multiple or 0:.1f}×).\n"
-        f"Historically the team exits ~3 min before the price breaks.\n"
-        f"<code>{token_mint}</code>"
-    )
+        f"(peak so far {traj.peak_multiple or 0:.1f}×).",
+    ]
+    if grade is not None:
+        lines.append(f"Severity <b>{grade.severity}</b> — {grade.note}.")
+    lines += [
+        "Historically the team exits ~3 min before the price breaks; a holder is better "
+        "off exiting 86% of the time.",
+        f"<code>{token_mint}</code>",
+    ]
+    from src.notifications.telegram import send_message
+    await send_message("\n".join(lines))
 
 
 async def _deferred_check(

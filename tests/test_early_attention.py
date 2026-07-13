@@ -73,3 +73,33 @@ def test_to_features_are_prefixed_floats():
     f = to_features(a)
     assert f["e5_n_trades"] == 5.0
     assert all(k.startswith("e5_") and isinstance(v, float) for k, v in f.items())
+
+
+# ── sell structure (risk grading only — never an entry signal) ──────────────────
+
+from src.analyzer.sell_structure import grade_sell_structure
+
+
+def test_no_team_sell_returns_none():
+    swaps = [sw(1, "buy", "retail"), sw(2, "buy", "r2"), sw(3, "sell", "retail")]
+    assert grade_sell_structure(swaps, G, {"team"}, 900) is None
+
+
+def test_lone_seller_who_stopped_is_low_severity():
+    swaps = [sw(10, "sell", "t1", sol=1.0), sw(20, "buy", "r", sol=50.0)]
+    g = grade_sell_structure(swaps, G, {"t1"}, 900)
+    assert g.n_sellers == 1 and not g.still_selling
+    assert g.severity == "LOW"
+
+
+def test_whole_cluster_still_unloading_is_critical():
+    swaps = [sw(700, "sell", f"t{i}", sol=5.0) for i in range(4)]
+    g = grade_sell_structure(swaps, G, {f"t{i}" for i in range(4)}, 900)
+    assert g.n_sellers == 4 and g.still_selling
+    assert g.severity == "CRITICAL"
+
+
+def test_share_of_sell_flow_excludes_retail_sells():
+    swaps = [sw(10, "sell", "t1", sol=3.0), sw(11, "sell", "retail", sol=1.0)]
+    g = grade_sell_structure(swaps, G, {"t1"}, 900)
+    assert g.share_of_sells == 0.75

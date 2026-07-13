@@ -143,3 +143,65 @@ holding*, the team-exit alert is a real exit signal (n=1690):
 
 The product is **risk and exit**, not entry. Value = losses avoided, not alpha captured.
 Say that plainly; anything else is a claim the tape does not support.
+
+---
+
+## 6. Sell *structure* discriminates the bounce — but the payoff geometry still kills the trade.
+
+**Hypothesis:** a team that exits in an orderly ladder (even clips, staggered, then stops)
+is distributing, not rugging — and the coin bounces. Buy that, skip the panic dumps.
+
+**The behavioural claim is REAL.** Out-of-time on the 0–15min window (n=940), sell
+structure predicts a sustained ≥2× bounce at ROC 0.616, and the hand-built archetype
+separates cleanly:
+
+| 0–15min archetype | n | bounce rate | mean return |
+|---|---|---|---|
+| **ORDERLY** (even clips + team finished + market absorbing) | 68 | **29.4%** | 0.960× |
+| PANIC (erratic clips + still selling at the end) | 131 | 24.4% | 0.933× |
+| everything else | 741 | 17.9% | 0.858× |
+
+Single strongest reads (low vs high tercile): **fewer team sellers → 29.1% bounce vs
+11.3%**; team sells early and stops → 27.9% vs 13.4%.
+
+**The trade is still dead, and this time the reason is arithmetic, not data.**
+
+    when it bounces : you capture  +46%
+    when it doesn't : you eat      -41%
+    => BREAK-EVEN HIT RATE NEEDED  = 47.1%
+    best hit rate any slice reached =  29.4%
+
+The payoff is symmetric-ish while the hit rate caps near 29%. **Even a perfect
+sell-structure model would have to more than double the best observed hit rate just to
+reach zero.** Better features cannot close a gap this shape.
+
+Letting winners run doesn't rescue it either. A first pass showed "mean 4.26×" — that was
+**one 1115× print** (the single-bad-print artifact, for the third time). With executable
+fills (robust median entry AND exit), every rule loses: median **0.68×**, P(profit) 8–25%,
+and stripping the single best trade drops the mean to 0.79×.
+
+**Kept:** the sell-structure features are excellent *risk* signals (many team sellers =
+coin is dead). They feed the exit alarm's severity. They must never feed an entry signal.
+
+---
+
+## 7. "Is it a real project (website/X)?" does not predict anything. It is slightly INVERTED.
+
+The `project_classifier` (heuristics + local LLM, already live) has labeled 265 projects
+and 1,830 memes that also have a trajectory:
+
+| | PROJECT | MEME |
+|---|---|---|
+| survives ≥60min | **16.2%** | **20.1%** |
+| reached 10× | 6.0% | 9.7% |
+| peak ≥2× | 34.7% | 42.0% |
+| median peak | 1.57× | 1.70× |
+
+Real projects do **worse**, not better (z = −1.58 on survival — not significant, but the
+point estimate is the wrong way round for the hypothesis, and it is nowhere near a lift).
+
+A deeper LLM agent that visits the site and grades quality/novelty is a *finer* instrument
+than this binary label — but it now carries the burden of proof, because the coarse version
+shows nothing and if anything leans negative. Memecoins pump *because* they are memes.
+Do not build the agent as a signal without first showing quality separates outcomes
+*within* the 345 already-labeled projects.
