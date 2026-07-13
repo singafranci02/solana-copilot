@@ -20,6 +20,12 @@ def main() -> int:
         [sys.executable, "-m", "eval.audit"],
         cwd=ROOT, capture_output=True, text=True, timeout=1800,
     )
+    # refresh the track record regardless of audit result — it must never skip a day
+    try:
+        subprocess.run([sys.executable, "scripts/track_record.py"],
+                       cwd=ROOT, capture_output=True, timeout=300)
+    except Exception:
+        pass
     if r.returncode == 0:
         return 0
     tail = "\n".join((r.stdout or "").strip().splitlines()[-12:])

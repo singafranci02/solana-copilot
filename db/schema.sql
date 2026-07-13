@@ -738,3 +738,14 @@ CREATE TABLE IF NOT EXISTS backtest_runs (
     n_failed     INTEGER,
     summary_json TEXT
 );
+
+-- Fired pre-warnings (graduation-time "team exits within 10min" calls). The public
+-- track record is grounded in THIS table — alerts that actually went out, never
+-- reconstructions. Also serves as the dedup guard for the Telegram send.
+CREATE TABLE IF NOT EXISTS prewarn_alerts (
+    token_mint    TEXT PRIMARY KEY,
+    alerted_at    INTEGER NOT NULL,
+    p_exit10      REAL NOT NULL,
+    threshold     REAL NOT NULL,
+    model_version TEXT
+);

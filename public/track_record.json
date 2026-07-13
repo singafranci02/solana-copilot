@@ -1,0 +1,203 @@
+{
+ "generated_at": 1783915033,
+ "live_since": 1783980000,
+ "prewarn": {
+  "summary": {
+   "fired": 0,
+   "graded": 0,
+   "correct": 0,
+   "precision": null,
+   "pending": 0,
+   "ungradable": 0
+  },
+  "alerts": []
+ },
+ "exit_alarm": {
+  "summary": {
+   "fired": 21,
+   "graded": 0,
+   "correct": 0,
+   "precision": null,
+   "pending": 21,
+   "ungradable": 0
+  },
+  "median_saved_pct": null,
+  "alerts": [
+   {
+    "mint": "6zFdgaXbvjH7AKCCZ5v9KegjELXbKoY1Sf7vakmWpump",
+    "symbol": "VERT",
+    "alerted_at": 1783914827,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "9TrtUeuicUiNDpszJzYcegYzqgeAHNZPoHHpwxDtpump",
+    "symbol": "TripleF",
+    "alerted_at": 1783914537,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "6aLnYWikz9FsFV4bTErPvGRmW8v1N4wrA49NUtU1pump",
+    "symbol": "GARMANAR",
+    "alerted_at": 1783913718,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "8f2xE2vLTwdSxYReCV1h5WyKV65UqE7No5Fguo7Ypump",
+    "symbol": "ANSWER",
+    "alerted_at": 1783913427,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "fTHfbaPvnv3Nui7gjw89Pczo98VkdmfQ6bYYUzmpump",
+    "symbol": "KISUNLAF5",
+    "alerted_at": 1783912950,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "9HS96X7v5RS6xMHtpK2QD3dM4vEckRR532saoCsCpump",
+    "symbol": "SSS",
+    "alerted_at": 1783911537,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "TumVMtYHHMydVdJV5qFoy5bwXU3QFMuLUzF89KPpump",
+    "symbol": "nostalgia",
+    "alerted_at": 1783911418,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "2xa3NE9Y4yVb9o7zC6n54Qu27NSwmh5jViaMhUBdpump",
+    "symbol": "AO",
+    "alerted_at": 1783911035,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "D3MZgzQFmvgNbehkwRyfE9iWcawcLDgFEd1RMzoqpump",
+    "symbol": "SHSC",
+    "alerted_at": 1783910344,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "E2n4sCHpSDR38J4XWDgKWACBc82Jr1mwmzgVno9Wpump",
+    "symbol": "PEPA",
+    "alerted_at": 1783910224,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "DA9vJzjVFhuwL4Q9zXkGXjaQxRPMPQ9UPMV7AhZFpump",
+    "symbol": "ANSEM",
+    "alerted_at": 1783909010,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "8Z2pfkEAyv8aDJNQ3cxwrfPRjNLA56ZNNbyh66yrpump",
+    "symbol": "EGGI",
+    "alerted_at": 1783908936,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "nDBa7ScDdGgeh4G17w5U4m7E4PTmpyiEAbk1uPLpump",
+    "symbol": "AO",
+    "alerted_at": 1783908355,
+    "minute_offset": 5,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "46cQXuBZwW2PkCLyG2ZSqwwYfmL5rqNUuP9pmQq1pump",
+    "symbol": "AOS",
+    "alerted_at": 1783905517,
+    "minute_offset": 5,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "A4YeJLC18QyBDGWYuoqDNqU2qfALpHhUMAjp7dtwpump",
+    "symbol": "PIPPINA",
+    "alerted_at": 1783905210,
+    "minute_offset": 5,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "ARimQUUGtEMSvrm9WFpzbrKCzJ9Vme9sjyktJA5Tpump",
+    "symbol": "twobulls",
+    "alerted_at": 1783905149,
+    "minute_offset": 5,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "9UyeeGhTRyEeQnguXi3rk4tKPbSVoUNCrzu9FXZRpump",
+    "symbol": "Yakb-12.7",
+    "alerted_at": 1783904970,
+    "minute_offset": 5,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "6idKcmMg6QQbCSwhSFzwiSSbcYr7M46TF2CTAc6Fpump",
+    "symbol": "MEOWSQUITO",
+    "alerted_at": 1783904897,
+    "minute_offset": 5,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "HXAMg7FTZjGCZVDzgHNjfZE1YKYFUuTPoAGdBRV9c87L",
+    "symbol": "SOLANA",
+    "alerted_at": 1783904805,
+    "minute_offset": 5,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "C7ffQy1QZ5qyVEPVgBtwWGpSy7tgGj1xGPGn2bDSpump",
+    "symbol": "nola",
+    "alerted_at": 1783904597,
+    "minute_offset": 5,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "4dPLZVcoNgdhaduNonJLZuDCgTzgigAghM6UGJCApump",
+    "symbol": "ALIEN",
+    "alerted_at": 1783902679,
+    "minute_offset": 5,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   }
+  ]
+ },
+ "backtest_reference": {
+  "note": "out-of-time backtest on 1,800+ graduations \u2014 NOT part of the live record",
+  "prewarn_precision": 0.94,
+  "exit_better_off_rate": 0.86,
+  "median_position_preserved_pct": 77,
+  "details": "eval/AUDIT_BASELINE.md, eval/NEGATIVE_RESULTS.md"
+ }
+}

@@ -1316,8 +1316,19 @@ async def _prewarn_team_exit(conn, token_mint: str, pred: dict | None) -> None:
         return
     from src.strategy.model_verdict import alert_threshold
     p = pred.get("p_team_exit10")
-    if p is None or p < alert_threshold("team_exit10"):
+    thr = alert_threshold("team_exit10")
+    if p is None or p < thr:
         return
+    # persist FIRST (also the dedup guard) — the public track record is grounded in
+    # alerts that actually fired, and an alert that can't be recorded must not send
+    cur = conn.execute(
+        """INSERT OR IGNORE INTO prewarn_alerts
+               (token_mint, alerted_at, p_exit10, threshold, model_version)
+           VALUES (?,?,?,?,?)""",
+        (token_mint, int(time.time()), float(p), float(thr), pred.get("version")))
+    conn.commit()
+    if cur.rowcount == 0:
+        return                      # already alerted for this coin
     try:
         row = conn.execute("SELECT symbol FROM tokens WHERE mint = ?", (token_mint,)).fetchone()
         symbol = (row["symbol"] if row else None) or token_mint[:8]
