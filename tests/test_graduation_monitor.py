@@ -149,3 +149,20 @@ def test_platform_gate_created_on_is_definitive():
     assert not _is_pump_fun_token("https://bags.fm", "X" * 44)
     assert _is_pump_fun_token(None, "GJamcN2ZP31twgwBkRFJQYZYsw2dFBW6BtvSbbBLpUmP")
     assert not _is_pump_fun_token(None, "25emjiLfw5AbCdEfGhIjKlMnOpQrStUvWxYz123456")
+
+
+def test_platform_from_creation_tx_catches_mayhem():
+    """Mayhem declares createdOn=pump.fun and CPIs through the pump program — only
+    the creation tx's account keys betray it (program MAyhSmz...)."""
+    from src.ingest.graduation_monitor import MAYHEM_PROGRAM, _platform_from_tx
+
+    def tx(keys, loaded=()):
+        return {"transaction": {"message": {"accountKeys": list(keys)}},
+                "meta": {"loadedAddresses": {"writable": list(loaded), "readonly": []}}}
+
+    PUMP = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+    assert _platform_from_tx(tx([PUMP, "11111111111111111111111111111111"])) == "pump.fun"
+    assert _platform_from_tx(tx([PUMP, MAYHEM_PROGRAM])) == "mayhem"
+    assert _platform_from_tx(tx([PUMP], loaded=[MAYHEM_PROGRAM])) == "mayhem"
+    assert _platform_from_tx(tx(["SomeOtherProgram111"])) is None
+    assert _platform_from_tx(None) is None

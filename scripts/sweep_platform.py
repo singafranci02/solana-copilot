@@ -1,18 +1,20 @@
-"""One-shot platform sweep: verify EVERY graduated token's creation platform.
+"""Platform sweep v2: verify EVERY graduated token on-chain, purge non-pump.fun.
 
-Fetches token-info createdOn for every mint in graduation_events (persisted to
-tokens.created_on so the nightly audit never needs API calls), then purges every
-coin that is not pump.fun from all graduation tables and rebuilds the aggregates.
+Two facts drive the design (both verified live):
+  1. Foreign platforms that DECLARE themselves (rapidlaunch, bags, ...) are caught
+     by metadata createdOn.
+  2. MAYHEM does not declare itself — it creates tokens by CPI THROUGH pump.fun
+     (createdOn says pump.fun, venue pump-amm, mint ends 'pump'). Only the creation
+     TRANSACTION betrays it: Mayhem's program MAyhSmz... is present in it.
 
-Why: the venue label was not enough — Mayhem (and others) migrate to PumpSwap and
-even share the 'pump' mint suffix. createdOn is the discriminator (what GMGN's
-launchpad filter uses). Missing metadata falls back to the mint suffix.
+So each mint needs: token-info (createdOn + created_tx, Solana Tracker) and one
+getTransaction (free RPC). Resumable: progress commits every 100 mints and already-
+classified mints are skipped, so it can be re-run after any interruption.
 
     uv run python scripts/sweep_platform.py
 """
 
 import asyncio
-import json
 import sys
 import time
 from pathlib import Path
@@ -20,7 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.common.db import get_connection
-from src.ingest.graduation_monitor import _is_pump_fun_token
+from src.ingest.graduation_monitor import _is_pump_fun_token, _platform_from_tx
 
 PURGE_TABLES = (
     "graduation_events", "coin_trajectory", "team_clusters", "team_members",
@@ -30,76 +32,83 @@ PURGE_TABLES = (
 )
 
 
-async def fetch_all(mints):
+async def classify(mints, conn):
+    from src.ingest.rpc import RpcClient
     from src.ingest.solana_tracker import SolanaTrackerClient
-    got = {}
     t0 = time.time()
-    async with SolanaTrackerClient() as st:
+    async with SolanaTrackerClient() as st, RpcClient() as rpc:
         for i, m in enumerate(mints):
+            platform = None
+            created_on = None
             try:
                 d = await st.get_token_info(m) or {}
                 tok = d.get("token") if isinstance(d.get("token"), dict) else d
-                got[m] = (tok or {}).get("createdOn") or ""
+                tok = tok or {}
+                created_on = tok.get("createdOn") or ""
+                if not _is_pump_fun_token(created_on or None, m):
+                    platform = (created_on or "unknown")[:40]     # self-declared foreign
+                else:
+                    tx_sig = (tok.get("creation") or {}).get("created_tx")
+                    if tx_sig:
+                        tx = await rpc._call("getTransaction", [tx_sig,
+                            {"maxSupportedTransactionVersion": 0, "encoding": "json"}])
+                        platform = _platform_from_tx(tx)
+                    if platform is None:
+                        platform = "pump.fun*"    # metadata says pump, tx unresolvable
             except Exception:
-                got[m] = None                    # fetch failed — retryable, not purged
-            if (i + 1) % 500 == 0:
+                platform = None                    # fully unresolved — retry next run
+            if platform is not None:
+                conn.execute(
+                    "UPDATE tokens SET launchpad = ?, created_on = ? WHERE mint = ?",
+                    (platform, created_on, m))
+            if (i + 1) % 100 == 0:
+                conn.commit()
                 rate = (i + 1) / (time.time() - t0)
                 print(f"  {i+1}/{len(mints)}  ({rate:.1f}/s, "
                       f"eta {(len(mints)-i-1)/rate/60:.0f}m)", flush=True)
-    return got
+    conn.commit()
 
 
 def main() -> None:
     conn = get_connection()
     todo = [r[0] for r in conn.execute(
         """SELECT ge.token_mint FROM graduation_events ge
-           LEFT JOIN tokens t ON t.mint = ge.token_mint
-           WHERE t.created_on IS NULL""")]
-    print(f"mints needing a createdOn fetch: {len(todo)}")
-    got = asyncio.run(fetch_all(todo))
+           JOIN tokens t ON t.mint = ge.token_mint
+           WHERE t.launchpad IS NULL OR t.launchpad = 'pump.fun' AND t.created_on IS NULL
+           ORDER BY ge.graduated_at DESC""")]
+    print(f"mints needing platform classification: {len(todo)}", flush=True)
+    asyncio.run(classify(todo, conn))
 
-    fetched = {m: co for m, co in got.items() if co is not None}
-    conn.executemany("UPDATE tokens SET created_on=? WHERE mint=?",
-                     [(co, m) for m, co in fetched.items()])
-    conn.commit()
-    failed = sum(1 for co in got.values() if co is None)
-    print(f"persisted {len(fetched)} createdOn values ({failed} fetch failures — left for retry)")
+    dist = list(conn.execute(
+        """SELECT t.launchpad, COUNT(*) FROM graduation_events ge
+           JOIN tokens t ON t.mint = ge.token_mint GROUP BY 1 ORDER BY 2 DESC"""))
+    print("\nplatform distribution of all graduations:")
+    for lp, n in dist:
+        print(f"  {lp or '(unresolved)'}: {n}")
 
-    # classify EVERY graduation off the persisted column (older rows included)
-    rows = conn.execute(
-        """SELECT ge.token_mint m, t.created_on co FROM graduation_events ge
-           LEFT JOIN tokens t ON t.mint = ge.token_mint""").fetchall()
-    bad = [r["m"] for r in rows
-           if not _is_pump_fun_token(r["co"] or None, r["m"]) and (r["co"] or "") != ""]
-    # unresolved (fetch failed AND non-pump suffix) — report, do not purge blind
-    unresolved = [r["m"] for r in rows
-                  if (r["co"] is None or r["co"] == "") and not r["m"].lower().endswith("pump")]
-    print(f"non-pump.fun graduations found: {len(bad)}   unresolved (retry later): {len(unresolved)}")
-
-    platforms = {}
-    for r in rows:
-        if r["m"] in set(bad):
-            platforms[r["co"]] = platforms.get(r["co"], 0) + 1
-    for co, n in sorted(platforms.items(), key=lambda x: -x[1]):
-        print(f"  purging {co!r}: {n}")
-
-    for t in PURGE_TABLES:
+    bad = [r[0] for r in conn.execute(
+        """SELECT ge.token_mint FROM graduation_events ge JOIN tokens t ON t.mint=ge.token_mint
+           WHERE t.launchpad IS NOT NULL
+             AND t.launchpad NOT IN ('pump.fun','pump.fun*')""")]
+    print(f"\npurging {len(bad)} non-pump.fun graduations")
+    for tbl in PURGE_TABLES:
         n = 0
         for m in bad:
             try:
-                n += conn.execute(f"DELETE FROM {t} WHERE token_mint=?", (m,)).rowcount
+                n += conn.execute(f"DELETE FROM {tbl} WHERE token_mint=?", (m,)).rowcount
             except Exception:
                 pass
         if n:
-            print(f"  {t}: -{n}")
+            print(f"  {tbl}: -{n}")
     conn.commit()
     conn.close()
-    print("purge done — rebuilding aggregates")
 
     import subprocess
-    subprocess.run([sys.executable, "scripts/rebuild_funder_lineage.py"], cwd=Path(__file__).parent.parent)
-    subprocess.run([sys.executable, "scripts/track_record.py"], cwd=Path(__file__).parent.parent)
-    print("SWEEP COMPLETE")
+    subprocess.run([sys.executable, "scripts/rebuild_funder_lineage.py"],
+                   cwd=Path(__file__).parent.parent)
+    subprocess.run([sys.executable, "scripts/track_record.py"],
+                   cwd=Path(__file__).parent.parent)
+    print("SWEEP COMPLETE", flush=True)
 
 
 if __name__ == "__main__":

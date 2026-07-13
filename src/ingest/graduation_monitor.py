@@ -53,12 +53,34 @@ MIN_GRADUATION_MC_USD = 50_000.0   # sanity-check lower bound
 _ALLOWED_VENUES = {"pump-amm", "pump"}
 
 
+# Mayhem creates tokens BY CPI THROUGH pump.fun: createdOn says pump.fun, the venue
+# is pump-amm, the mint ends in 'pump'. Metadata cannot separate it. The creation
+# TRANSACTION can: Mayhem's program is present in it (verified on-chain by diffing
+# an alerted Mayhem coin against a known pump.fun coin — only this differs).
+MAYHEM_PROGRAM = "MAyhSmzXzV1pTf7LsNkrNwkWKTo4ougAJ1PPg47MD4e"
+
+
+def _platform_from_tx(tx: dict | None) -> str | None:
+    """'mayhem' | 'pump.fun' | None(unknown) from a getTransaction response. Pure."""
+    if not tx:
+        return None
+    try:
+        msg = tx["transaction"]["message"]
+        la = (tx.get("meta") or {}).get("loadedAddresses") or {}
+        keys = list(msg["accountKeys"]) + list(la.get("writable") or [])             + list(la.get("readonly") or [])
+        if MAYHEM_PROGRAM in keys:
+            return "mayhem"
+        if "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P" in keys:
+            return "pump.fun"
+    except Exception:
+        pass
+    return None
+
+
 def _is_pump_fun_token(created_on: str | None, mint: str) -> bool:
-    """The DEFINITIVE platform gate — the venue label is not enough: Mayhem (and
-    others) migrate to PumpSwap too, arriving as 'pump-amm', and Mayhem mints even
-    share the 'pump' vanity suffix. The token metadata's createdOn (the same field
-    GMGN's launchpad filter uses) is the discriminator. Missing metadata (~7% of
-    real pump.fun coins) falls back to the case-insensitive mint suffix."""
+    """Metadata-level gate (first line of defence): catches platforms that declare
+    themselves (rapidlaunch, bags, ...). Mayhem declares pump.fun and needs the
+    on-chain check above. Missing metadata falls back to the mint suffix."""
     if created_on:
         return "pump.fun" in created_on.lower()
     return mint.lower().endswith("pump")
@@ -349,6 +371,32 @@ async def _handle_graduation(
                     (mint, now, created_on))
                 conn.commit()
                 return
+
+            # ON-CHAIN platform check — Mayhem is invisible to metadata (declares
+            # pump.fun, CPIs through the pump program). One free RPC call.
+            created_tx = (tok.get("creation") or {}).get("created_tx")
+            platform = None
+            if created_tx:
+                try:
+                    from src.ingest.rpc import RpcClient
+                    async with RpcClient() as rpc:
+                        tx = await rpc._call("getTransaction", [created_tx,
+                            {"maxSupportedTransactionVersion": 0, "encoding": "json"}])
+                    platform = _platform_from_tx(tx)
+                except Exception as exc:
+                    logger.debug("platform tx check failed for %s: %s", mint[:8], exc)
+            if platform == "mayhem":
+                logger.info("skipping MAYHEM token %s (creation tx contains %s)",
+                            mint[:8], MAYHEM_PROGRAM[:8])
+                conn.execute(
+                    """INSERT OR IGNORE INTO skipped_graduations
+                           (token_mint, skipped_at, created_on) VALUES (?,?,'mayhem')""",
+                    (mint, now))
+                conn.commit()
+                return
+            conn.execute(
+                "UPDATE tokens SET launchpad = ? WHERE mint = ?",
+                (platform or "pump.fun", mint))
 
             meta = _extract_meta_fields(mint, token_info)
             creator_wallet, created_time = extract_creation(token_info)

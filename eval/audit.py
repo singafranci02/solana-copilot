@@ -206,6 +206,16 @@ def stage_data(conn) -> list[Check]:
                    if (r["co"] or "") != "" and not _is_pump_fun_token(r["co"], r["m"]))
     out.append(Check("data", "no non-pump.fun PLATFORM tokens analysed (48h)",
                      bad_plat == 0, f"{bad_plat} of {len(rows48)}"))
+
+    # Mayhem is invisible to metadata — the sweep/gate stamp tokens.launchpad from
+    # the creation TX. No analysed graduation may carry a foreign launchpad stamp.
+    bad_lp = conn.execute("""SELECT COUNT(*) FROM graduation_events ge
+        JOIN tokens t ON t.mint = ge.token_mint
+        WHERE ge.graduated_at > strftime('%s','now') - 172800
+          AND t.launchpad IS NOT NULL
+          AND t.launchpad NOT IN ('pump.fun','pump.fun*')""").fetchone()[0]
+    out.append(Check("data", "no foreign-launchpad (e.g. mayhem) tokens analysed (48h)",
+                     bad_lp == 0, f"{bad_lp} rows"))
     return out
 
 
