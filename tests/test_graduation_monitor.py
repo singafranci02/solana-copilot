@@ -123,3 +123,16 @@ def test_parse_bc_holders_preserves_ui_amount():
     accounts = [{"address": "wallet_a", "uiAmount": 250.0}]
     holders = _parse_bc_holders(accounts)
     assert holders[0]["ui_amount"] == 250.0
+
+
+def test_venue_gate_pump_only():
+    """PumpPortal streams other launchpads' migrations too — only pump.fun passes.
+    None and real pool ADDRESSES (REST fallback) pass; foreign venue labels don't."""
+    from src.ingest.graduation_monitor import _is_allowed_venue
+    assert _is_allowed_venue("pump-amm")
+    assert _is_allowed_venue("PUMP")
+    assert _is_allowed_venue(None)
+    assert _is_allowed_venue("6zFdgaXbAufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
+    assert not _is_allowed_venue("raydium-cpmm")
+    assert not _is_allowed_venue("launchlab")
+    assert not _is_allowed_venue("mayhem")

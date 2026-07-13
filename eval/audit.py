@@ -185,6 +185,15 @@ def stage_data(conn) -> list[Check]:
         """).fetchone()[0]
     out.append(Check("data", "funder_reputation.graduated_mints is a JSON array",
                      bad_fmt == 0, f"{bad_fmt} malformed rows"))
+
+    # scope: pump.fun only — the ingest gate must hold (foreign venues observed
+    # live before the gate: raydium-cpmm)
+    foreign = conn.execute("""SELECT COUNT(*) FROM graduation_events
+        WHERE graduated_at > strftime('%s','now') - 172800
+          AND migration_venue IS NOT NULL AND length(migration_venue) <= 20
+          AND lower(migration_venue) NOT IN ('pump-amm','pump')""").fetchone()[0]
+    out.append(Check("data", "no non-pump.fun graduations analysed (48h)",
+                     foreign == 0, f"{foreign} foreign-venue rows"))
     return out
 
 

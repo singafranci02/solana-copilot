@@ -44,6 +44,22 @@ PUMP_FUN_API = "https://frontend-api.pump.fun"  # REST fallback only
 
 MIN_GRADUATION_MC_USD = 50_000.0   # sanity-check lower bound
 
+# Scope: PUMP.FUN ONLY. PumpPortal's subscribeMigration also streams migrations from
+# other venues (observed live: 'raydium-cpmm' — letsbonk et al). Every model, label
+# and baseline here is fit to Pump.fun's mechanics (~85 SOL curve -> PumpSwap); a
+# different launchpad is a different game and must NOT silently mix in. Extend this
+# set only together with venue-tagged data and a separate validation (e.g. Bags —
+# client exists in src/ingest/bags.py, deliberately not wired).
+_ALLOWED_VENUES = {"pump-amm", "pump"}
+
+
+def _is_allowed_venue(pool: str | None) -> bool:
+    """True for pump.fun migrations. None or an actual pool ADDRESS (REST fallback
+    path, which polls pump.fun's own API) passes; known foreign venue labels don't."""
+    if not pool or len(pool) > 20:
+        return True
+    return pool.lower() in _ALLOWED_VENUES
+
 # Wait for ST/DexScreener to index the migration AMM pool before analysing
 _POOL_INDEX_DELAY_S = 45
 
@@ -277,6 +293,10 @@ async def _handle_graduation(
     ('pump-amm' / 'raydium-cpmm'), not an address — stored as migration_venue.
     The real AMM pool accounts come from the token-info response.
     """
+    if not _is_allowed_venue(pool_address):
+        logger.info("skipping non-pump.fun migration %s (venue=%s)", mint[:8], pool_address)
+        return
+
     from src.ingest.solana_tracker import SolanaTrackerClient
     from src.analyzer.structural_accounts import (
         structural_set, extract_pool_accounts, extract_total_supply, extract_market_state,

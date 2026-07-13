@@ -1,20 +1,29 @@
 # Live track record
 
-*Auto-generated 2026-07-13 03:57 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
+*Auto-generated 2026-07-13 05:26 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
 
 ## Pre-warnings (at graduation: “team exits within 10 min”)
 
-fired **0** · graded 0 · precision **—** · pending 0 · ungradable 0
+fired **4** · graded 0 · precision **—** · pending 4 · ungradable 0
 
 | time (UTC) | coin | p | outcome | team exit |
 |---|---|---|---|---|
+| 07-13 04:58 | $RBN `2594o9UH…` | 0.94 | pending | — |
+| 07-13 04:50 | $RIBBIT `8NBME1rA…` | 0.94 | pending | — |
+| 07-13 04:48 | $SELL `82KJSxhk…` | 0.95 | pending | — |
+| 07-13 04:40 | $CARDS `C9Sk4LHB…` | 0.94 | pending | — |
 
 ## Exit alarms (live: “team is exiting — price not yet broken”)
 
-fired **21** · graded 0 · price lower 1h later — · median saved **—%** of position · pending 21
+fired **26** · graded 0 · price lower 1h later — · median saved **—%** of position · pending 26
 
 | time (UTC) | coin | alarm at | outcome | 1h later | saved |
 |---|---|---|---|---|---|
+| 07-13 04:57 | $capy `AiG8eaX7…` | +12m | pending | — | — |
+| 07-13 04:51 | $RIBBIT `8NBME1rA…` | +2m | pending | — | — |
+| 07-13 04:49 | $SELL `82KJSxhk…` | +2m | pending | — | — |
+| 07-13 04:45 | $Wukong `F4TnftPo…` | +2m | pending | — | — |
+| 07-13 04:32 | $acat `66R44YgX…` | +2m | pending | — | — |
 | 07-13 03:53 | $VERT `6zFdgaXb…` | +2m | pending | — | — |
 | 07-13 03:48 | $TripleF `9TrtUeui…` | +2m | pending | — | — |
 | 07-13 03:35 | $GARMANAR `6aLnYWik…` | +2m | pending | — | — |

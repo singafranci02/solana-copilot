@@ -46,6 +46,11 @@ def load_samples(conn=None) -> list[Sample]:
                FROM graduation_feature_snapshot gfs
                JOIN graduation_events ge ON ge.token_mint = gfs.token_mint
                WHERE ge.pipeline_version >= 2
+                 -- pump.fun only: short venue labels from other launchpads are a
+                 -- different game and must not train or evaluate our models
+                 AND (ge.migration_venue IS NULL
+                      OR ge.migration_venue IN ('pump-amm','pump')
+                      OR length(ge.migration_venue) > 20)
                ORDER BY ge.graduated_at""",
         ).fetchall()
 
