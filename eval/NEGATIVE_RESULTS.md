@@ -256,3 +256,40 @@ happen *through* the team's selling, crowd-driven — magnitude remains unpredic
 This is the **fifth** independent falsification of a long-side entry (10×, early
 attention, dip-buy, sell-structure, 2×). The long side is closed. The intent heads are
 NOT shipped — ROC 0.63–0.67 with negative economics is research, not product.
+
+---
+
+## 10. Short-memory / recency-weighted training: no benefit YET (data too shallow).
+
+Raced expanding-window (current) vs sliding windows (7/14d) vs exponential-decay
+sample weights (half-life 3/7/14d) on identical out-of-time folds:
+
+| scheme | rug ROC | team_exit10 ROC |
+|---|---|---|
+| expanding (current) | 0.860 | 0.733 |
+| best decay variant | 0.864 | 0.736 |
+
+Differences are ±0.004 — noise. The labeled v2 dataset spans only ~10 days; there is
+no "long ago" to forget. **Not a permanent negative**: re-run this race when the
+dataset spans 60+ days (the weekly retrain keeps a log; the drift monitor watches
+decay). Until the race shows a real gap, recency weighting is complexity without
+benefit. What "learns with time" actually means today: weekly automated retrain
+(each one re-derives the alert threshold) + entity-level memory (funder/wallet
+reputations), which is already long-memory and now clean.
+
+## 11. (Positive, but not tradeable) Team behavior PERSISTS across coins.
+
+"If a funder's team HELD (no exit ≤1h) on coin k, what happens on coin k+1?"
+
+| | next team holds | next coin survives 1h |
+|---|---|---|
+| prior team HELD (n=109 funder pairs) | **14.7%** | 18.3% |
+| prior team DUMPED (n=1,092) | 8.7% | 11.9% |
+| wallet level (n=12,680 pairs) | **15.4% vs 8.6%** (z≈7.6) | ~flat |
+
+Holding teams are ~1.7–1.8× more likely to hold again — real, and wallet-level highly
+significant. But the absolute rate is the story: **even proven holders dump their next
+coin 85% of the time.** Keep the memory (free — funder_reputation + team_members
+already store it), surface it as an annotation ("this team held its last coin — rare"),
+but it is NOT a buy signal and (like prior-tempo, #8) almost certainly adds nothing as
+a model feature on top of funder reputation. Do not build more than the annotation.
