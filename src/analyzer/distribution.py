@@ -28,11 +28,18 @@ logger = logging.getLogger(__name__)
 CHECK_OFFSETS_H = (1, 4, 24)
 
 # EARLY checks — the action is over long before the 1h check. Measured on our own
-# tape: the MEDIAN coin collapses (price < 0.5x) at 10.5 MINUTES, 89.6% are dead
-# within the hour, and the team's first sell lands at a median of 6.2 min —
-# roughly 3 minutes BEFORE the price breaks. Checking first at 1h meant we were
-# always measuring the corpse. These lightweight passes fetch only the trade tape.
-EARLY_CHECK_MINUTES = (5, 10, 20, 40)
+# tape: the MEDIAN coin collapses (price < 0.5x) at 10.5 MINUTES, and the team's first
+# sell lands at a median of just 2.3 MINUTES.
+#
+# The old 5/10/20/40 schedule was still far too slow: 58% of teams exit BEFORE the
+# first check even runs, and the alarm landed AFTER the price had already broken 66%
+# of the time. Denser polling cuts that materially, and at 375 graduations/day these
+# extra tape fetches fit inside the Solana Tracker budget (~117k of 200k per month).
+#
+# Detection alone cannot fix it though — even INSTANT detection only buys a 2.3 min
+# median warning. That is why the real lead time comes from PREDICTING the exit at
+# graduation (_prewarn_team_exit in graduation_monitor.py), not from watching for it.
+EARLY_CHECK_SECONDS = (120, 210, 300, 390, 480, 600, 720, 900, 1200, 2400)
 
 # Classification thresholds
 _DUMPED_HOLDER_THRESHOLD = 5       # fewer than 5 unique holders → DUMPED
@@ -46,25 +53,25 @@ async def schedule_distribution_checks(
     token_mint: str, graduation_ts: int
 ) -> None:
     """Fire background checks: early minute-level passes, then 1h/4h/24h."""
-    for minute in EARLY_CHECK_MINUTES:
-        asyncio.create_task(_deferred_early_check(token_mint, graduation_ts, minute))
+    for offset_s in EARLY_CHECK_SECONDS:
+        asyncio.create_task(_deferred_early_check(token_mint, graduation_ts, offset_s))
     for offset_h in CHECK_OFFSETS_H:
         asyncio.create_task(
             _deferred_check(token_mint, graduation_ts, offset_h)
         )
 
 
-async def _deferred_early_check(token_mint: str, graduation_ts: int, minute: int) -> None:
-    delay = (graduation_ts + minute * 60) - time.time()
+async def _deferred_early_check(token_mint: str, graduation_ts: int, offset_s: int) -> None:
+    delay = (graduation_ts + offset_s) - time.time()
     if delay > 0:
         await asyncio.sleep(delay)
     try:
-        await _do_early_check(token_mint, graduation_ts, minute)
+        await _do_early_check(token_mint, graduation_ts, offset_s)
     except Exception:
-        logger.debug("early check failed for %s at %dm", token_mint[:8], minute)
+        logger.debug("early check failed for %s at %ds", token_mint[:8], offset_s)
 
 
-async def _do_early_check(token_mint: str, graduation_ts: int, minute: int) -> None:
+async def _do_early_check(token_mint: str, graduation_ts: int, offset_s: int) -> None:
     """Minute-level trajectory pass: has the team started dumping? has price broken?
 
     Cheap — one trade-tape fetch (the tape carries price AND the team's sells, so
@@ -98,11 +105,11 @@ async def _do_early_check(token_mint: str, graduation_ts: int, minute: int) -> N
         upsert_trajectory(conn, traj)
         conn.commit()
 
-        att = _score_attention(conn, token_mint, swaps, graduation_ts, team, minute)
+        att = _score_attention(conn, token_mint, swaps, graduation_ts, team, offset_s)
 
         logger.info(
-            "early %dm — %s  peak=%.1fx  team_sold=%s  collapsed=%s%s",
-            minute, token_mint[:8], traj.peak_multiple or 0.0,
+            "early %.1fm — %s  peak=%.1fx  team_sold=%s  collapsed=%s%s",
+            offset_s / 60, token_mint[:8], traj.peak_multiple or 0.0,
             "YES" if team_sells else "no",
             f"{traj.time_to_collapse_s/60:.0f}m" if traj.time_to_collapse_s else "no",
             att,
@@ -111,14 +118,14 @@ async def _do_early_check(token_mint: str, graduation_ts: int, minute: int) -> N
         # The actionable alert: team is exiting and price has not broken yet.
         if team_sells and traj.time_to_collapse_s is None:
             from src.analyzer.sell_structure import grade_sell_structure
-            grade = grade_sell_structure(swaps, graduation_ts, team, minute * 60)
-            await _alert_team_dumping(conn, token_mint, minute, traj, grade)
+            grade = grade_sell_structure(swaps, graduation_ts, team, offset_s)
+            await _alert_team_dumping(conn, token_mint, offset_s, traj, grade)
     finally:
         conn.close()
 
 
 def _score_attention(conn, token_mint: str, swaps, graduation_ts: int,
-                     team: set[str], minute: int) -> str:
+                     team: set[str], offset_s: int) -> str:
     """Measure crowd arrival off the tape we already have, and score survival.
 
     Only at the model's own window (5m) — scoring a 40m tape with a 5m-trained model
@@ -129,7 +136,7 @@ def _score_attention(conn, token_mint: str, swaps, graduation_ts: int,
     )
     from src.strategy.early_verdict import predict, upsert_early_prediction
 
-    if minute * 60 != DEFAULT_WINDOW_S:
+    if offset_s != DEFAULT_WINDOW_S:
         return ""
     try:
         att = compute_early_attention(swaps, graduation_ts, team, DEFAULT_WINDOW_S)
@@ -151,7 +158,7 @@ def _score_attention(conn, token_mint: str, swaps, graduation_ts: int,
         return ""
 
 
-async def _alert_team_dumping(conn, token_mint: str, minute: int, traj, grade=None) -> None:
+async def _alert_team_dumping(conn, token_mint: str, offset_s: int, traj, grade=None) -> None:
     """Fire once per coin: the team started selling and price hasn't collapsed yet.
 
     Teams sell a median ~3 minutes before the price breaks, so this is the window that
@@ -169,7 +176,7 @@ async def _alert_team_dumping(conn, token_mint: str, minute: int, traj, grade=No
         """INSERT OR IGNORE INTO team_dump_alerts
                (token_mint, alerted_at, minute_offset, peak_multiple, team_exit_s)
            VALUES (?, ?, ?, ?, ?)""",
-        (token_mint, int(time.time()), minute, traj.peak_multiple,
+        (token_mint, int(time.time()), offset_s // 60, traj.peak_multiple,
          traj.time_to_team_exit_s),
     )
     conn.commit()
