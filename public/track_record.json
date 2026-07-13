@@ -1,5 +1,5 @@
 {
- "generated_at": 1783950296,
+ "generated_at": 1783969808,
  "live_since": 1783980000,
  "prewarn": {
   "summary": {
@@ -14,15 +14,47 @@
  },
  "exit_alarm": {
   "summary": {
-   "fired": 2,
+   "fired": 6,
    "graded": 0,
    "correct": 0,
    "precision": null,
-   "pending": 1,
+   "pending": 5,
    "ungradable": 1
   },
   "median_saved_pct": null,
   "alerts": [
+   {
+    "mint": "AFsWCqujPkhgrfhKXoeKcdeZGLg3ZfAwzUuYLw9dQEDh",
+    "symbol": "psyopcat",
+    "alerted_at": 1783963316,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "4ww4aTmryAfV4Lpm6KP4g2WVJjTnt62VRgnK72A8pump",
+    "symbol": "SOLTARD",
+    "alerted_at": 1783962542,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "3dejiWxvpL6QH63rBE38fSrVbna8pVrKbmbPPDke7wuH",
+    "symbol": "PCAT",
+    "alerted_at": 1783960654,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "4CXB7fET9wYsRRhxBYPFjNDA3jijBHVoL7EizanYpump",
+    "symbol": "BULLARC",
+    "alerted_at": 1783957361,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
    {
     "mint": "C4Ta6n4UxdC7jekQuCMNn9AonWqZRRbVdPqWXgdHpump",
     "symbol": "Wukong",

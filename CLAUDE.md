@@ -21,6 +21,17 @@ decided to target classic pump.fun only. All Mayhem history was purged (backup a
   population and must be re-measured before being quoted
 - model heads below their n-gates stay untrained until classic data accumulates
 
+## Manufactured graduations (flagged, kept, excluded from training)
+
+A "manufactured" graduation = one entity/bundle buys the curve to force migration
+("one big vertical line"). Detection: >=2 independent flags among lightning curve
+(<10min creation->graduation), <25 BC buyers, top-5 buyer share >=60%, team supply
+>=50%, same-slot bundle >=8 (src/analyzer/manufactured.py). ~9% of classic coins.
+Policy — deliberately different from the Mayhem purge: they ARE classic pump.fun, so
+they stay in the DB and the live pipeline (recognising one and skipping it is product
+value; alerts carry an annotation), but they are EXCLUDED from every model/label
+population — their tape is one entity's puppet show, not price discovery.
+
 ## Core strategic focus: graduation-first analysis
 
 ~99.3% of Pump.fun tokens never complete their bonding curve. The system focuses

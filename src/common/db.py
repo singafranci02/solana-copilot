@@ -40,6 +40,10 @@ def migrate() -> None:
         # on-chain platform verdict ('pump.fun'/'mayhem'/foreign createdOn/'pump.fun*');
         # separate column because launchpad carries a legacy CHECK constraint
         _add_column_if_missing(conn, "tokens", "platform", "TEXT")
+        # manufactured graduations (one entity buys the curve) — flagged, kept in the
+        # DB and live pipeline, EXCLUDED from model/label populations
+        _add_column_if_missing(conn, "graduation_events", "is_manufactured", "INTEGER NOT NULL DEFAULT 0")
+        _add_column_if_missing(conn, "graduation_events", "manufactured_flags", "TEXT NOT NULL DEFAULT '[]'")
         _add_column_if_missing(conn, "tokens", "creator_wallet", "TEXT")
         _add_column_if_missing(conn, "tokens", "total_supply", "REAL")
         _add_column_if_missing(conn, "graduation_events", "migration_venue", "TEXT")

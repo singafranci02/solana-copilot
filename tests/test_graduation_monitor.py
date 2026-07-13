@@ -166,3 +166,19 @@ def test_platform_from_creation_tx_catches_mayhem():
     assert _platform_from_tx(tx([PUMP], loaded=[MAYHEM_PROGRAM])) == "mayhem"
     assert _platform_from_tx(tx(["SomeOtherProgram111"])) is None
     assert _platform_from_tx(None) is None
+
+
+def test_manufactured_detection_needs_two_flags():
+    """One metric alone misfires (hyped organic launches also graduate fast) —
+    manufactured requires >=2 independent red flags."""
+    from src.analyzer.manufactured import manufactured_flags, is_manufactured
+    organic = manufactured_flags(3600.0, 300, 0.15, 20.0, 2)
+    assert organic == [] and not is_manufactured(organic)
+    fast_organic = manufactured_flags(240.0, 400, 0.2, 15.0, 3)   # hyped launch
+    assert fast_organic == ["lightning_curve"] and not is_manufactured(fast_organic)
+    bundled = manufactured_flags(120.0, 8, 0.92, 95.0, 14)        # the vertical line
+    assert set(bundled) >= {"lightning_curve", "few_buyers", "bundled_buying",
+                            "team_majority", "slot_bundle"}
+    assert is_manufactured(bundled)
+    missing = manufactured_flags(None, None, None, None, None)    # no data = no claim
+    assert missing == []

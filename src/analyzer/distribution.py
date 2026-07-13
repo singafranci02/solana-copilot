@@ -194,6 +194,12 @@ async def _alert_team_dumping(conn, token_mint: str, offset_s: int, traj, grade=
     ]
     if grade is not None:
         lines.append(f"Severity <b>{grade.severity}</b> — {grade.note}.")
+    man = conn.execute(
+        "SELECT is_manufactured FROM graduation_events WHERE token_mint = ?",
+        (token_mint,)).fetchone()
+    if man and man["is_manufactured"]:
+        lines.append("\u26a0\ufe0f <b>Manufactured graduation</b> — one entity bought the "
+                     "curve to force migration; there was never an organic market here.")
     lines += [
         "Historically the team exits ~3 min before the price breaks; a holder is better "
         "off exiting 86% of the time.",

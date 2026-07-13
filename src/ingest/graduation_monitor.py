@@ -781,6 +781,15 @@ async def analyse_graduation(
 
     # Fitted-model SECOND OPINION (shadow) — recorded beside the live rule verdict,
     # never overrides it. Fail-safe: any problem returns None and is ignored.
+    try:
+        from src.analyzer.manufactured import detect_and_stamp, is_manufactured
+        _man_flags = detect_and_stamp(conn, event.token_mint)
+        conn.commit()
+        if is_manufactured(_man_flags):
+            logger.info("MANUFACTURED graduation %s — flags=%s (kept, excluded from training)",
+                        event.token_mint[:8], _man_flags)
+    except Exception:
+        logger.debug("manufactured detection failed for %s", event.token_mint[:8])
     _model_pred = _record_model_second_opinion(event.token_mint, read, conn)
 
     _print_graduation_alert(event, symbol, team_cluster, sm_buyers, funder_rep, read)
