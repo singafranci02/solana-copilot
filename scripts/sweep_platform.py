@@ -59,7 +59,7 @@ async def classify(mints, conn):
                 platform = None                    # fully unresolved — retry next run
             if platform is not None:
                 conn.execute(
-                    "UPDATE tokens SET launchpad = ?, created_on = ? WHERE mint = ?",
+                    "UPDATE tokens SET platform = ?, created_on = ? WHERE mint = ?",
                     (platform, created_on, m))
             if (i + 1) % 100 == 0:
                 conn.commit()
@@ -74,13 +74,13 @@ def main() -> None:
     todo = [r[0] for r in conn.execute(
         """SELECT ge.token_mint FROM graduation_events ge
            JOIN tokens t ON t.mint = ge.token_mint
-           WHERE t.launchpad IS NULL OR t.launchpad = 'pump.fun' AND t.created_on IS NULL
+           WHERE t.platform IS NULL
            ORDER BY ge.graduated_at DESC""")]
     print(f"mints needing platform classification: {len(todo)}", flush=True)
     asyncio.run(classify(todo, conn))
 
     dist = list(conn.execute(
-        """SELECT t.launchpad, COUNT(*) FROM graduation_events ge
+        """SELECT t.platform, COUNT(*) FROM graduation_events ge
            JOIN tokens t ON t.mint = ge.token_mint GROUP BY 1 ORDER BY 2 DESC"""))
     print("\nplatform distribution of all graduations:")
     for lp, n in dist:
@@ -88,8 +88,8 @@ def main() -> None:
 
     bad = [r[0] for r in conn.execute(
         """SELECT ge.token_mint FROM graduation_events ge JOIN tokens t ON t.mint=ge.token_mint
-           WHERE t.launchpad IS NOT NULL
-             AND t.launchpad NOT IN ('pump.fun','pump.fun*')""")]
+           WHERE t.platform IS NOT NULL
+             AND t.platform NOT IN ('pump.fun','pump.fun*')""")]
     print(f"\npurging {len(bad)} non-pump.fun graduations")
     for tbl in PURGE_TABLES:
         n = 0

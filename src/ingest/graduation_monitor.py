@@ -395,8 +395,8 @@ async def _handle_graduation(
                 conn.commit()
                 return
             conn.execute(
-                "UPDATE tokens SET launchpad = ? WHERE mint = ?",
-                (platform or "pump.fun", mint))
+                "UPDATE tokens SET platform = ? WHERE mint = ?",
+                (platform or "pump.fun*", mint))
 
             meta = _extract_meta_fields(mint, token_info)
             creator_wallet, created_time = extract_creation(token_info)

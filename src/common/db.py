@@ -37,6 +37,9 @@ def migrate() -> None:
         # Pipeline v2: real created_at + structural-account capture (see structural_accounts.py)
         _add_column_if_missing(conn, "tokens", "created_at_source", "TEXT")
         _add_column_if_missing(conn, "tokens", "created_on", "TEXT")
+        # on-chain platform verdict ('pump.fun'/'mayhem'/foreign createdOn/'pump.fun*');
+        # separate column because launchpad carries a legacy CHECK constraint
+        _add_column_if_missing(conn, "tokens", "platform", "TEXT")
         _add_column_if_missing(conn, "tokens", "creator_wallet", "TEXT")
         _add_column_if_missing(conn, "tokens", "total_supply", "REAL")
         _add_column_if_missing(conn, "graduation_events", "migration_venue", "TEXT")

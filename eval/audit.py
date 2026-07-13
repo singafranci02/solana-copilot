@@ -212,8 +212,8 @@ def stage_data(conn) -> list[Check]:
     bad_lp = conn.execute("""SELECT COUNT(*) FROM graduation_events ge
         JOIN tokens t ON t.mint = ge.token_mint
         WHERE ge.graduated_at > strftime('%s','now') - 172800
-          AND t.launchpad IS NOT NULL
-          AND t.launchpad NOT IN ('pump.fun','pump.fun*')""").fetchone()[0]
+          AND t.platform IS NOT NULL
+          AND t.platform NOT IN ('pump.fun','pump.fun*')""").fetchone()[0]
     out.append(Check("data", "no foreign-launchpad (e.g. mayhem) tokens analysed (48h)",
                      bad_lp == 0, f"{bad_lp} rows"))
     return out
