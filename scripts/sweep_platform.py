@@ -32,10 +32,27 @@ PURGE_TABLES = (
 )
 
 
-async def classify(mints, conn):
+def _flush(buf):
+    """ONE short batched write on a fresh connection — never hold the writer lock
+    across network awaits (the project rule this script originally violated; the
+    per-row version deadlocked against the live monitor's constant writes)."""
+    if not buf:
+        return
+    conn = get_connection()
+    try:
+        conn.executemany(
+            "UPDATE tokens SET platform = ?, created_on = ? WHERE mint = ?", buf)
+        conn.commit()
+    finally:
+        conn.close()
+    buf.clear()
+
+
+async def classify(mints):
     from src.ingest.rpc import RpcClient
     from src.ingest.solana_tracker import SolanaTrackerClient
     t0 = time.time()
+    buf = []
     async with SolanaTrackerClient() as st, RpcClient() as rpc:
         for i, m in enumerate(mints):
             platform = None
@@ -58,15 +75,13 @@ async def classify(mints, conn):
             except Exception:
                 platform = None                    # fully unresolved — retry next run
             if platform is not None:
-                conn.execute(
-                    "UPDATE tokens SET platform = ?, created_on = ? WHERE mint = ?",
-                    (platform, created_on, m))
-            if (i + 1) % 100 == 0:
-                conn.commit()
+                buf.append((platform, created_on, m))
+            if (i + 1) % 200 == 0:
+                _flush(buf)
                 rate = (i + 1) / (time.time() - t0)
                 print(f"  {i+1}/{len(mints)}  ({rate:.1f}/s, "
                       f"eta {(len(mints)-i-1)/rate/60:.0f}m)", flush=True)
-    conn.commit()
+    _flush(buf)
 
 
 def main() -> None:
@@ -76,8 +91,10 @@ def main() -> None:
            JOIN tokens t ON t.mint = ge.token_mint
            WHERE t.platform IS NULL
            ORDER BY ge.graduated_at DESC""")]
+    conn.close()                        # no connection held during the fetch loop
     print(f"mints needing platform classification: {len(todo)}", flush=True)
-    asyncio.run(classify(todo, conn))
+    asyncio.run(classify(todo))
+    conn = get_connection()
 
     dist = list(conn.execute(
         """SELECT t.platform, COUNT(*) FROM graduation_events ge
