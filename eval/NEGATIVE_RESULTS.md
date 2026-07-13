@@ -217,3 +217,42 @@ Alone: ROC 0.605 — the persistence is real. Added to the current feature set:
 0.739 → 0.739, exactly zero lift. Funder reputation, team scores and the wallet
 graph already carry the operator-history information. Tested before building
 (the right order); not shipped.
+
+---
+
+## 9. The 2× entry fails too — even though 2× is common and the selector works.
+
+**Hypothesis (user's, and the most reasonable one yet):** forget the 10×; aim for
+sustained ≥2×, which is common. Predict which teams intend to let the coin run, enter
+at graduation, exit at 2× before the team decides.
+
+**What's true in it:** sustained 2× happens on **42.9%** of coins. Structure at T+0
+predicts it at ROC 0.628 (top decile hits 57.5%, a 1.4× lift, folds stable ±0.015).
+Team *intent* is even faintly visible: "team will let it run to 2× before selling"
+scores ROC 0.668 (1.9× lift), "to 1.5×" ROC 0.646 (2.2× lift).
+
+**Why it still loses money — honest fills, 3% costs, every variant:**
+
+| top-20% gate, TP 2× | mean | TP hit |
+|---|---|---|
+| stop −50%, hold 1h | 0.890× | 23% |
+| no stop, hold 1h | 0.795× | 26% |
+| no stop, hold 4h | 0.735× | 28% |
+| no stop, hold **12h** | 0.730× | 29% |
+
+Best cell across all gates/TPs: 0.901×, 95% CI [0.800, 1.010], **96.5% probability the
+true edge ≤ break-even**. Break-even needs a ~41% hit; the ceiling is 29%. The gap
+between the 57.5% *label* hit and the 29% *executed* hit is path and execution: entry
+slippage in a fast open, the 2× must be reachable from YOUR entry with 3 confirming
+prints inside the hold, and the losers bleed to 0.23×.
+
+**The mechanism, from the revealed-target data (n=1,801):** the median team's revealed
+target is **1.07×** — 69% dump below 1.2×, only 8.6% let it run to 2× before their
+first sell. There is no room between entry costs and the team's exit because for two
+thirds of teams the plan IS the instant exit. Most 2× moves (43% any vs 8.6% pre-exit)
+happen *through* the team's selling, crowd-driven — magnitude remains unpredictable
+(see #1).
+
+This is the **fifth** independent falsification of a long-side entry (10×, early
+attention, dip-buy, sell-structure, 2×). The long side is closed. The intent heads are
+NOT shipped — ROC 0.63–0.67 with negative economics is research, not product.
