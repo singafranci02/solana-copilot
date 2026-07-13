@@ -695,3 +695,35 @@ CREATE TABLE IF NOT EXISTS team_dump_alerts (
     peak_multiple REAL,
     team_exit_s   REAL
 );
+
+-- Early on-chain ATTENTION (src/analyzer/early_attention.py) — the crowd-arrival
+-- measurement at T+5min. Structure predicts the rug (ROC 0.91) but not the pump
+-- (0.583); this reads the pump at 0.731. Features of the first window_s ONLY.
+CREATE TABLE IF NOT EXISTS early_attention (
+    token_mint        TEXT NOT NULL,
+    window_s          INTEGER NOT NULL,
+    computed_at       INTEGER NOT NULL,
+    n_trades          INTEGER,
+    n_wallets         INTEGER,
+    buy_ratio         REAL,
+    trades_per_wallet REAL,
+    buy_sol           REAL,
+    net_sol           REAL,
+    price_run         REAL,
+    accel             REAL,
+    new_wallet_rate   REAL,
+    max_buy_sol       REAL,
+    retail_net_sol    REAL,
+    team_sold         INTEGER,
+    PRIMARY KEY (token_mint, window_s)
+);
+
+-- Shadow predictions made at T+5min from early attention (not at graduation).
+CREATE TABLE IF NOT EXISTS early_predictions (
+    token_mint    TEXT PRIMARY KEY,
+    model_version TEXT,
+    predicted_at  INTEGER NOT NULL,
+    window_s      INTEGER NOT NULL,
+    p_moon10x     REAL,
+    p_survive60   REAL
+);

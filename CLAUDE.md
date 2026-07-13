@@ -59,19 +59,53 @@ STRUCTURALLY_SOUND: positive score ≥2 with no negative overrides
 
 WATCH: everything else (insufficient signal or mixed)
 
+## What the system can and cannot predict
+
+Read `eval/NEGATIVE_RESULTS.md` before proposing a new signal. In short:
+
+**Works** (leak-audited, out-of-time): team will distribute ROC **0.937**; coin will rug
+ROC **0.912**; survives ≥60min ROC **0.806** from graduation structure, **0.904** from
+order flow at T+5min (top-5% survive 100%).
+
+**Does not work — do not retry without a new argument:** the **10× is unpredictable**,
+from graduation structure (ROC 0.583) *and* from early order flow (0.592). An early pass
+appeared to hit 0.746 but that was `price_run` leaking the label — 36% of 10× coins hit
+10× inside the 5-minute window. Corrected, it is 0.517: a coin flip.
+
+That negative result also **cancels the planned social/attention layer**. On-chain crowd
+arrival is a direct, unfakeable, free measurement of attention, and it fails to predict
+the pump; a paid follower-count proxy for the same quantity will not do better.
+
+Never add a moon/10× head. Anything that only fires once the pump is visible in the price
+is **detection, not discrimination**, and has no value.
+
 ## Pattern significance thresholds
 
 Every PatternResult carries `sample_size` and `is_significant` (True only when n≥30).
 Patterns below threshold must NOT feed automated warnings. They are hypothesis-level
 output only. Enforce in code — never assert significance without checking the flag.
 
-## Classification thresholds (outcome_tracker.py)
+## Classification thresholds
 
-| Label | Condition                          |
-|-------|------------------------------------|
-| moon  | MC ≥ 3× graduation snapshot        |
-| ok    | MC 0.5–3× graduation snapshot      |
-| rug   | MC < 0.5× graduation snapshot      |
+The 1h/4h/24h checkpoints in `outcome_tracker.py` (moon ≥3×, rug <0.3×) are LEGACY.
+They still feed the `wallet_stats` / `funder_reputation` counters, but they are not
+the labels the model learns from, and 1h is far too late to measure anything: on our
+own tape the **median coin collapses at 10.5 minutes** and 89.6% are dead within the
+hour. Checking first at 1h was measuring the corpse.
+
+The real labels come from the swap tape, in `src/analyzer/trajectory.py`:
+
+| Label            | Condition                                                    |
+|------------------|--------------------------------------------------------------|
+| collapse         | price < 0.5× the first post-graduation print                 |
+| moon (`reached_10x`) | ≥10× — **sustained**, confirmed by ≥3 prints at the level |
+| team exit        | first sell by a team member (median 6.2 min — ~3 min BEFORE the break) |
+
+`MIN_TRADES_AT_PEAK = 3` is not optional: **78% of raw ≥10× maxes were single bad
+price prints** (one coin printed 2055× on one trade; its true peak was 1.11×). Without
+the sustain rule the 10× rate reads a fake 26% instead of the true ~9%.
+
+Live checks run at **5 / 10 / 20 / 40 min**, then 1h / 4h / 24h.
 
 Distribution signal thresholds (distribution.py):
 - DUMPED:       holders < 5

@@ -98,11 +98,14 @@ async def _do_early_check(token_mint: str, graduation_ts: int, minute: int) -> N
         upsert_trajectory(conn, traj)
         conn.commit()
 
+        att = _score_attention(conn, token_mint, swaps, graduation_ts, team, minute)
+
         logger.info(
-            "early %dm — %s  peak=%.1fx  team_sold=%s  collapsed=%s",
+            "early %dm — %s  peak=%.1fx  team_sold=%s  collapsed=%s%s",
             minute, token_mint[:8], traj.peak_multiple or 0.0,
             "YES" if team_sells else "no",
             f"{traj.time_to_collapse_s/60:.0f}m" if traj.time_to_collapse_s else "no",
+            att,
         )
 
         # The actionable alert: team is exiting and price has not broken yet.
@@ -110,6 +113,40 @@ async def _do_early_check(token_mint: str, graduation_ts: int, minute: int) -> N
             await _alert_team_dumping(conn, token_mint, minute, traj)
     finally:
         conn.close()
+
+
+def _score_attention(conn, token_mint: str, swaps, graduation_ts: int,
+                     team: set[str], minute: int) -> str:
+    """Measure crowd arrival off the tape we already have, and score survival.
+
+    Only at the model's own window (5m) — scoring a 40m tape with a 5m-trained model
+    would be a distribution mismatch. Returns a log suffix; never raises.
+    """
+    from src.analyzer.early_attention import (
+        DEFAULT_WINDOW_S, compute_early_attention, to_features, upsert_early_attention,
+    )
+    from src.strategy.early_verdict import predict, upsert_early_prediction
+
+    if minute * 60 != DEFAULT_WINDOW_S:
+        return ""
+    try:
+        att = compute_early_attention(swaps, graduation_ts, team, DEFAULT_WINDOW_S)
+        if att is None:
+            return ""
+        upsert_early_attention(conn, token_mint, DEFAULT_WINDOW_S, att)
+
+        pred = predict(to_features(att))
+        if pred:
+            upsert_early_prediction(conn, token_mint, DEFAULT_WINDOW_S, pred)
+        conn.commit()
+
+        suffix = f"  crowd={att.n_wallets}w/{att.n_trades}t accel={att.accel:.1f}"
+        if pred and pred.get("p_survive60") is not None:
+            suffix += f"  p_survive={pred['p_survive60']:.2f}"
+        return suffix
+    except Exception as exc:
+        logger.debug("attention scoring failed for %s: %s", token_mint[:8], exc)
+        return ""
 
 
 async def _alert_team_dumping(conn, token_mint: str, minute: int, traj) -> None:

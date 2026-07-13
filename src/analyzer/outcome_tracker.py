@@ -26,8 +26,13 @@ logger = logging.getLogger(__name__)
 
 CHECK_OFFSETS_H = (1, 4, 24)   # hours after launch at which we snapshot price
 
-MOON_THRESHOLD  = 3.0          # ≥3× launch MC → "moon"
-RUG_THRESHOLD   = 0.30         # ≤30% of launch MC remaining → "rug"
+# These label the COARSE 1h/4h/24h checkpoints only, kept for the wallet_stats and
+# funder_reputation counters that were built on them. The labels that actually drive
+# the model come from src/analyzer/trajectory.py, off the swap tape: a moon is >=10x
+# (sustained, >=3 prints) and a collapse is <0.5x — measured in minutes, because the
+# median coin is already dead at 10.5 min, long before the 1h checkpoint fires.
+MOON_THRESHOLD  = 3.0          # legacy checkpoint label — NOT the model's moon
+RUG_THRESHOLD   = 0.30         # legacy checkpoint label — NOT the model's collapse
 
 
 # ── data class ────────────────────────────────────────────────────────────────
