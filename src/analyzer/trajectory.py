@@ -24,7 +24,16 @@ import time
 from dataclasses import dataclass
 
 COLLAPSE_FRAC = 0.5      # "rug" = price below half the first post-graduation print
-MOON_MULTIPLE = 10.0     # the real moon (25.5% base rate), not the old 3x
+MOON_MULTIPLE = 10.0     # the real moon threshold (not the old 3x checkpoint)
+
+# A peak must be SUSTAINED to count. The raw max is worthless: 78% of coins that
+# printed a >=10x max did so on a SINGLE bad trade (one coin printed 2055x once
+# while its true peak was 1.11x). Requiring >=3 trades at the level kills the
+# artifacts and takes the honest 10x rate from a fake 26% down to ~6%.
+MIN_TRADES_AT_PEAK = 3
+
+# Sanity bound — anything past this is a broken price print, not a real move.
+MAX_PLAUSIBLE_MULTIPLE = 1000.0
 
 
 @dataclass
@@ -61,11 +70,20 @@ def compute_trajectory(
     if t.first_price <= 0:
         return t
 
-    peak_ts, peak = max(pts, key=lambda x: x[1])[0], max(p for _, p in pts)
+    # SUSTAINED peak: the highest level confirmed by >= MIN_TRADES_AT_PEAK prints.
+    # (The raw max is dominated by single bad prints — see MIN_TRADES_AT_PEAK.)
+    prices_desc = sorted((p for _, p in pts), reverse=True)
+    k = min(MIN_TRADES_AT_PEAK, len(prices_desc)) - 1
+    peak = prices_desc[k]
+    peak = min(peak, t.first_price * MAX_PLAUSIBLE_MULTIPLE)
+    peak_ts = next((ts for ts, p in pts if p >= peak), pts[0][0])
+
     t.peak_price = peak
     t.peak_multiple = round(peak / t.first_price, 4)
     t.time_to_peak_s = float(peak_ts - graduated_at)
-    t.reached_10x = int(t.peak_multiple >= MOON_MULTIPLE)
+    # a real 10x has MANY trades at the level, not one lucky print
+    n_at_moon = sum(1 for _, p in pts if p >= MOON_MULTIPLE * t.first_price)
+    t.reached_10x = int(n_at_moon >= MIN_TRADES_AT_PEAK)
 
     for ts, p in pts:
         if p < COLLAPSE_FRAC * t.first_price:
