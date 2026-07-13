@@ -27,6 +27,13 @@ logger = logging.getLogger(__name__)
 
 CHECK_OFFSETS_H = (1, 4, 24)
 
+# EARLY checks — the action is over long before the 1h check. Measured on our own
+# tape: the MEDIAN coin collapses (price < 0.5x) at 10.5 MINUTES, 89.6% are dead
+# within the hour, and the team's first sell lands at a median of 6.2 min —
+# roughly 3 minutes BEFORE the price breaks. Checking first at 1h meant we were
+# always measuring the corpse. These lightweight passes fetch only the trade tape.
+EARLY_CHECK_MINUTES = (5, 10, 20, 40)
+
 # Classification thresholds
 _DUMPED_HOLDER_THRESHOLD = 5       # fewer than 5 unique holders → DUMPED
 _DISTRIBUTING_SELL_PCT   = 30.0   # team sold > 30% of grad-time position → DISTRIBUTING
@@ -38,11 +45,104 @@ _ALIVE_LIQUIDITY_FLOOR   = 500.0  # below this USD liquidity, skip per-wallet tx
 async def schedule_distribution_checks(
     token_mint: str, graduation_ts: int
 ) -> None:
-    """Fire background tasks to check distribution at 1h, 4h, 24h post-graduation."""
+    """Fire background checks: early minute-level passes, then 1h/4h/24h."""
+    for minute in EARLY_CHECK_MINUTES:
+        asyncio.create_task(_deferred_early_check(token_mint, graduation_ts, minute))
     for offset_h in CHECK_OFFSETS_H:
         asyncio.create_task(
             _deferred_check(token_mint, graduation_ts, offset_h)
         )
+
+
+async def _deferred_early_check(token_mint: str, graduation_ts: int, minute: int) -> None:
+    delay = (graduation_ts + minute * 60) - time.time()
+    if delay > 0:
+        await asyncio.sleep(delay)
+    try:
+        await _do_early_check(token_mint, graduation_ts, minute)
+    except Exception:
+        logger.debug("early check failed for %s at %dm", token_mint[:8], minute)
+
+
+async def _do_early_check(token_mint: str, graduation_ts: int, minute: int) -> None:
+    """Minute-level trajectory pass: has the team started dumping? has price broken?
+
+    Cheap — one trade-tape fetch (the tape carries price AND the team's sells, so
+    no holder call is needed). Updates coin_trajectory and fires ONE alert the
+    first time the team is caught selling, which is the actionable moment.
+    """
+    from src.ingest.solana_tracker import SolanaTrackerClient
+    from src.analyzer.post_grad_swaps import fetch_team_swaps
+    from src.analyzer.trajectory import compute_trajectory, upsert_trajectory
+
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            """SELECT member_addresses FROM team_clusters WHERE token_mint = ? LIMIT 1""",
+            (token_mint,),
+        ).fetchone()
+        team = set(json.loads(row["member_addresses"] or "[]")) if row else set()
+
+        async with SolanaTrackerClient() as st:
+            swaps = await fetch_team_swaps(st, token_mint, None, since_ts=graduation_ts)
+        if not swaps:
+            return
+
+        priced = [(s.timestamp, s.price_usd) for s in swaps if s.price_usd]
+        team_sells = [s.timestamp for s in swaps
+                      if s.side == "sell" and s.signer in team]
+        traj = compute_trajectory(
+            token_mint, priced, graduation_ts,
+            team_first_sell_ts=min(team_sells) if team_sells else None,
+        )
+        upsert_trajectory(conn, traj)
+        conn.commit()
+
+        logger.info(
+            "early %dm — %s  peak=%.1fx  team_sold=%s  collapsed=%s",
+            minute, token_mint[:8], traj.peak_multiple or 0.0,
+            "YES" if team_sells else "no",
+            f"{traj.time_to_collapse_s/60:.0f}m" if traj.time_to_collapse_s else "no",
+        )
+
+        # The actionable alert: team is exiting and price has not broken yet.
+        if team_sells and traj.time_to_collapse_s is None:
+            await _alert_team_dumping(conn, token_mint, minute, traj)
+    finally:
+        conn.close()
+
+
+async def _alert_team_dumping(conn, token_mint: str, minute: int, traj) -> None:
+    """Fire once per coin: the team started selling and price hasn't collapsed yet.
+
+    Teams sell a median ~3 minutes before the price breaks, so this is the window
+    that matters. Analysis only — this is an observation, never a trade instruction.
+    """
+    already = conn.execute(
+        "SELECT 1 FROM team_dump_alerts WHERE token_mint = ?", (token_mint,)
+    ).fetchone()
+    if already:
+        return
+    conn.execute(
+        """INSERT OR IGNORE INTO team_dump_alerts
+               (token_mint, alerted_at, minute_offset, peak_multiple, team_exit_s)
+           VALUES (?, ?, ?, ?, ?)""",
+        (token_mint, int(time.time()), minute, traj.peak_multiple,
+         traj.time_to_team_exit_s),
+    )
+    conn.commit()
+
+    sym = conn.execute("SELECT symbol FROM tokens WHERE mint = ?", (token_mint,)).fetchone()
+    symbol = (sym["symbol"] if sym else None) or token_mint[:8]
+    from src.notifications.telegram import send_message
+    await send_message(
+        f"🔴 <b>TEAM EXITING — ${symbol}</b>\n"
+        f"Team started selling at <b>{(traj.time_to_team_exit_s or 0)/60:.1f} min</b> "
+        f"post-graduation. Price has <b>not</b> collapsed yet "
+        f"(peak so far {traj.peak_multiple or 0:.1f}×).\n"
+        f"Historically the team exits ~3 min before the price breaks.\n"
+        f"<code>{token_mint}</code>"
+    )
 
 
 async def _deferred_check(

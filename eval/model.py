@@ -177,18 +177,50 @@ def roc_auc(scores: np.ndarray, y: np.ndarray) -> float:
 
 # ── walk-forward ──────────────────────────────────────────────────────────────
 
-def _label(s, horizon: int, target: str):
-    """Two heads (Phase 2): the structural target and the money target.
+_TRAJ: dict | None = None
 
-    They are NOT the same problem — a model fit on `distribute` discriminates team
-    dumping well but does NOT minimise rugs. Fit on the target you actually want.
-    """
+
+def _trajectory() -> dict:
+    """Continuous-time labels from coin_trajectory (measured: median collapse is
+    10.5 min, so the old 1h/4h checkpoints were measuring the corpse)."""
+    global _TRAJ
+    if _TRAJ is None:
+        from src.common.db import get_connection
+        conn = get_connection()
+        try:
+            _TRAJ = {r["token_mint"]: dict(r)
+                     for r in conn.execute("SELECT * FROM coin_trajectory")}
+        except Exception:
+            _TRAJ = {}
+        finally:
+            conn.close()
+    return _TRAJ
+
+
+def _label(s, horizon: int, target: str):
+    """Label heads. The fixed-checkpoint ones (distribute/rug) are legacy — the
+    trajectory heads below are the targets that actually matter."""
     if target == "distribute":
         v = s.distribute.get(horizon)
         return None if v is None else (1.0 if v else 0.0)
     if target == "rug":
         o = s.outcome.get(horizon)
         return None if o not in ("moon", "ok", "rug") else (1.0 if o == "rug" else 0.0)
+
+    t = _trajectory().get(s.token_mint)
+    if not t:
+        return None
+    if target == "survive60":      # lasts >= 1h — the only "safe" population
+        c = t["time_to_collapse_s"]
+        return 1.0 if (c is None or c > 3600) else 0.0
+    if target == "team_exit10":    # team dumps within 10 min — the leading indicator
+        e = t["time_to_team_exit_s"]
+        return None if e is None else (1.0 if e <= 600 else 0.0)
+    if target == "moon10x":        # the REAL moon: peak >= 10x (24.5% base)
+        return float(t["reached_10x"])
+    if target == "fastrug":        # collapses within 15 min
+        c = t["time_to_collapse_s"]
+        return 1.0 if (c is not None and c <= 900) else 0.0
     raise ValueError(target)
 
 

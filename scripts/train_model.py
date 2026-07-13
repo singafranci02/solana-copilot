@@ -27,8 +27,8 @@ import numpy as np
 from eval._common import load_samples
 from eval.model import feature_names, build_matrix_nan, platt_fit, _label, roc_auc
 
-MODEL_VERSION = "v3-gbm-platt"
-OUT = Path(__file__).parent.parent / "models" / "verdict_model_v3.pkl"
+MODEL_VERSION = "v4-trajectory-gbm-platt"
+OUT = Path(__file__).parent.parent / "models" / "verdict_model_v4.pkl"
 HORIZON = 4
 
 
@@ -75,7 +75,8 @@ def train_head(samples, target: str) -> dict:
 def main() -> None:
     samples = load_samples()
     print(f"training on {len(samples)} pipeline-v2 snapshots")
-    heads = {t: train_head(samples, t) for t in ("distribute", "rug")}
+    heads = {t: train_head(samples, t) for t in
+             ("survive60", "team_exit10", "moon10x", "fastrug", "distribute", "rug")}
 
     OUT.parent.mkdir(exist_ok=True)
     artifact = {

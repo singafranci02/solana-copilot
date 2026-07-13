@@ -661,3 +661,37 @@ CREATE TABLE IF NOT EXISTS model_predictions (
     rule_verdict   TEXT,          -- what the live ruleset said, for A/B comparison
     predicted_at   INTEGER NOT NULL
 );
+
+-- ── coin_trajectory ───────────────────────────────────────────────────────────
+-- Continuous-time OUTCOME labels derived from the post-graduation swap tape.
+-- Replaces the too-coarse 1h/4h/24h checkpoints: measured median time-to-collapse
+-- is 10.5 MINUTES and 89.6% are dead within the hour, so 1h labels were measuring
+-- the corpse. 25.5% of coins reach >=10x before dying — the real "moon".
+-- LABELS ONLY. Must never leak into graduation_feature_snapshot (features).
+CREATE TABLE IF NOT EXISTS coin_trajectory (
+    token_mint          TEXT PRIMARY KEY REFERENCES tokens(mint),
+    computed_at         INTEGER NOT NULL,
+    first_price         REAL,        -- first post-graduation print
+    peak_price          REAL,
+    peak_multiple       REAL,        -- peak / first  (the real moon metric)
+    time_to_peak_s      REAL,
+    time_to_collapse_s  REAL,        -- SURVIVAL target: when the rug comes (NULL = not yet)
+    collapsed           INTEGER NOT NULL DEFAULT 0,
+    reached_10x         INTEGER NOT NULL DEFAULT 0,
+    time_to_team_exit_s REAL,        -- LEADING indicator (team exits ~3min before collapse)
+    team_leads_collapse INTEGER,     -- did the team get out first? (64% of the time)
+    n_price_points      INTEGER NOT NULL DEFAULT 0,
+    tape_span_s         REAL         -- how far the tape actually observes (censoring)
+);
+
+-- ── team_dump_alerts ──────────────────────────────────────────────────────────
+-- One row per coin the first time the team is caught selling while the price has
+-- NOT yet collapsed — the ~3-minute window that actually matters. Observation
+-- only; this system never executes trades.
+CREATE TABLE IF NOT EXISTS team_dump_alerts (
+    token_mint    TEXT PRIMARY KEY REFERENCES tokens(mint),
+    alerted_at    INTEGER NOT NULL,
+    minute_offset INTEGER NOT NULL,   -- which early check caught it
+    peak_multiple REAL,
+    team_exit_s   REAL
+);

@@ -24,7 +24,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_ARTIFACT = Path(__file__).parent.parent.parent / "models" / "verdict_model_v3.pkl"
+_ARTIFACT = Path(__file__).parent.parent.parent / "models" / "verdict_model_v4.pkl"
 _cache: dict | None = None
 _load_failed = False
 
@@ -81,11 +81,14 @@ def predict(features: dict) -> dict | None:
 def upsert_prediction(conn, token_mint: str, pred: dict, rule_verdict: str | None) -> None:
     """Persist the shadow prediction beside the live rule verdict for comparison."""
     import time
+    cols = ["token_mint", "model_version", "rule_verdict", "predicted_at"]
+    vals = [token_mint, pred.get("version"), rule_verdict, int(time.time())]
+    for k, v in pred.items():
+        if k.startswith("p_"):
+            cols.append(k); vals.append(v)
+    ph = ",".join("?" * len(cols))
     conn.execute(
-        """INSERT OR REPLACE INTO model_predictions
-               (token_mint, model_version, p_distribute, p_rug, rule_verdict, predicted_at)
-           VALUES (?, ?, ?, ?, ?, ?)""",
-        (token_mint, pred.get("version"), pred.get("p_distribute"), pred.get("p_rug"),
-         rule_verdict, int(time.time())),
+        f"INSERT OR REPLACE INTO model_predictions ({','.join(cols)}) VALUES ({ph})",
+        vals,
     )
     conn.commit()

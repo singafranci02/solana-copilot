@@ -73,6 +73,11 @@ def migrate() -> None:
         _add_column_if_missing(conn, "team_fingerprints", "leader_wallet", "TEXT")
         _add_column_if_missing(conn, "team_fingerprints", "leader_consistency", "REAL")
         _add_column_if_missing(conn, "team_fingerprints", "choreography_sample_count", "INTEGER NOT NULL DEFAULT 0")
+        # v4 trajectory heads (the targets that actually matter)
+        _add_column_if_missing(conn, "model_predictions", "p_survive60", "REAL")
+        _add_column_if_missing(conn, "model_predictions", "p_team_exit10", "REAL")
+        _add_column_if_missing(conn, "model_predictions", "p_moon10x", "REAL")
+        _add_column_if_missing(conn, "model_predictions", "p_fastrug", "REAL")
         # Holder/whale tracking
         _add_column_if_missing(conn, "post_grad_swaps", "is_smart_money", "INTEGER NOT NULL DEFAULT 0")
         _add_column_if_missing(conn, "post_grad_swaps", "tx_signature", "TEXT")
