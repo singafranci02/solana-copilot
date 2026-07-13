@@ -406,8 +406,8 @@ def main() -> int:
     conn.execute(
         "INSERT INTO backtest_runs (run_at, mode, n_checks, n_failed, summary_json) VALUES (?,?,?,?,?)",
         (int(time.time()), "quick" if quick else "full", len(checks), len(failed),
-         json.dumps([{"stage": c.stage, "name": c.name, "ok": c.ok, "detail": c.detail}
-                     for c in checks])))
+         json.dumps([{"stage": c.stage, "name": c.name, "ok": bool(c.ok), "detail": c.detail}
+                     for c in checks])))       # bool(): stages 4-6 emit numpy bool_
     conn.commit()
     conn.close()
     return 1 if failed else 0
