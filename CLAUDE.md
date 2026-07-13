@@ -7,6 +7,20 @@ early buyer clusters. It produces structural reads on tokens — never trades.
 
 **Do NOT implement trade execution. This is analysis only.**
 
+## Scope: CLASSIC pump.fun launches only (owner decision, 2026-07-13)
+
+Pump.fun's **Mayhem mode** (its own enhanced-launch mode, program
+`MAyhSmzXzV1pTf7LsNkrNwkWKTo4ougAJ1PPg47MD4e`) carried ~90% of graduation flow and
+its teams behaved statistically identically to classic launches — but the owner
+decided to target classic pump.fun only. All Mayhem history was purged (backup at
+`db/pre_mayhem_purge.backup.db`); the live gate skips Mayhem creations on-chain
+(creation tx contains the MAyh program). Consequences to keep in mind:
+
+- classic flow is ~10-40 graduations/day, so samples grow ~10x slower
+- every pre-purge metric (ROCs, precisions, base rates) was measured on the MIXED
+  population and must be re-measured before being quoted
+- model heads below their n-gates stay untrained until classic data accumulates
+
 ## Core strategic focus: graduation-first analysis
 
 ~99.3% of Pump.fun tokens never complete their bonding curve. The system focuses

@@ -85,6 +85,10 @@ async def classify(mints):
 
 
 def main() -> None:
+    # PURGE IS OPT-IN. Mayhem turned out to be pump.fun's OWN launch mode carrying
+    # ~90% of graduation flow (pump.fun/docs/mayhem-mode) — deleting it is a product
+    # decision, not data hygiene. Default: classify only.
+    do_purge = "--purge" in sys.argv
     conn = get_connection()
     todo = [r[0] for r in conn.execute(
         """SELECT ge.token_mint FROM graduation_events ge
@@ -103,6 +107,11 @@ def main() -> None:
     for lp, n in dist:
         print(f"  {lp or '(unresolved)'}: {n}")
 
+    if not do_purge:
+        print("\nclassify-only mode (pass --purge to delete non-pump.fun coins)")
+        conn.close()
+        print("SWEEP COMPLETE", flush=True)
+        return
     bad = [r[0] for r in conn.execute(
         """SELECT ge.token_mint FROM graduation_events ge JOIN tokens t ON t.mint=ge.token_mint
            WHERE t.platform IS NOT NULL

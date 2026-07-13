@@ -1428,10 +1428,7 @@ async def _prewarn_team_exit(conn, token_mint: str, pred: dict | None) -> None:
         await send_message(
             f"\U000026a0️ <b>PRE-WARNING — ${symbol}</b>\n"
             f"Model says this team exits within <b>10 minutes</b> of graduation "
-            f"(p={p:.2f}).\n"
-            f"At this confidence the call is right <b>~93%+</b> of the time "
-            f"(threshold set at train time on held-out data).\n"
-            f"The median team sells at 2.4 min and leads the collapse 80% of the time.\n"
+            f"(p={p:.2f}; threshold chosen on held-out data).\n"
             f"<code>{token_mint}</code>"
         )
         logger.info("PRE-WARN team exit %s — p=%.2f", token_mint[:8], p)
