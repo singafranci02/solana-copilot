@@ -172,5 +172,7 @@ Use `is_cex_wallet(address, conn)` everywhere — never hardcode CEX checks.
 - Match existing code style (type hints, docstrings only for non-obvious WHY)
 - No trade execution — analysis output only
 - Run `uv run pytest` before committing
+- Run `uv run python -m eval.audit --quick` before deploying pipeline changes, and the
+  full audit after any model/label change — non-zero exit means do not deploy
 - Schema migrations go in db/schema.sql only (CREATE TABLE IF NOT EXISTS throughout)
 - `uv` binary at: `/Users/francescotomatis/Library/Python/3.13/bin/uv`

@@ -727,3 +727,14 @@ CREATE TABLE IF NOT EXISTS early_predictions (
     p_moon10x     REAL,
     p_survive60   REAL
 );
+
+-- Pipeline-audit run history (eval/audit.py) — one row per run, latest failures
+-- inspectable via summary_json. Exit-code contract: non-zero = do not deploy.
+CREATE TABLE IF NOT EXISTS backtest_runs (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_at       INTEGER NOT NULL,
+    mode         TEXT,
+    n_checks     INTEGER,
+    n_failed     INTEGER,
+    summary_json TEXT
+);
