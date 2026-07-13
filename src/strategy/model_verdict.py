@@ -78,6 +78,27 @@ def predict(features: dict) -> dict | None:
         return None
 
 
+def artifact_trained_at() -> int:
+    """Unix time the loaded artifact was trained; 0 if unavailable."""
+    art = _load()
+    try:
+        return int(art.get("trained_at", 0))
+    except Exception:
+        return 0
+
+
+def alert_threshold(target: str, default: float = 0.97) -> float:
+    """The calibrated-scale alert threshold stored in the artifact at train time.
+
+    Never hardcode a threshold in a consumer: calibrated and raw scores live on
+    different scales (a raw-scale 0.90 fired on 77% of graduations live)."""
+    art = _load()
+    try:
+        return float(art["heads"][target].get("alert_threshold", default))
+    except Exception:
+        return default
+
+
 def upsert_prediction(conn, token_mint: str, pred: dict, rule_verdict: str | None) -> None:
     """Persist the shadow prediction beside the live rule verdict for comparison."""
     import time

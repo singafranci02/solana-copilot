@@ -205,3 +205,15 @@ than this binary label — but it now carries the burden of proof, because the c
 shows nothing and if anything leans negative. Memecoins pump *because* they are memes.
 Do not build the agent as a signal without first showing quality separates outcomes
 *within* the 345 already-labeled projects.
+
+---
+
+## 8. Team prior exit tempo adds nothing on top of existing features.
+
+Hypothesis: gated team members' exit speed on their PREVIOUS coins predicts this
+coin's exit (behavioral tempo persistence). Point-in-time safe, 81% coverage.
+
+Alone: ROC 0.605 — the persistence is real. Added to the current feature set:
+0.739 → 0.739, exactly zero lift. Funder reputation, team scores and the wallet
+graph already carry the operator-history information. Tested before building
+(the right order); not shipped.

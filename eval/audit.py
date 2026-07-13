@@ -153,6 +153,30 @@ def stage_data(conn) -> list[Check]:
             mism += 1
     out.append(Check("data", "tape is_team marks ⊆ cluster members (n=100 sample)",
                      mism / max(n_chk, 1) <= 0.05, f"{mism} mismatched coins"))
+
+    # the choreography memory must only learn from gated members (was 88% noise once)
+    bad = conn.execute("""SELECT COUNT(*) FROM team_member_behavior b
+        WHERE NOT EXISTS (SELECT 1 FROM team_members tm WHERE tm.token_mint=b.token_mint
+            AND tm.wallet=b.wallet AND tm.is_member=1)""").fetchone()[0]
+    tot_b = conn.execute("SELECT COUNT(*) FROM team_member_behavior").fetchone()[0]
+    out.append(Check("data", "team_member_behavior rows are gated members",
+                     bad / max(tot_b, 1) < 0.05, f"{bad:,} non-gated of {tot_b:,}"))
+
+    # funder lineage: funding_source must trace to a gated member (was 46% once)
+    n_f = ok_f = 0
+    for r in conn.execute("""SELECT tc.token_mint, tc.funding_source, tc.member_addresses
+        FROM team_clusters tc WHERE tc.funding_source IS NOT NULL
+        ORDER BY RANDOM() LIMIT 200"""):
+        members = set(json.loads(r["member_addresses"] or "[]"))
+        if not members:
+            continue
+        n_f += 1
+        ok_f += bool(conn.execute(
+            f"""SELECT 1 FROM wallet_funding WHERE funder=? AND hop=1
+                AND wallet IN ({','.join('?'*len(members))}) LIMIT 1""",
+            (r["funding_source"], *members)).fetchone())
+    out.append(Check("data", "funding_source traces to a gated member (n=200)",
+                     ok_f / max(n_f, 1) >= 0.80, f"{ok_f}/{n_f}"))
     return out
 
 
@@ -315,6 +339,26 @@ def stage_alerts(conn) -> list[Check]:
     fr = fired.mean() if len(yc) else 0.0
     out.append(Check("alerts", "pre-warn fire rate in band",
                      PREWARN_FIRE_BAND[0] <= fr <= PREWARN_FIRE_BAND[1], f"{fr:.0%}"))
+
+    # LIVE fire rate at the artifact's own threshold — the raw-vs-calibrated scale
+    # mismatch fired on 77% of graduations once; this catches it within a day
+    from src.strategy.model_verdict import alert_threshold, artifact_trained_at
+    thr = alert_threshold("team_exit10")
+    # judge only predictions made by the CURRENT artifact — an older artifact's
+    # calibration lives on a different scale and would false-alarm this check
+    since = max(artifact_trained_at(), 0)
+    row = conn.execute("""SELECT COUNT(*), SUM(p_team_exit10 >= ?) FROM model_predictions
+        WHERE p_team_exit10 IS NOT NULL AND predicted_at > ?
+          AND predicted_at > strftime('%s','now') - 172800""", (thr, since)).fetchone()
+    n_live, n_fired = row[0], row[1] or 0
+    if n_live >= 20:
+        lr = n_fired / n_live
+        out.append(Check("alerts", f"LIVE pre-warn fire rate @artifact thr {thr:.2f} (48h)",
+                         PREWARN_FIRE_BAND[0] <= lr <= PREWARN_FIRE_BAND[1],
+                         f"{lr:.0%} ({n_fired}/{n_live})"))
+    else:
+        out.append(Check("alerts", "LIVE pre-warn fire rate (48h)", True,
+                         f"only {n_live} live predictions — skipped"))
 
     # exit alarm: value of selling on the alert vs holding one hour
     after = []

@@ -1296,11 +1296,10 @@ def _record_model_second_opinion(token_mint: str, read, conn) -> dict | None:
     return None
 
 
-# Fire the pre-warning only where the head is near-deterministic. Measured out-of-time
-# on GATED team labels (n=1188): at p>=0.90 the "team exits within 10 min" head is 94.2%
-# PRECISE and fires on 23% of graduations. Below this it degrades fast (88.1% at 0.80),
-# and a warning that is wrong one time in eight trains people to ignore it.
-_PREWARN_THRESHOLD = 0.90
+# The pre-warn threshold lives IN the model artifact (alert_threshold on the
+# team_exit10 head), chosen at train time on the calibrated tail for >=93% precision.
+# Hardcoding 0.90 here caused a live incident: Platt-calibrated scores are compressed
+# upward (median 0.94), so it fired on 77% of graduations at ~base-rate precision.
 
 
 async def _prewarn_team_exit(conn, token_mint: str, pred: dict | None) -> None:
@@ -1315,8 +1314,9 @@ async def _prewarn_team_exit(conn, token_mint: str, pred: dict | None) -> None:
     """
     if not pred:
         return
+    from src.strategy.model_verdict import alert_threshold
     p = pred.get("p_team_exit10")
-    if p is None or p < _PREWARN_THRESHOLD:
+    if p is None or p < alert_threshold("team_exit10"):
         return
     try:
         row = conn.execute("SELECT symbol FROM tokens WHERE mint = ?", (token_mint,)).fetchone()
@@ -1326,8 +1326,8 @@ async def _prewarn_team_exit(conn, token_mint: str, pred: dict | None) -> None:
             f"\U000026a0️ <b>PRE-WARNING — ${symbol}</b>\n"
             f"Model says this team exits within <b>10 minutes</b> of graduation "
             f"(p={p:.2f}).\n"
-            f"At this confidence the call is right <b>~94%</b> of the time "
-            f"(out-of-time, n=1188).\n"
+            f"At this confidence the call is right <b>~93%+</b> of the time "
+            f"(threshold set at train time on held-out data).\n"
             f"The median team sells at 2.4 min and leads the collapse 80% of the time.\n"
             f"<code>{token_mint}</code>"
         )

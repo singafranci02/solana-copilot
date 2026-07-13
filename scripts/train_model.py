@@ -65,11 +65,31 @@ def train_head(samples, target: str) -> dict:
     tail_roc = roc_auc(p_tail, y[icut:])
 
     model = _fit_gbm(_prep(X, med), y)      # final fit on everything
-    print(f"  {target:<11} n={len(y):<5} base={y.mean():5.1%}  held-back-tail ROC={tail_roc:.3f}")
-    return {
+
+    # Alert threshold on the CALIBRATED scale. Hardcoding a raw-scale threshold in the
+    # consumer caused a live incident: Platt compresses scores upward (median 0.94), so
+    # a raw-scale 0.90 fired on 77% of graduations instead of ~23%. The threshold must
+    # be chosen where the alert will actually run — on calibrated tail scores — and
+    # must travel WITH the artifact so retraining re-derives it automatically.
+    from eval.model import platt_apply
+    p_cal = platt_apply(platt, p_tail)
+    thr = None
+    for cand in sorted(set(np.round(p_cal, 3)), reverse=True):
+        sel = p_cal >= cand
+        if sel.sum() >= 20 and y[icut:][sel].mean() >= 0.93:
+            thr = float(cand)          # lowest threshold still >=93% precise on tail
+    head = {
         "keys": keys, "median": med, "sk_model": model, "platt": platt,
         "n": int(len(y)), "base_rate": float(y.mean()), "tail_roc": float(tail_roc),
     }
+    extra = ""
+    if thr is not None:
+        sel = p_cal >= thr
+        head["alert_threshold"] = thr
+        extra = (f"  alert_thr={thr:.3f} (fires {sel.mean():.0%}, "
+                 f"prec {y[icut:][sel].mean():.0%} on tail)")
+    print(f"  {target:<11} n={len(y):<5} base={y.mean():5.1%}  held-back-tail ROC={tail_roc:.3f}{extra}")
+    return head
 
 
 def main() -> None:
