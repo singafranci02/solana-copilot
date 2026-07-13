@@ -102,20 +102,27 @@ def main() -> None:
     conn.commit()
     print(f"team_fingerprints: choreography rolled up for {rolled} funders (gated rows only)")
 
-    # 4. funder_reputation counters from gated clusters + 4h outcomes
-    agg: dict[str, Counter] = defaultdict(Counter)
+    # 4. funder_reputation from gated clusters + 4h outcomes.
+    # CONTRACT: graduated_mints is a JSON ARRAY of mints — rules.py does
+    # len(rep.graduated_mints) in the hard-SKIP path and smart_money.py appends to
+    # it for dedup. Writing an integer here once crashed the LIVE verdict path
+    # (TypeError) for ~90 minutes. Every row must hold a valid array.
+    agg: dict[str, dict] = defaultdict(lambda: {"mints": [], "rug": 0, "moon": 0, "ok": 0})
     for r in conn.execute("""
-        SELECT tc.funding_source f, co.classified c
+        SELECT tc.funding_source f, tc.token_mint m, co.classified c
         FROM team_clusters tc JOIN coin_outcomes co ON co.token_mint = tc.token_mint
         WHERE tc.funding_source IS NOT NULL AND co.check_offset_h = 4
           AND co.classified IN ('moon','ok','rug')"""):
-        agg[r["f"]][r["c"]] += 1
-    conn.execute("""UPDATE funder_reputation SET graduated_mints=0, rug_count=0,
+        a = agg[r["f"]]
+        if r["m"] not in a["mints"]:
+            a["mints"].append(r["m"])
+            a[r["c"]] += 1
+    conn.execute("""UPDATE funder_reputation SET graduated_mints='[]', rug_count=0,
                     moon_count=0, ok_count=0, rug_rate=0, is_known_rugger=0""")
     flagged = 0
-    for f, c in agg.items():
-        total = c["moon"] + c["ok"] + c["rug"]
-        rate = c["rug"] / total if total else 0.0
+    for f, a in agg.items():
+        total = len(a["mints"])
+        rate = a["rug"] / total if total else 0.0
         rugger = int(total >= RUGGER_MIN_MINTS and rate >= RUGGER_MIN_RATE)
         flagged += rugger
         conn.execute("""INSERT INTO funder_reputation
@@ -127,7 +134,8 @@ def main() -> None:
                             rug_count=excluded.rug_count, moon_count=excluded.moon_count,
                             ok_count=excluded.ok_count, rug_rate=excluded.rug_rate,
                             is_known_rugger=excluded.is_known_rugger""",
-                     (f, total, c["rug"], c["moon"], c["ok"], rate, int(time.time()), rugger))
+                     (f, json.dumps(a["mints"]), a["rug"], a["moon"], a["ok"], rate,
+                      int(time.time()), rugger))
     conn.commit()
     print(f"funder_reputation: {len(agg)} funders re-aggregated, {flagged} is_known_rugger "
           f"(n>={RUGGER_MIN_MINTS}, rate>={RUGGER_MIN_RATE})")

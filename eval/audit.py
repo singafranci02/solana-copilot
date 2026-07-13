@@ -177,6 +177,14 @@ def stage_data(conn) -> list[Check]:
             (r["funding_source"], *members)).fetchone())
     out.append(Check("data", "funding_source traces to a gated member (n=200)",
                      ok_f / max(n_f, 1) >= 0.80, f"{ok_f}/{n_f}"))
+
+    # graduated_mints CONTRACT: JSON array. An integer written here once crashed the
+    # live verdict path (rules.py does len() on it) for ~90 minutes.
+    bad_fmt = conn.execute("""SELECT COUNT(*) FROM funder_reputation
+        WHERE NOT (json_valid(graduated_mints) AND json_type(graduated_mints)='array')
+        """).fetchone()[0]
+    out.append(Check("data", "funder_reputation.graduated_mints is a JSON array",
+                     bad_fmt == 0, f"{bad_fmt} malformed rows"))
     return out
 
 
