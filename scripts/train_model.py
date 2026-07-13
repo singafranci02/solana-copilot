@@ -30,6 +30,10 @@ from eval.model import feature_names, build_matrix_nan, platt_fit, _label, roc_a
 MODEL_VERSION = "v4-trajectory-gbm-platt"
 OUT = Path(__file__).parent.parent / "models" / "verdict_model_v4.pkl"
 HORIZON = 4
+# A head trained below this is noise wearing a probability: after the Mayhem purge a
+# 119-row "model" produced tail ROCs of 0.98 and 0.26 on ~22-row tails. Heads below
+# the gate are NOT trained; the weekly retrain re-adds them as data accumulates.
+MIN_HEAD_N = 500
 
 
 def _prep(X: np.ndarray, med: np.ndarray) -> np.ndarray:
@@ -47,8 +51,11 @@ def _fit_gbm(A: np.ndarray, y: np.ndarray):
     return m
 
 
-def train_head(samples, target: str) -> dict:
+def train_head(samples, target: str) -> dict | None:
     ss = [s for s in samples if _label(s, HORIZON, target) is not None]
+    if len(ss) < MIN_HEAD_N:
+        print(f"  {target:<11} SUSPENDED — {len(ss)} labeled rows < {MIN_HEAD_N}")
+        return None
     ss.sort(key=lambda s: s.graduated_at)
     keys = feature_names(ss, set())
     X = build_matrix_nan(ss, keys)
@@ -95,8 +102,13 @@ def train_head(samples, target: str) -> dict:
 def main() -> None:
     samples = load_samples()
     print(f"training on {len(samples)} pipeline-v2 snapshots")
-    heads = {t: train_head(samples, t) for t in
-             ("survive60", "team_exit10", "moon10x", "fastrug", "distribute", "rug")}
+    heads = {t: h for t in
+             ("survive60", "team_exit10", "moon10x", "fastrug", "distribute", "rug")
+             if (h := train_head(samples, t)) is not None}
+    if not heads:
+        print("NO heads met the data gate — writing an EMPTY artifact "
+              "(model layer suspended; rule verdicts and the reactive exit alarm "
+              "continue unaffected)")
 
     OUT.parent.mkdir(exist_ok=True)
     artifact = {

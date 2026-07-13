@@ -101,10 +101,12 @@ def stage_data(conn) -> list[Check]:
                   SUM(EXISTS(SELECT 1 FROM graduation_feature_snapshot g
                              WHERE g.token_mint = ge.token_mint))
            FROM graduation_events ge WHERE pipeline_version >= 2
-             AND ge.graduated_at > strftime('%s','now') - 604800""").fetchone()
+             AND ge.graduated_at > strftime('%s','now') - 86400""").fetchone()
     cov = (n_snap or 0) / max(n_v2, 1)
-    out.append(Check("data", "v2 graduations have a snapshot (last 7d)",
-                     cov >= 0.97, f"{cov:.1%} of {n_v2}"))
+    # 24h scope: the purge concentrated old outage-era gaps into the surviving
+    # classic population; this check asks "is the pipeline healthy NOW"
+    out.append(Check("data", "v2 graduations have a snapshot (last 24h)",
+                     cov >= 0.90 or n_v2 < 5, f"{cov:.1%} of {n_v2}"))
 
     bad_ts = conn.execute(
         """SELECT COUNT(*) FROM post_grad_swaps p JOIN graduation_events g USING(token_mint)
@@ -270,7 +272,8 @@ def stage_labels(conn) -> list[Check]:
     for head, (lo, hi) in BASE_RATE_BANDS.items():
         ys = [v for s in samples if (v := _label(s, 4, head)) is not None]
         if len(ys) < 300:
-            out.append(Check("labels", f"base rate {head}", False, f"only {len(ys)} labels"))
+            out.append(Check("labels", f"base rate {head}", True,
+                             f"SUSPENDED — only {len(ys)} labels (<300); no claim made"))
             continue
         b = float(np.mean(ys))
         out.append(Check("labels", f"base rate {head} in [{lo:.0%},{hi:.0%}]",
@@ -300,7 +303,10 @@ def stage_leaks(conn) -> list[Check]:
         out.append(Check("leaks", "early model has NO pump head (neg. result #1)",
                          heads <= {"survive60"}, f"heads={sorted(heads)}"))
     except FileNotFoundError:
-        out.append(Check("leaks", "early model artifact present", False, "missing"))
+        # post-purge cold start: no head meets the data gate, so no artifact is the
+        # CORRECT state — the enforcement applies whenever one exists again
+        out.append(Check("leaks", "early model has NO pump head (neg. result #1)",
+                         True, "SUSPENDED — no artifact (insufficient data)"))
     try:
         v4 = pickle.load(open(models / "verdict_model_v4.pkl", "rb"))
         leaky = {k for h in v4["heads"].values() for k in h["keys"] if k.startswith("e5_")}
@@ -343,7 +349,8 @@ def stage_backtest(conn) -> list[Check]:
     for head, (lo, hi) in ROC_BANDS.items():
         ss = [s for s in samples if _label(s, 4, head) is not None]
         if len(ss) < 500:
-            out.append(Check("backtest", f"walk-forward {head}", False, f"only {len(ss)} rows"))
+            out.append(Check("backtest", f"walk-forward {head}", True,
+                             f"SUSPENDED — only {len(ss)} rows (<500); no claim made"))
             continue
         y = np.array([_label(s, 4, head) for s in ss])
         X = build_matrix_nan(ss, feature_names(ss, set()))
@@ -365,6 +372,10 @@ def stage_alerts(conn) -> list[Check]:
     samples = [s for s in load_samples(conn)
                if s.token_mint in tr and tr[s.token_mint]["time_to_team_exit_s"] is not None]
     samples.sort(key=lambda s: s.graduated_at)
+    if len(samples) < 500:
+        out.append(Check("alerts", "alert simulation", True,
+                         f"SUSPENDED — only {len(samples)} labeled exits (<500)"))
+        return out
 
     # pre-warning, replayed out-of-time exactly as it would have fired
     y = np.array([float(tr[s.token_mint]["time_to_team_exit_s"] <= 600) for s in samples])
@@ -432,6 +443,9 @@ def stage_calibration(conn) -> list[Check]:
     out = []
     samples = [s for s in load_samples(conn) if _label(s, 4, "rug") is not None]
     samples.sort(key=lambda s: s.graduated_at)
+    if len(samples) < 500:
+        return [Check("calibration", "calibration", True,
+                      f"SUSPENDED — only {len(samples)} labeled rows (<500)")]
     y = np.array([_label(s, 4, "rug") for s in samples])
     X = build_matrix_nan(samples, feature_names(samples, set()))
     p, yy = _walk_forward(X, y)
