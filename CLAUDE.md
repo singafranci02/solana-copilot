@@ -25,7 +25,7 @@ decided to target classic pump.fun only. All Mayhem history was purged (backup a
 
 A "manufactured" graduation = one entity/bundle buys the curve to force migration
 ("one big vertical line"). Detection: >=2 independent flags among lightning curve
-(<10min creation->graduation), <25 BC buyers, top-5 buyer share >=60%, team supply
+(<5min creation->graduation), <25 BC buyers, top-5 buyer share >=60%, team supply
 >=50%, same-slot bundle >=8 (src/analyzer/manufactured.py). ~9% of classic coins.
 Policy — deliberately different from the Mayhem purge: they ARE classic pump.fun, so
 they stay in the DB and the live pipeline (recognising one and skipping it is product

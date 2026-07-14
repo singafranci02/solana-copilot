@@ -3,7 +3,7 @@
 The pattern (owner's framing: "one team just buys it all to get it migrated and it's
 one big vertical line"): a single entity or bundle fills the bonding curve in minutes,
 graduation is the liquidity event, and there is no organic market at any point.
-Measured on classic pump.fun coins: 32% graduate in <10 minutes, the top decile has
+Measured on classic pump.fun coins: 32% graduate in <10 minutes (22% in <3), the top decile has
 5 wallets holding 86%+ of curve buying, and flagged coins insta-collapse (<=5 min)
 at 40% vs 23% for clean ones.
 
@@ -20,7 +20,9 @@ launch can also graduate fast; a whale can hold 50% of an organic curve).
 
 from __future__ import annotations
 
-LIGHTNING_MINUTES = 10        # creation -> graduation faster than this
+LIGHTNING_MINUTES = 5         # creation -> graduation faster than this (owner call:
+                              # 10min was too lenient — sub-5min means the money was
+                              # staged before launch, not attracted by it)
 FEW_BUYERS = 25               # distinct BC buyers below this
 TOP5_SHARE = 0.60             # top-5 buyers took >= this share of the curve
 TEAM_SUPPLY = 50.0            # team holds >= this % at graduation
