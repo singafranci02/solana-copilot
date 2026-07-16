@@ -218,6 +218,12 @@ async def _deferred_check(
         await asyncio.sleep(delay)
     try:
         await _do_check(token_mint, offset_h)
+        if offset_h == 24:
+            conn = get_connection()
+            try:
+                await _finalize_trajectory(conn, token_mint)
+            finally:
+                conn.close()
     except Exception:
         logger.exception(
             "distribution check failed for %s at %dh", token_mint[:8], offset_h
