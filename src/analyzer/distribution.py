@@ -224,6 +224,18 @@ async def _deferred_check(
         )
 
 
+async def _finalize_trajectory(conn, token_mint: str) -> None:
+    """The 24h pass is the label of record: recompute the trajectory from the
+    PERSISTED tape so stored labels always match what the DB can reproduce."""
+    row = conn.execute("SELECT graduated_at FROM graduation_events WHERE token_mint=?",
+                       (token_mint,)).fetchone()
+    if not row:
+        return
+    from src.analyzer.trajectory import trajectory_from_db, upsert_trajectory
+    upsert_trajectory(conn, trajectory_from_db(conn, token_mint, int(row["graduated_at"])))
+    conn.commit()
+
+
 async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
     """Fetch current holder state, classify, persist, trigger downstream updates."""
     from src.ingest.solana_tracker import SolanaTrackerClient

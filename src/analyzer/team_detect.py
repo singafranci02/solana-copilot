@@ -321,7 +321,10 @@ def build_team_cluster_post_grad(
         team_candidates = [h["wallet"] for h in eligible_holders[:5]]
         fallback = True
         for w in team_candidates:
-            scored.setdefault(w, (_PERIPHERAL_THRESHOLD, {"fallback_top_holder": True}))
+            # stamp the marker even when the wallet already has scored evidence —
+            # setdefault alone left fallback members unmarked (audit caught 50 rows)
+            sc, ev = scored.get(w, (_PERIPHERAL_THRESHOLD, {}))
+            scored[w] = (sc, {**ev, "fallback_top_holder": True})
 
     supply_pct = sum(holder_map.get(addr, 0.0) for addr in team_candidates)
 
