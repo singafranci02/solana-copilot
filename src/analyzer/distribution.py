@@ -218,16 +218,21 @@ async def _deferred_check(
         await asyncio.sleep(delay)
     try:
         await _do_check(token_mint, offset_h)
-        if offset_h == 24:
+    except Exception:
+        logger.exception(
+            "distribution check failed for %s at %dh", token_mint[:8], offset_h
+        )
+    if offset_h == 24:
+        # label of record — must run even when the check above failed (a network
+        # error during a wake-from-sleep killed both for 2 days; audit caught it)
+        try:
             conn = get_connection()
             try:
                 await _finalize_trajectory(conn, token_mint)
             finally:
                 conn.close()
-    except Exception:
-        logger.exception(
-            "distribution check failed for %s at %dh", token_mint[:8], offset_h
-        )
+        except Exception:
+            logger.debug("trajectory finalize failed for %s", token_mint[:8])
 
 
 async def _finalize_trajectory(conn, token_mint: str) -> None:
