@@ -45,12 +45,16 @@ def load_samples(conn=None) -> list[Sample]:
             """SELECT gfs.token_mint, gfs.features_json, ge.graduated_at
                FROM graduation_feature_snapshot gfs
                JOIN graduation_events ge ON ge.token_mint = gfs.token_mint
+               JOIN tokens t ON t.mint = ge.token_mint
                WHERE ge.pipeline_version >= 2
-                 -- pump.fun only: short venue labels from other launchpads are a
-                 -- different game and must not train or evaluate our models
-                 AND (ge.migration_venue IS NULL
-                      OR ge.migration_venue IN ('pump-amm','pump')
-                      OR length(ge.migration_venue) > 20)
+                 -- fail-closed: only POSITIVELY-classified pump.fun coins train.
+                 -- NULL/'unverified' platform = a gate that never resolved (old
+                 -- outage-era coins, or a future leak) — keep them out of the model,
+                 -- not just the live path. Mayhem/foreign already carry other labels.
+                 AND t.platform IN ('pump.fun', 'pump.fun*')
+                 -- manufactured graduations (one entity bought the curve) have no
+                 -- organic market — their tape is a puppet show, never a label
+                 AND COALESCE(ge.is_manufactured, 0) = 0
                ORDER BY ge.graduated_at""",
         ).fetchall()
 
