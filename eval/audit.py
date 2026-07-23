@@ -211,10 +211,18 @@ def stage_data(conn) -> list[Check]:
 
     # Mayhem is invisible to metadata — the sweep/gate stamp tokens.launchpad from
     # the creation TX. No analysed graduation may carry a foreign launchpad stamp.
+    # every analysed coin must be POSITIVELY classified pump.fun. NULL or 'unverified'
+    # is a gate that never ran / never resolved — it hides leaks (a NULL platform
+    # passed the old NOT-IN check, which is how Mayhem slipped in on 2026-07-22).
+    unresolved = conn.execute("""SELECT COUNT(*) FROM graduation_events ge
+        LEFT JOIN tokens t ON t.mint = ge.token_mint
+        WHERE ge.graduated_at > strftime('%s','now') - 172800
+          AND (t.platform IS NULL OR t.platform = 'unverified')""").fetchone()[0]
+    out.append(Check("data", "every analysed coin has a resolved platform (48h)",
+                     unresolved == 0, f"{unresolved} NULL/unverified"))
     bad_lp = conn.execute("""SELECT COUNT(*) FROM graduation_events ge
         JOIN tokens t ON t.mint = ge.token_mint
         WHERE ge.graduated_at > strftime('%s','now') - 172800
-          AND t.platform IS NOT NULL
           AND t.platform NOT IN ('pump.fun','pump.fun*')""").fetchone()[0]
     out.append(Check("data", "no foreign-launchpad (e.g. mayhem) tokens analysed (48h)",
                      bad_lp == 0, f"{bad_lp} rows"))

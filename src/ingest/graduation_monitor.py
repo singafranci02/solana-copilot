@@ -373,18 +373,24 @@ async def _handle_graduation(
                 return
 
             # ON-CHAIN platform check — Mayhem is invisible to metadata (declares
-            # pump.fun, CPIs through the pump program). One free RPC call.
+            # pump.fun, CPIs through the pump program). One free RPC call, RETRIED:
+            # if the RPC is flaky we must NOT default to "classic" — an unresolved
+            # coin analysed as pump.fun is exactly how Mayhem leaked in on 2026-07-22.
             created_tx = (tok.get("creation") or {}).get("created_tx")
             platform = None
             if created_tx:
-                try:
-                    from src.ingest.rpc import RpcClient
-                    async with RpcClient() as rpc:
-                        tx = await rpc._call("getTransaction", [created_tx,
-                            {"maxSupportedTransactionVersion": 0, "encoding": "json"}])
-                    platform = _platform_from_tx(tx)
-                except Exception as exc:
-                    logger.debug("platform tx check failed for %s: %s", mint[:8], exc)
+                from src.ingest.rpc import RpcClient
+                for _attempt in range(3):
+                    try:
+                        async with RpcClient() as rpc:
+                            tx = await rpc._call("getTransaction", [created_tx,
+                                {"maxSupportedTransactionVersion": 0, "encoding": "json"}])
+                        platform = _platform_from_tx(tx)
+                        if platform is not None:
+                            break
+                    except Exception as exc:
+                        logger.debug("platform tx check failed for %s: %s", mint[:8], exc)
+                    await asyncio.sleep(1.0)
             if platform == "mayhem":
                 logger.info("skipping MAYHEM token %s (creation tx contains %s)",
                             mint[:8], MAYHEM_PROGRAM[:8])
@@ -394,9 +400,10 @@ async def _handle_graduation(
                     (mint, now))
                 conn.commit()
                 return
-            conn.execute(
-                "UPDATE tokens SET platform = ? WHERE mint = ?",
-                (platform or "pump.fun*", mint))
+            # 'pump.fun' = tx-confirmed classic; 'unverified' = tx unresolvable after
+            # retries (metadata says pump.fun). Never 'pump.fun*' from a failed check —
+            # 'unverified' is a distinct state the audit flags and the sweep re-resolves.
+            resolved_platform = platform or "unverified"
 
             meta = _extract_meta_fields(mint, token_info)
             creator_wallet, created_time = extract_creation(token_info)
@@ -446,13 +453,16 @@ async def _handle_graduation(
             else:
                 symbol = token_row["symbol"] or "?"
 
+            # platform stamped HERE, after the token row is guaranteed to exist —
+            # the old stamp ran before the INSERT and silently wrote to nothing, so
+            # every freshly-seen coin landed with platform NULL (invisible to the audit)
             conn.execute(
                 """UPDATE tokens SET created_at = ?, created_at_source = ?,
                        creator_wallet = COALESCE(?, creator_wallet),
-                       total_supply = ?, created_on = ?
+                       total_supply = ?, created_on = ?, platform = ?
                    WHERE mint = ?""",
                 (token_created_at, created_at_source, creator_wallet,
-                 total_supply, created_on, mint),
+                 total_supply, created_on, resolved_platform, mint),
             )
             conn.commit()
 
