@@ -118,7 +118,10 @@ def main() -> None:
     bad = [r[0] for r in conn.execute(
         """SELECT ge.token_mint FROM graduation_events ge JOIN tokens t ON t.mint=ge.token_mint
            WHERE t.platform IS NOT NULL
-             AND t.platform NOT IN ('pump.fun','pump.fun*')""")]
+             -- purge ONLY confirmed-bad (mayhem/foreign). 'unverified' is PENDING
+             -- re-resolution, never confirmed-bad — deleting it loses legit classic
+             -- coins the RPC merely couldn't reach yet (over-deleted 236 once).
+             AND t.platform NOT IN ('pump.fun','pump.fun*','unverified')""")]
     print(f"\npurging {len(bad)} non-pump.fun graduations")
     for tbl in PURGE_TABLES:
         n = 0

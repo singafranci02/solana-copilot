@@ -1,5 +1,5 @@
 {
- "generated_at": 1785059138,
+ "generated_at": 1785060347,
  "live_since": 1783980000,
  "prewarn": {
   "summary": {
@@ -14,14 +14,14 @@
  },
  "exit_alarm": {
   "summary": {
-   "fired": 661,
-   "graded": 126,
-   "correct": 125,
-   "precision": 0.992,
-   "pending": 506,
-   "ungradable": 29
+   "fired": 547,
+   "graded": 100,
+   "correct": 100,
+   "precision": 1.0,
+   "pending": 430,
+   "ungradable": 17
   },
-  "median_saved_pct": 88.5,
+  "median_saved_pct": 88.2,
   "alerts": [
    {
     "mint": "BiZcprpAUMJLvzHNu5zRzdpphKKeUNe8gYCm3yQ8pump",
@@ -227,14 +227,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "ApEHHJCv44UTmU6U3KsHokEjr6WDGSHEyjtKhTRWpump",
-    "symbol": "OPEN",
-    "alerted_at": 1785012375,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "pVVtRpUm1fw8KUatT82eMiN42eaApY6MAfA7Yx6pump",
     "symbol": "PFORGE",
     "alerted_at": 1785012183,
@@ -267,22 +259,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "58JZcRFzacMc2qWKTUzafa11nGYrnimmYU4VSD66Mc74",
-    "symbol": "SERP",
-    "alerted_at": 1785011364,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "DE4fviPRttGWTB28e948PRkXBRB5s8dUQiqV7JcjnwRu",
-    "symbol": "AMGE",
-    "alerted_at": 1785011014,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "BnRBN6rrw9kiDw7vQpAApqKG2ThCgYszaV4oh4AnaF71",
     "symbol": "DIT",
     "alerted_at": 1785010075,
@@ -302,17 +278,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "D75uZUgjbaWHpujWVynMRqDB2Rqypd5CrY7YpH5Lpump",
-    "symbol": "Gendo",
-    "alerted_at": 1785008848,
-    "minute_offset": 3,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.578,
-    "exit_saved_pct": 42.2,
-    "collapse_followed": false
-   },
-   {
     "mint": "2wREZKT4KFNTKCVRdWo6LjzCW9vmRJUxNTKVVgfZpump",
     "symbol": "icy",
     "alerted_at": 1785008689,
@@ -324,14 +289,6 @@
     "mint": "54MgvWfoBpwfGroq2BjdTiuWBCu4xABWvviBZToSoAyp",
     "symbol": "ZPERM",
     "alerted_at": 1785008401,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "9ze9JJ1CL784eg3oA6n3QXD7jMCcLB5ab7Ap4oB4pump",
-    "symbol": "DANIS",
-    "alerted_at": 1785007877,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -436,14 +393,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "8HNFU5sjP4ZPmDta6x1EsLV8661r7gyXFCj2ZDVWpump",
-    "symbol": "REVERSE",
-    "alerted_at": 1785005400,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "4itF5ddLSxtDDUYRE95Cz1HSXj2MhjkwpAmFDfsipump",
     "symbol": "OpenZK",
     "alerted_at": 1785005359,
@@ -495,14 +444,6 @@
     "mint": "G389qRrQtfNsv3mXi6JWDjySJ6dzLKaieNTsuhZ8pump",
     "symbol": "ELATE",
     "alerted_at": 1785003106,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "7LBdk57b2fS3E83i6sFchYpsbUsjTrfWz25dKVqRmgzi",
-    "symbol": "OBATITUS",
-    "alerted_at": 1785002695,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -570,22 +511,6 @@
     "mint": "Huc4dMs8YyiPjLNAwMb2TzGV8GxiV74mBh8Q6WZKpump",
     "symbol": "XRP AI",
     "alerted_at": 1784999145,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "DneG3osf8buNjyhGPhyWFtEX8PGdEd9KyZDvL2WnqtVQ",
-    "symbol": "Pome",
-    "alerted_at": 1784998812,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "DTBt5tFLACoUf3Rww8o6ynutvHhcUvNHUVgW8f7ehbWB",
-    "symbol": "CTFC",
-    "alerted_at": 1784998532,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -679,14 +604,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "5UVRVi76oCfiyKhHj1VDW1iAA4kksU48QbUYn7JDpump",
-    "symbol": "BROKIES",
-    "alerted_at": 1784965348,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "GtGHVNSy1F76CBmrJ4xcnWSqfmk4bW1aY4QTHot6pump",
     "symbol": "$MOCHI",
     "alerted_at": 1784965030,
@@ -771,14 +688,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "BBoZ4GxtbwkfpFV8KohBchRX7hVcqq8H9ButG2Ppump",
-    "symbol": "PETER",
-    "alerted_at": 1784960431,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "EjAjSPQu1Ru8BTJnpmoB7P8dxRZQS2g8jYkpwJueyfPX",
     "symbol": "?",
     "alerted_at": 1784959751,
@@ -803,25 +712,9 @@
     "outcome": "pending"
    },
    {
-    "mint": "CnfcnN9PodB5q4GWxYNnWzbFhmsvWyhbz4AeWmqvpump",
-    "symbol": "iCult",
-    "alerted_at": 1784956950,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "DmDRkVJLzrAc1innjJ2LfZMw4XYJJPCMqmVtW4gFpump",
     "symbol": "ZIB",
     "alerted_at": 1784956561,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "JBvMGF5b2PYFsaS5zQqoWFKvBtygBeceCkj9ENq9GBKa",
-    "symbol": "dogtour",
-    "alerted_at": 1784955868,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -851,17 +744,6 @@
     "outcome": "correct",
     "price_1h_after_vs_alert": 0.061,
     "exit_saved_pct": 93.9,
-    "collapse_followed": true
-   },
-   {
-    "mint": "7Wshmqux697u5PP722rQxZUfESsmA3ydYqLBotnxpump",
-    "symbol": "TRUMP2028",
-    "alerted_at": 1784948787,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.056,
-    "exit_saved_pct": 94.4,
     "collapse_followed": true
    },
    {
@@ -964,14 +846,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "942NuvfVe5jwKgpX2N5wG6hTTD8iLk75DuSmRuoEpump",
-    "symbol": "SOLAR",
-    "alerted_at": 1784923728,
-    "minute_offset": 40,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "B5GQCdhDekBQNq9koevYmZN8BBQfMvhy3At7pAXFz2gk",
     "symbol": "MEET",
     "alerted_at": 1784919264,
@@ -994,25 +868,6 @@
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
-   },
-   {
-    "mint": "3Q4kstfxFuLmw5HK64hZzjhYQeRCWJVjLwMTNmUWpump",
-    "symbol": "$BDC",
-    "alerted_at": 1784917118,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "2hQ4RbQg8fsg4Txh5PDp3bS5B9RoRG3XmVaNEV7Fpump",
-    "symbol": "KPOP",
-    "alerted_at": 1784916252,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.081,
-    "exit_saved_pct": 91.9,
-    "collapse_followed": true
    },
    {
     "mint": "4mTgKHZx3LqpwgzWJpMsYySofAzEBDUofFw4uEqbpump",
@@ -1058,17 +913,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "3b5rJZGHdyewj6KeNr2HiksYFAGAD8GwAPnYTRD8pump",
-    "symbol": "RACE",
-    "alerted_at": 1784908848,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.134,
-    "exit_saved_pct": 86.6,
-    "collapse_followed": true
-   },
-   {
     "mint": "8KdocAnLnH1kzz6wwJdnwiC3SSEtmxcxPzJvePshA1Kq",
     "symbol": "Jensen",
     "alerted_at": 1784906379,
@@ -1078,14 +922,6 @@
     "price_1h_after_vs_alert": 0.28,
     "exit_saved_pct": 72.0,
     "collapse_followed": true
-   },
-   {
-    "mint": "8SceCwjnc4XGm2HP6KWxSCh6xhPoRJmoPoNseePDpump",
-    "symbol": "Pomsky",
-    "alerted_at": 1784905266,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
    },
    {
     "mint": "GNTwJ1TFVdZ9YYWQCTMdGTzmNXByQv2s4Nw39o4Gpump",
@@ -1115,14 +951,6 @@
     "mint": "BrfKJB8BM7b2Uvf56M9Gn1PMMPuS1wBnQyxoz5xFkx2C",
     "symbol": "FLUD",
     "alerted_at": 1784901472,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "DzTKMSatdjwxq9wqZXswnVxau8tmbTyG1SPiMSuADK4a",
-    "symbol": "$CINS",
-    "alerted_at": 1784900160,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -1185,14 +1013,6 @@
     "collapse_followed": true
    },
    {
-    "mint": "3rBy7ujuEg31EnGtQTEoh14JbQEMQMuJECmdF1USpump",
-    "symbol": "Frego",
-    "alerted_at": 1784895920,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "aJ67Wk4i1njm1rc45PsuCNyq1ATgidodR1k2bjd7Yds",
     "symbol": "NYANDOG",
     "alerted_at": 1784895279,
@@ -1249,36 +1069,9 @@
     "outcome": "pending"
    },
    {
-    "mint": "pGpr8K6TYdngqcxpeRxUBiUTptp8CmHpPRaP7k4pump",
-    "symbol": "USOX",
-    "alerted_at": 1784881449,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "ungradable"
-   },
-   {
     "mint": "CweUGYkVheTDfwemdRnaHAred781Ww9mXsgBNfTKpump",
     "symbol": "TAO",
     "alerted_at": 1784875668,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "9Y8kJrRw1eWsh8HPJK7enTgwBNkPKghmyeWBN7qnwAmn",
-    "symbol": "SNOWCAT",
-    "alerted_at": 1784868624,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.295,
-    "exit_saved_pct": 70.5,
-    "collapse_followed": true
-   },
-   {
-    "mint": "2ZDfxo12QgMQ3WcUaEnFWdamRopDgV6dfU6HwRqRz5H4",
-    "symbol": "LuLu",
-    "alerted_at": 1784868563,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -1327,10 +1120,10 @@
     "outcome": "pending"
    },
    {
-    "mint": "EVW6kjMtuaSmSXzygnR9jfSnNpuYxoBjFrRvbybCpump",
-    "symbol": "DOD",
-    "alerted_at": 1784867856,
-    "minute_offset": 2,
+    "mint": "DPDT46exhDRWqQ5v3e4sTCA1B8HVkqNuUToiDXVvpump",
+    "symbol": "SUNAI",
+    "alerted_at": 1784867592,
+    "minute_offset": 3,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
    },
@@ -1339,14 +1132,6 @@
     "symbol": "JBOLT",
     "alerted_at": 1784867592,
     "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "DPDT46exhDRWqQ5v3e4sTCA1B8HVkqNuUToiDXVvpump",
-    "symbol": "SUNAI",
-    "alerted_at": 1784867592,
-    "minute_offset": 3,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
    },
@@ -1552,14 +1337,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "B9RoSkLtSGxiwHZZyh19L1mK917Gg1QHYe8YpA1tuafu",
-    "symbol": "AV18Z",
-    "alerted_at": 1784860594,
-    "minute_offset": 3,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "4D1xd3sGBn7rPJdEhYAgVJPMLD22RsQ87KUXKGwHeNm9",
     "symbol": "BITDOG",
     "alerted_at": 1784859951,
@@ -1608,14 +1385,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "4dHp9dRKEpqNzHB4emdNc6itYtm6wgVCFz1nqTHXpump",
-    "symbol": "MBLA",
-    "alerted_at": 1784857486,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "HCuz1PRfcrMrfYbTd15eisspA2e59Mnyt7ujRaRgpump",
     "symbol": "ACP",
     "alerted_at": 1784857004,
@@ -1649,14 +1418,6 @@
     "mint": "D1hzwJWfb2pMtNtgY7mF3eybtGUcWLBpFgFw56rTpump",
     "symbol": "DNEPROVSKI",
     "alerted_at": 1784855716,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "BkafdF3v7rgGYHJrtY1bbVYseCUnHpJZ2BLYcFG5pump",
-    "symbol": "ARA",
-    "alerted_at": 1784855318,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -1764,14 +1525,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "Co1x8cSKT62HzbKaUuBb9ZvAzGSkbeG1z8ui8cpSJTJz",
-    "symbol": "HOT",
-    "alerted_at": 1784852291,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "J3UvrPBVxdeZDHbeAD3ftpz2WNS5LEd8hrRScimVpump",
     "symbol": "CashBuds",
     "alerted_at": 1784852291,
@@ -1783,25 +1536,9 @@
     "collapse_followed": true
    },
    {
-    "mint": "Hoq5X3CvjbFeBZdeFnxFBLdH7Jkkrbsqn7AXezsGYG1V",
-    "symbol": "HK",
-    "alerted_at": 1784851985,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "CoispunvttG1Ru3uZsf5CY53zaHmZSYjAdJ4jejDpump",
     "symbol": "PNUTSPNUS",
     "alerted_at": 1784851878,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "7yXNFsLeKdUv8czAiKn9ggHMCv353HaR7dsF7bFKZbYe",
-    "symbol": "SPD",
-    "alerted_at": 1784851560,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -1815,25 +1552,9 @@
     "outcome": "pending"
    },
    {
-    "mint": "2J23Kbbbuh19ReLPvjukMhVrGuRzV7CjGwn5PXkthgfS",
-    "symbol": "BILLY",
-    "alerted_at": 1784851498,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "6uDxWeeiK99AsbAkiSFgVNZE4Z4w8gywkcJ1vvSvpump",
     "symbol": "TRUNK",
     "alerted_at": 1784851113,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "3V4vqP8XB9MRXpBrBu2nU6dspq2v4pttcAioHRSppump",
-    "symbol": "CHEF",
-    "alerted_at": 1784851005,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -1885,14 +1606,6 @@
     "collapse_followed": true
    },
    {
-    "mint": "BKdGM8Apag9wxy1L3LsLVyB6rpYhvmZAzRfDhfGbpump",
-    "symbol": "rarefish",
-    "alerted_at": 1784849857,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "2MrZ5cken4ihgxQRc9vzDWiHKbSNL3TcbLf6YD2ipump",
     "symbol": "Qcat",
     "alerted_at": 1784849653,
@@ -1904,14 +1617,6 @@
     "mint": "AzxgCCUK1e9nAUH8wvWnuxkrp3NG2VoN5JgHPezGuG81",
     "symbol": "HotGF",
     "alerted_at": 1784849315,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "AmFTMQLZ55e7tHJB9dd4YY4ZzTUzAni5KWpZvMLxpump",
-    "symbol": "DIVA",
-    "alerted_at": 1784848809,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -1947,25 +1652,9 @@
     "collapse_followed": true
    },
    {
-    "mint": "H6cFS3AnogFRS7sKzkcRit1GGGjfrvy9DDLoR1iFVg3i",
-    "symbol": "SSC",
-    "alerted_at": 1784848204,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "7wnD7U55G53D4hDP5DAZ3i66K7kP5md8syckaoLtE8YB",
     "symbol": "RIKA",
     "alerted_at": 1784848073,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "CWFpMXy8MddDezX3NRMxyiSxuVa6kepRBfG4cuJsPAaR",
-    "symbol": "ansems cat",
-    "alerted_at": 1784847623,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -1993,34 +1682,12 @@
     "collapse_followed": true
    },
    {
-    "mint": "7GYVadoXaGSJXdyJFySQXPWyDDUEnX2YAycb2EvVfJLF",
-    "symbol": "Gollum",
-    "alerted_at": 1784847169,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.103,
-    "exit_saved_pct": 89.7,
-    "collapse_followed": true
-   },
-   {
     "mint": "9155C7NaFuPMSPz17j8qMHjx33UAYJ5K4RDySgcfpump",
     "symbol": "MACA",
     "alerted_at": 1784846856,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
-   },
-   {
-    "mint": "8kw5sc4uzZVyecxrcmtvuDwyh9bpbsWCv8YLomWzv2nm",
-    "symbol": "Mumu",
-    "alerted_at": 1784846556,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.379,
-    "exit_saved_pct": 62.1,
-    "collapse_followed": true
    },
    {
     "mint": "GhDUdKhBuquZViDShfZhUQyzkyoV62skrUBTKQnepump",
@@ -2050,14 +1717,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "2GPWV6wZVUH9wL7ppczKxA5hf8NozzXKaqqhZkx9pump",
-    "symbol": "pica",
-    "alerted_at": 1784845633,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "8FKQSogUYKQnBiziensGydA59Xsh7XXZo1gd23gapump",
     "symbol": "LOLUNAR",
     "alerted_at": 1784845413,
@@ -2072,14 +1731,6 @@
     "mint": "CkmS7SyH9Xc1HAS5quvVBDz9n6KWRQttbYFN731bpump",
     "symbol": "\ud83c\udf15",
     "alerted_at": 1784844933,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "CYuvFevwiJQ1zukUaUiDbw8LyJSSiYdTcWzcpGtxXPY9",
-    "symbol": "3at",
-    "alerted_at": 1784844349,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -2125,14 +1776,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "33BWxCGZjbmvGkuNJwhxnuJL9uQSwTn587xfedyQVWoA",
-    "symbol": "GME",
-    "alerted_at": 1784841650,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "AUgzWSeWenrDHLGBeXcz3VW6mG2fjffzj71Bj6TZpump",
     "symbol": "TEDLY",
     "alerted_at": 1784841367,
@@ -2173,47 +1816,12 @@
     "outcome": "pending"
    },
    {
-    "mint": "AdKDamMvsc164m7MYtKkTbcsMHym3j3RUsNwE4eLpump",
-    "symbol": "TitMaLaU",
-    "alerted_at": 1784839743,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "GkWg6uKJo8WiA64dHVDnUnPEa7XW9tEnKLuXMJ6Apump",
-    "symbol": "NUTMOON",
-    "alerted_at": 1784839574,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "9p3VjCsrWeCfLxSBhpEPTCCpXgeaMH13xaAUmhhspump",
-    "symbol": "ChillRizz",
-    "alerted_at": 1784839405,
-    "minute_offset": 3,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "DrHFhrzNKbjrETne1Q4NvDAxP4yTt1gMZUF646n3pump",
     "symbol": "UPRWA",
     "alerted_at": 1784839135,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
-   },
-   {
-    "mint": "8HZ6aPne11kEZbAJZVLraehKNMZTt3o9RMEX3W1ZrEQr",
-    "symbol": "$STONERS",
-    "alerted_at": 1784838890,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.277,
-    "exit_saved_pct": 72.3,
-    "collapse_followed": true
    },
    {
     "mint": "CpW6PAubY6TJUYS4L9GyLkbGQLVowJe5LAo5zSwxpump",
@@ -2224,17 +1832,6 @@
     "outcome": "correct",
     "price_1h_after_vs_alert": 0.32,
     "exit_saved_pct": 68.0,
-    "collapse_followed": true
-   },
-   {
-    "mint": "695y5X6pndAx9wimJkopp6AaY7B456arVJ54XL5Rpump",
-    "symbol": "SPE",
-    "alerted_at": 1784837880,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.083,
-    "exit_saved_pct": 91.7,
     "collapse_followed": true
    },
    {
@@ -2257,14 +1854,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "8afoFbomScjdvqjqoi55FzsA3sCXTQxHpsdqtpdeVXNg",
-    "symbol": "scrooge",
-    "alerted_at": 1784837081,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "4VnPGpTUpVXizJqqJnTTAyArh3waMdYGEzr2wMfSpump",
     "symbol": "KIMBOP",
     "alerted_at": 1784836991,
@@ -2276,14 +1865,6 @@
     "mint": "GBTVQ1PQQho11byyRxNogmAvJqVhRsQ9q621fZrypump",
     "symbol": "KEK",
     "alerted_at": 1784836971,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "3kxb6NU3QYo1uKXA5G5R6aRDqUA9zPHTFHjPPWwLpump",
-    "symbol": "HOLD",
-    "alerted_at": 1784836884,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -2346,14 +1927,6 @@
     "mint": "Ffd2wQgaA5vvSRsuEJ4BfDL4WgzobGHCbR1KCefTpump",
     "symbol": "burny",
     "alerted_at": 1784834362,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "6AMd3jqaYBUdW61M7ckqUQSPfETPL59RH9bm8pREDHwV",
-    "symbol": "$stekk",
-    "alerted_at": 1784834322,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -2589,14 +2162,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "BfKcdF3S71hjzCwmFhx5CK62PLgUqRYRwpjnsXjSQjaT",
-    "symbol": "PAPE",
-    "alerted_at": 1784823220,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "AFP1TLN313sc24VViRKnjvUWp7HqCSFKi5HZi3Tepump",
     "symbol": "BCat",
     "alerted_at": 1784823211,
@@ -2616,25 +2181,9 @@
     "collapse_followed": true
    },
    {
-    "mint": "Dc8G8YG4rB9fno3AMbouYNSz9RhwXVTCx6qoW6kNpump",
-    "symbol": "Smile",
-    "alerted_at": 1784822930,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "5GKUSCWQzRjqKy8GZcGvzBSUbQCZHbAvrqvBUCy5pump",
     "symbol": "SOLETF",
     "alerted_at": 1784822780,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "ESxGKtJjEBMJrDWgosRb1SVmNMLnBRMr887gQFYPpump",
-    "symbol": "UNO",
-    "alerted_at": 1784822772,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -2651,22 +2200,6 @@
     "mint": "AMAKVpKGPBsHATFVnNTcj7t25zbKD56u49Dav3qupump",
     "symbol": "BEVO",
     "alerted_at": 1784822336,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "8VjjHFXGC1EpYoewz8VD5Y1qL9X9tS8gqe15Po6xpump",
-    "symbol": "Salt",
-    "alerted_at": 1784822331,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "CqWsQniEgCfHpAmiN6qbKowXfy8mA6oM3XFB3SaqEALT",
-    "symbol": "DISCIPLINE",
-    "alerted_at": 1784821827,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -2755,14 +2288,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "91w8sX1c3MxWwttm3FfuHSy8vCZ2JTYoSZsWj12LRgX8",
-    "symbol": "BATPE",
-    "alerted_at": 1784818675,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "BR2PLVkK5bBN8q3hyJjAZQeF9nyn6FgSEv2d4nG2pump",
     "symbol": "ollama",
     "alerted_at": 1784818621,
@@ -2798,14 +2323,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "6EZaiphwMbXnxWBy9CmreD9S7pHfmXb8fHiGiXZKEyPN",
-    "symbol": "bilibili",
-    "alerted_at": 1784817427,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "AsovRmMdEdQrfdm9Qrt45ETQYevocdNL7WCBt6Dtpump",
     "symbol": "LWT",
     "alerted_at": 1784817246,
@@ -2833,52 +2350,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "Qa7MypNnhiS6vuH5SXtToqGZwSQzJjayirg5Bbqpump",
-    "symbol": "RACCTOP",
-    "alerted_at": 1784815752,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "ungradable"
-   },
-   {
-    "mint": "6GWkC6H1HXX6Z4qtVxo3R1TsfTeum1VkyYxuPZ3opump",
-    "symbol": "FOMORADIO",
-    "alerted_at": 1784815705,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.104,
-    "exit_saved_pct": 89.6,
-    "collapse_followed": true
-   },
-   {
-    "mint": "Xk1gEZ6X9hnJDRxSUAzoZoivPwfRcrmSdU9qFCGpump",
-    "symbol": "USWR",
-    "alerted_at": 1784815546,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "ungradable"
-   },
-   {
-    "mint": "ESKowPCjMQURZbH2SySnEmmXbYkPsbHXxAFyRJypump",
-    "symbol": "UNCLEAR",
-    "alerted_at": 1784815540,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.011,
-    "exit_saved_pct": 98.9,
-    "collapse_followed": true
-   },
-   {
-    "mint": "2TRHw5LM8fVnZ3mdAS89vHgGY9e6bvJ5X6Us9dy1pump",
-    "symbol": "CASHCAT",
-    "alerted_at": 1784815401,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "2uiR1iRerF5bTuh2WvHcB4FftcZ6VDaFBReETtpypump",
     "symbol": "AYYS",
     "alerted_at": 1784815205,
@@ -2887,69 +2358,9 @@
     "outcome": "pending"
    },
    {
-    "mint": "AywxJj2BdixBePV82ZHwEadgWpcKxhMUFDXDhm2kpump",
-    "symbol": "GROK",
-    "alerted_at": 1784815190,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.001,
-    "exit_saved_pct": 99.9,
-    "collapse_followed": true
-   },
-   {
-    "mint": "5haZLURnA964CpVYBUZv6qVrcD2gMDioPa3YUCoipump",
-    "symbol": "Bulljok",
-    "alerted_at": 1784814999,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.046,
-    "exit_saved_pct": 95.4,
-    "collapse_followed": true
-   },
-   {
-    "mint": "9QRxnG9CkEE47ghdG8Jhbx9aoGCVw3woBM9Rdrv9pump",
-    "symbol": "HONEY",
-    "alerted_at": 1784814907,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "ungradable"
-   },
-   {
-    "mint": "8qYzVpkjomhREWveMtC147K3SMcU3npxoUYxhnFpump",
-    "symbol": "RACHOOD",
-    "alerted_at": 1784814699,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.042,
-    "exit_saved_pct": 95.8,
-    "collapse_followed": true
-   },
-   {
     "mint": "3Csddx1r6BNCx22HMAKoBTKeHcyco2CYnSZmvW53nDvu",
     "symbol": "gayo",
     "alerted_at": 1784814639,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "A2N9Kt6tqieViLSWR169cZuxGzRMnF8qp3c5U9pYpump",
-    "symbol": "GROK",
-    "alerted_at": 1784814636,
-    "minute_offset": 5,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.003,
-    "exit_saved_pct": 99.7,
-    "collapse_followed": true
-   },
-   {
-    "mint": "AeDuDakjw7bWD7b5fZwDmKqEMgrcf9qs7E9xioz3pump",
-    "symbol": "$USOH",
-    "alerted_at": 1784814540,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -2972,14 +2383,6 @@
     "price_1h_after_vs_alert": 0.096,
     "exit_saved_pct": 90.4,
     "collapse_followed": true
-   },
-   {
-    "mint": "CW62roGZ5W8LrWgffXRjb4gmsEpK8xLPWgPVzWUmpump",
-    "symbol": "KO",
-    "alerted_at": 1784812462,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
    },
    {
     "mint": "BQBAR2FHwPq4WWC42ewbAnfy8apKsAcd8i2Yr4Gbpump",
@@ -3020,14 +2423,6 @@
     "collapse_followed": true
    },
    {
-    "mint": "CurN7c3UYhjDwdk5EofcxeRZKLRm76tnFzgCkU4upump",
-    "symbol": "Sam",
-    "alerted_at": 1784810845,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "GriG4kDtz2PiDpb2dikokpZV5daYSMLMHiAWwgRCpump",
     "symbol": "MAG",
     "alerted_at": 1784810726,
@@ -3045,14 +2440,6 @@
     "price_1h_after_vs_alert": 0.078,
     "exit_saved_pct": 92.2,
     "collapse_followed": true
-   },
-   {
-    "mint": "2fqqtyXBGyZrwridtctS9oEZeNXXFoNYMwrnJyR2pump",
-    "symbol": "ASSLARP",
-    "alerted_at": 1784810424,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
    },
    {
     "mint": "AJB49bP5D1ozPfdyPfYT9aNYSvr4dKt7JiCe54gKpump",
@@ -3093,25 +2480,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "Dh6UW9AEub6J6Nn6K7uNqALC1BYouqscJHRuZ4ihpump",
-    "symbol": "Squeaktube",
-    "alerted_at": 1784808455,
-    "minute_offset": 3,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "38JUgWFFWjcVFT12ZNnBBKMEswGbMxbaWiXJUuXuy5Q9",
-    "symbol": "SAMSANG",
-    "alerted_at": 1784808451,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.073,
-    "exit_saved_pct": 92.7,
-    "collapse_followed": true
-   },
-   {
     "mint": "8L3aUk3HMsGzaxi3ZsNLMrgxG5LxZFa1Exsq3PGypump",
     "symbol": "goodai",
     "alerted_at": 1784807898,
@@ -3145,30 +2513,6 @@
     "mint": "8HpiWGZXcWGNBFrXHR56UcYiUp99BeqZkfXe4iQppump",
     "symbol": "$PP",
     "alerted_at": 1784787372,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "2D5N8GVRULZhYE3RKce4gSKp2vqZokxdrNWMFKj7pump",
-    "symbol": ".01",
-    "alerted_at": 1784786332,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "DT6SsN3zQHwPyqC6nSi8CjznmLCT6cMrsBh22saApump",
-    "symbol": "RACCOONPE",
-    "alerted_at": 1784786214,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "7JBaZ9ajGFkZgSdeecr1WasVmSAiUyFMg3CLM9NApump",
-    "symbol": "Faith",
-    "alerted_at": 1784782274,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -3254,14 +2598,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "5phZkjAE7sgTA5toSrAyduKzoWS1mQULDXNEuZUyASdQ",
-    "symbol": "Walter",
-    "alerted_at": 1784767161,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "A4KJumXvMMvig58tpa8JJ1iYVg5hhQXrK49LGzafpump",
     "symbol": "SHITCOIN",
     "alerted_at": 1784765812,
@@ -3310,25 +2646,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "Fxhvm8J3jV8PHDispgV2MtxEaPDyGk4gDt982RkY4wjq",
-    "symbol": "Minelady",
-    "alerted_at": 1784763229,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "Bbrto63nWvFTH9Y8zjuvcGKoqhU9Chwwie4orvyKnRQ4",
-    "symbol": "HOGISLAND",
-    "alerted_at": 1784762770,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.236,
-    "exit_saved_pct": 76.4,
-    "collapse_followed": true
-   },
-   {
     "mint": "G67jXwYxJ6jStj1Sy6racaesx5NT1tzNbA9x3Wa9riNq",
     "symbol": "WLIZ",
     "alerted_at": 1784762509,
@@ -3354,25 +2671,6 @@
     "price_1h_after_vs_alert": 0.083,
     "exit_saved_pct": 91.7,
     "collapse_followed": true
-   },
-   {
-    "mint": "DW7qo2YaUeG4SFuD197CE6JQjhjQgxEWboybZCdp9KsW",
-    "symbol": "LOID",
-    "alerted_at": 1784762164,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.064,
-    "exit_saved_pct": 93.6,
-    "collapse_followed": true
-   },
-   {
-    "mint": "8cQLU7r4MXPXEgDDokWSuPRtm5qiwEchzWAGnxijpump",
-    "symbol": "CHILLS",
-    "alerted_at": 1784761790,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
    },
    {
     "mint": "J2qzhWwzguZDugXg69XierwjxeWWn4uCACHav78zpump",
@@ -3576,14 +2874,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "AV935f8tL4BXMMqUsYZm1mdnDrRG4wndLmDPwHpXpump",
-    "symbol": "$Prick",
-    "alerted_at": 1784758013,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "mxnh8rW84UMTwowXTTCbR277gW1DYbh6JEW58eypump",
     "symbol": "ALLIN",
     "alerted_at": 1784757990,
@@ -3662,14 +2952,6 @@
     "mint": "8v3gEBu6RaVMFLGoZUNUasTkYgCFEsSErro1xJTBpump",
     "symbol": "BMEX",
     "alerted_at": 1784757124,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "GwmBfZgNoeFQc2CrUdRao17xTAkF6x2UA3XK1egipump",
-    "symbol": "FluxBeam",
-    "alerted_at": 1784757120,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -3806,14 +3088,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "9oJ4dRgkwwidbkpEjYJm7dWWesqrc4Nb7Cm35EuYpump",
-    "symbol": "SOL",
-    "alerted_at": 1784754855,
-    "minute_offset": 3,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "9ALXVMdo98tmWThwZHQjJMsHW7YfF6aD8Kh4R51spump",
     "symbol": "WIFFLOG",
     "alerted_at": 1784754820,
@@ -3828,17 +3102,6 @@
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
-   },
-   {
-    "mint": "HVE4T8Rhy4FdFSQLWfK9ee1cvjnL9v3PicqMRUe6kDKN",
-    "symbol": "HJAK",
-    "alerted_at": 1784754708,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.229,
-    "exit_saved_pct": 77.1,
-    "collapse_followed": true
    },
    {
     "mint": "CpsgG4pztZRz8kFmXy9yKMfrZyGjQJ64EEiJMAxqpump",
@@ -3860,14 +3123,6 @@
     "collapse_followed": true
    },
    {
-    "mint": "4nAnQJLubcUKYSXxCR8H274ujfHxuoaq9yp4kF3Hpump",
-    "symbol": "JACKXMAS",
-    "alerted_at": 1784753798,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "FHBTirWK7P3nTUeuaVaPDTriS6Q6MkG2cQiw37S2pump",
     "symbol": "Trump BTC",
     "alerted_at": 1784753648,
@@ -3879,22 +3134,6 @@
     "mint": "AoajDTTPrNLi654aXRfwwbECUwBGUUxZHZiY4Gbzpump",
     "symbol": "PIPI",
     "alerted_at": 1784753516,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "GxTjdYotUUj1i5h29MR4FSnM8jkxPiDxuz9uAwE1pump",
-    "symbol": "MOON",
-    "alerted_at": 1784752790,
-    "minute_offset": 3,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "AZiUTRNMQh3sdLeikaaMGV6FcZjCzVVfcMQanqMzpump",
-    "symbol": "ATM",
-    "alerted_at": 1784752633,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -3914,14 +3153,6 @@
     "mint": "BJ1fucE9VebTdFvisCPavcijpVdkZFWx9aGgMPM2pump",
     "symbol": "TROMP",
     "alerted_at": 1784752272,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "BbX9A2nH4t9LLDbCYJ2rPN8bwddThZxPPx79xj81pump",
-    "symbol": "CAFE",
-    "alerted_at": 1784751991,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -3978,14 +3209,6 @@
     "collapse_followed": true
    },
    {
-    "mint": "Fk9dNxtcwVVAb8TiB13H2JjU9CfoaCRvC2kiXKbsqXKc",
-    "symbol": "GAYBIN",
-    "alerted_at": 1784750811,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "yHipdPvitjMmWxkFzUSd3NoAA5pAsJLYZ1KvvkeKEiW",
     "symbol": "HAPPY",
     "alerted_at": 1784750729,
@@ -3997,14 +3220,6 @@
     "mint": "2tAgfWjT9aS43tFVKvxMtQmkFn5wciuzcaCEGyg6pump",
     "symbol": "PINT",
     "alerted_at": 1784750454,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "DUzvw3WEwkmR8J8eg3wqcSnYqvhA6A3U5nNGSb5mwLEz",
-    "symbol": "ZINU",
-    "alerted_at": 1784750262,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -4037,14 +3252,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "FkTtX2QP3kjkHi4Pa5eqsaux7ZJGjXD8BDLpgWwGZYtv",
-    "symbol": "PXCAT",
-    "alerted_at": 1784749769,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "G1n84WwnJiF2T5NZrJQtiiF6SzNRwit1squDEDb1V3N8",
     "symbol": "BFX",
     "alerted_at": 1784749398,
@@ -4056,14 +3263,6 @@
     "mint": "8jQbJ9uYS2YUdDtpYfAQPZ8Xx7aEp4hoEL4MqXZ1pump",
     "symbol": "RFK",
     "alerted_at": 1784749397,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "HoPALgyE64fCK1weWNX5y9bzsLRa6QeU2n45uNNkpump",
-    "symbol": "UYD",
-    "alerted_at": 1784749313,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -4083,14 +3282,6 @@
     "mint": "DTmpDf2cErpj9nxoyKAEaq531AhELyrRZs5kcfRYpump",
     "symbol": "JFE",
     "alerted_at": 1784748497,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "GXwCK47GJnHi6Rdi5UjBTY8GZtdX3kduqF3gQ4HVF5Aq",
-    "symbol": "hobhat",
-    "alerted_at": 1784748385,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -4118,14 +3309,6 @@
     "mint": "CCzM25A133RmjyZteNBuSR9abWLrzt6HFFjSDF2xpump",
     "symbol": "NJ",
     "alerted_at": 1784747749,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "3vjUH1ysrxesuKKk75yv71DLgyMyASJKEjsQCJYppump",
-    "symbol": "MARTEENN",
-    "alerted_at": 1784747487,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -4212,17 +3395,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "JCRBDCF5x5fkWqJz2VXZMwYX6oZHtzzFTAGSW5jqXJUc",
-    "symbol": "et",
-    "alerted_at": 1784746875,
-    "minute_offset": 3,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.151,
-    "exit_saved_pct": 84.9,
-    "collapse_followed": true
-   },
-   {
     "mint": "CCgp7YjLtdrtTzjWqxTq4dgzPdc26tKnVWoP4azUpump",
     "symbol": "GOONLORD",
     "alerted_at": 1784746566,
@@ -4263,17 +3435,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "7dEcoDZkzHrPUw7EPvHjiyyQ2X5Udy4AEPzzZiRspump",
-    "symbol": "ANTRO",
-    "alerted_at": 1784745998,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.07,
-    "exit_saved_pct": 93.0,
-    "collapse_followed": true
-   },
-   {
     "mint": "43HERTyTaKYVrv4iFWg84y7GhfJFLAk8xPpzC776pump",
     "symbol": "Godot",
     "alerted_at": 1784744668,
@@ -4285,14 +3446,6 @@
     "mint": "DCnexfyaukgzz15eXgLpFMdqavmBJqSBR2HUE2Kbpump",
     "symbol": "BASED",
     "alerted_at": 1784744438,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "GdoFkFJJV3ByVC8twRRRXDtPXBBE19tzeHUKShFspump",
-    "symbol": "LECAP",
-    "alerted_at": 1784744334,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -4654,14 +3807,6 @@
     "collapse_followed": true
    },
    {
-    "mint": "BmdXs3WvW88MctjKibL86FTUdTyr9GBn8XNUuok7pump",
-    "symbol": "ALTO",
-    "alerted_at": 1784741376,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "ungradable"
-   },
-   {
     "mint": "5ZcMuQQPyzadG5qYkM7xi8Ln1WtqoMu1Xs6nxzRnpump",
     "symbol": "Metacade",
     "alerted_at": 1784741370,
@@ -4673,14 +3818,6 @@
     "mint": "BK7MndxNuCfMfBBtdSAMxMS6ZEGDRpWeQy1QREc4pump",
     "symbol": "EAT",
     "alerted_at": 1784741327,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
-    "mint": "333EXVujYNd8sxbZmXAd1PQTe612T9Y7fHEGrZQ7pump",
-    "symbol": "POD",
-    "alerted_at": 1784741239,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
@@ -4714,17 +3851,6 @@
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
-   },
-   {
-    "mint": "BnLA1rTLxQxHwYsgwPstLW28amCPm3pNjMHn3KPE1W4b",
-    "symbol": "radcat",
-    "alerted_at": 1784740867,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.102,
-    "exit_saved_pct": 89.8,
-    "collapse_followed": true
    },
    {
     "mint": "8KF34ojmSQS7Ey6RoRuR6UEWJi5cAK7deMq6uonxpump",
@@ -4806,17 +3932,6 @@
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
-   },
-   {
-    "mint": "6nebh2SCo6incnMu1yw224rLx6HvmpqvL6ELNHXRpump",
-    "symbol": "BEAR",
-    "alerted_at": 1784739959,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.105,
-    "exit_saved_pct": 89.5,
-    "collapse_followed": true
    },
    {
     "mint": "7qmNiCHTGJSUPnvogeYVFWoNzn9Ydjyrc6Y471bVpump",
@@ -5042,16 +4157,16 @@
     "collapse_followed": true
    },
    {
-    "mint": "RvNPQ4rgtfaK2q5FEoTnAV65copzYpTVTAfAUFdDPnm",
-    "symbol": "GOOSE",
+    "mint": "9sHDWcaakMJwhSVRTSDZw6Z9svCZ2FBu61EBvPtnymVg",
+    "symbol": "MichiRed",
     "alerted_at": 1784737830,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
    },
    {
-    "mint": "9sHDWcaakMJwhSVRTSDZw6Z9svCZ2FBu61EBvPtnymVg",
-    "symbol": "MichiRed",
+    "mint": "RvNPQ4rgtfaK2q5FEoTnAV65copzYpTVTAfAUFdDPnm",
+    "symbol": "GOOSE",
     "alerted_at": 1784737830,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
@@ -5160,14 +4275,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "9ohjsYGQaNejifZsTxMLuGv9pNcqhSQDDawGNeccpump",
-    "symbol": "SSEC",
-    "alerted_at": 1784735932,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "5671ysSG8RL8dU5pMy9KVG95GrGGFyfaLbvaVWF6pump",
     "symbol": "209beats",
     "alerted_at": 1784735833,
@@ -5268,14 +4375,6 @@
     "price_1h_after_vs_alert": 0.143,
     "exit_saved_pct": 85.7,
     "collapse_followed": true
-   },
-   {
-    "mint": "9FFRhyKekvabRjCQYF2M5SVD4TYDdg9nW75PVKBApump",
-    "symbol": "MAMDANI",
-    "alerted_at": 1784733307,
-    "minute_offset": 10,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "ungradable"
    },
    {
     "mint": "5wEr7YNLD7BXs2hZmEbxqJsQRGFNeRmahWEPCiHHpump",
@@ -5423,14 +4522,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "Cnm8PaGvGFPT1dDqvRLYRZLwqdTN8dUTtQZT1BTKpump",
-    "symbol": "SWOLEDOGE",
-    "alerted_at": 1784725788,
-    "minute_offset": 15,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "ungradable"
-   },
-   {
     "mint": "5jvJtp5Vzi1x2NiGE2RpQFp2p4oQyNFUXFHDv7UVpump",
     "symbol": "CASHDOG",
     "alerted_at": 1784720509,
@@ -5485,33 +4576,6 @@
     "outcome": "ungradable"
    },
    {
-    "mint": "wXuSJdK2Jdyj3gfv1F83LbCop1ssT8yRANSNrrxpump",
-    "symbol": "Cola",
-    "alerted_at": 1784531122,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.618,
-    "exit_saved_pct": 38.2,
-    "collapse_followed": true
-   },
-   {
-    "mint": "3zbaboajDtmsu6EKBiT5d3BmbTMLyFXbgwkKSoZMpump",
-    "symbol": "Argos",
-    "alerted_at": 1784490217,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "ungradable"
-   },
-   {
-    "mint": "32vUHPxVShN552WwJ36vWnxCoy34eTDHRiQwL6ZA3ntP",
-    "symbol": "tilly",
-    "alerted_at": 1784447802,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "ungradable"
-   },
-   {
     "mint": "7KKQ9mwspyB7PtbFef3qdBbJ7wWV1iEdj5iDvmnepump",
     "symbol": "ANSEMCOIN",
     "alerted_at": 1784203279,
@@ -5558,22 +4622,6 @@
     "outcome": "ungradable"
    },
    {
-    "mint": "HnFe9TE3XVieo8DVbWCjNSZwn2Bm1M79JeAr5tUCpump",
-    "symbol": "ENGLAND",
-    "alerted_at": 1784141486,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "ungradable"
-   },
-   {
-    "mint": "HoCfpBVkePT1fPH49Z6yKyZbfxw2gggeqan5yzqppump",
-    "symbol": "tst",
-    "alerted_at": 1784136721,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "9QRcxX4YG1RvAcqLTqU2rSpuhGUPWzBN2V7LWvfipump",
     "symbol": "CYCLE",
     "alerted_at": 1784135372,
@@ -5583,17 +4631,6 @@
     "price_1h_after_vs_alert": 0.999,
     "exit_saved_pct": 0.1,
     "collapse_followed": false
-   },
-   {
-    "mint": "CsYiMGHcWni8vBYCefc7TznjCjQH8VSWgcZK1VxRpump",
-    "symbol": "Zipsaro",
-    "alerted_at": 1784124450,
-    "minute_offset": 8,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.076,
-    "exit_saved_pct": 92.4,
-    "collapse_followed": true
    },
    {
     "mint": "ZBJN7EdRky5PhQATAjhazeR9v3jHne7a4g8ksyc5Fx4",
@@ -5608,25 +4645,6 @@
     "symbol": "Bird",
     "alerted_at": 1784105181,
     "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "ungradable"
-   },
-   {
-    "mint": "BGfwT1DqdZetx3AaWFggdgpTXvTatvUxAua8wFdvJ72d",
-    "symbol": "$shart",
-    "alerted_at": 1784076334,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "wrong",
-    "price_1h_after_vs_alert": 1.479,
-    "exit_saved_pct": -47.9,
-    "collapse_followed": true
-   },
-   {
-    "mint": "4p37V4YA54Jou7k3TWnwxeDXqtB9BQRik6NL3noJpump",
-    "symbol": "MIM",
-    "alerted_at": 1784050978,
-    "minute_offset": 10,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "ungradable"
    },
@@ -5648,14 +4666,6 @@
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "pending"
-   },
-   {
-    "mint": "AFsWCqujPkhgrfhKXoeKcdeZGLg3ZfAwzUuYLw9dQEDh",
-    "symbol": "psyopcat",
-    "alerted_at": 1783963316,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "ungradable"
    },
    {
     "mint": "3dejiWxvpL6QH63rBE38fSrVbna8pVrKbmbPPDke7wuH",

@@ -1,6 +1,6 @@
 # Live track record
 
-*Auto-generated 2026-07-26 09:45 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
+*Auto-generated 2026-07-26 10:05 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
 
 ## Pre-warnings (at graduation: “team exits within 10 min”)
 
@@ -11,7 +11,7 @@ fired **0** · graded 0 · precision **—** · pending 0 · ungradable 0
 
 ## Exit alarms (live: “team is exiting — price not yet broken”)
 
-fired **661** · graded 126 · price lower 1h later 99% · median saved **88.5%** of position · pending 506
+fired **547** · graded 100 · price lower 1h later 100% · median saved **88.2%** of position · pending 430
 
 | time (UTC) | coin | alarm at | outcome | 1h later | saved |
 |---|---|---|---|---|---|
@@ -40,19 +40,14 @@ fired **661** · graded 126 · price lower 1h later 99% · median saved **88.5%*
 | 07-25 20:58 | $aitreides `9hnwGFCr…` | +2m | pending | — | — |
 | 07-25 20:57 | $BPEP `7cLW2ptC…` | +2m | pending | — | — |
 | 07-25 20:48 | $SUITCASE `AMgRJuTL…` | +2m | pending | — | — |
-| 07-25 20:46 | $OPEN `ApEHHJCv…` | +2m | pending | — | — |
 | 07-25 20:43 | $PFORGE `pVVtRpUm…` | +2m | pending | — | — |
 | 07-25 20:42 | $TULSI `5FGHo8ba…` | +2m | pending | — | — |
 | 07-25 20:33 | $DOGE-1 `YLQ54cDc…` | +2m | pending | — | — |
 | 07-25 20:29 | $Matrix `64TbxQuR…` | +2m | pending | — | — |
-| 07-25 20:29 | $SERP `58JZcRFz…` | +2m | pending | — | — |
-| 07-25 20:23 | $AMGE `DE4fviPR…` | +2m | pending | — | — |
 | 07-25 20:07 | $DIT `BnRBN6rr…` | +2m | correct | 0.57x | 42.6% |
 | 07-25 19:50 | $pushcat `BpTpvEPH…` | +2m | pending | — | — |
-| 07-25 19:47 | $Gendo `D75uZUgj…` | +3m | correct | 0.58x | 42.2% |
 | 07-25 19:44 | $icy `2wREZKT4…` | +2m | pending | — | — |
 | 07-25 19:40 | $ZPERM `54MgvWfo…` | +2m | pending | — | — |
-| 07-25 19:31 | $DANIS `9ze9JJ1C…` | +2m | pending | — | — |
 | 07-25 19:29 | $FE `GY9Fk3yi…` | +2m | pending | — | — |
 | 07-25 19:24 | $INDIANGIRL `2v4QBNHW…` | +2m | pending | — | — |
 | 07-25 19:22 | $SCOD `CaDtBqVn…` | +3m | pending | — | — |
@@ -65,6 +60,11 @@ fired **661** · graded 126 · price lower 1h later 99% · median saved **88.5%*
 | 07-25 18:58 | $whorny `BNmp8UeV…` | +3m | pending | — | — |
 | 07-25 18:56 | $VOTE `FwYw8ujR…` | +2m | pending | — | — |
 | 07-25 18:53 | $NZT48 `BkUcopHM…` | +2m | pending | — | — |
+| 07-25 18:49 | $OpenZK `4itF5ddL…` | +2m | pending | — | — |
+| 07-25 18:48 | $scubi `HnuUUsdv…` | +2m | pending | — | — |
+| 07-25 18:45 | $anyway `BcJQRYTy…` | +2m | pending | — | — |
+| 07-25 18:39 | $TRUMP2.0 `DMVcn7Np…` | +2m | pending | — | — |
+| 07-25 18:34 | $$Quantumai `37MLA1gx…` | +2m | pending | — | — |
 
 ## Backtest reference (NOT the live record)
 
