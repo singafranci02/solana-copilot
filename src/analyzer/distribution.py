@@ -172,6 +172,15 @@ async def _alert_team_dumping(conn, token_mint: str, offset_s: int, traj, grade=
     ).fetchone()
     if already:
         return
+    # verified-classic gate: never alert on a coin whose platform is not tx-confirmed
+    # pump.fun. Mayhem leaked into Telegram before via RPC-unverifiable coins — an
+    # unverified coin must prove classic (background re-resolver) before it can alert.
+    plat = conn.execute(
+        "SELECT platform FROM tokens WHERE mint = ?", (token_mint,)).fetchone()
+    if not plat or plat["platform"] != "pump.fun":
+        logger.info("exit alarm suppressed for %s — platform=%s (not verified classic)",
+                    token_mint[:8], plat["platform"] if plat else None)
+        return
     conn.execute(
         """INSERT OR IGNORE INTO team_dump_alerts
                (token_mint, alerted_at, minute_offset, peak_multiple, team_exit_s)

@@ -71,7 +71,10 @@ async def classify(mints):
                             {"maxSupportedTransactionVersion": 0, "encoding": "json"}])
                         platform = _platform_from_tx(tx)
                     if platform is None:
-                        platform = "pump.fun*"    # metadata says pump, tx unresolvable
+                        # tx unresolvable — 'unverified', NOT laundered into classic.
+                        # A Mayhem coin also declares createdOn=pump.fun, so metadata
+                        # alone can never confirm classic; only the tx can.
+                        platform = "unverified"
             except Exception:
                 platform = None                    # fully unresolved — retry next run
             if platform is not None:
@@ -93,7 +96,7 @@ def main() -> None:
     todo = [r[0] for r in conn.execute(
         """SELECT ge.token_mint FROM graduation_events ge
            JOIN tokens t ON t.mint = ge.token_mint
-           WHERE t.platform IS NULL
+           WHERE t.platform IS NULL OR t.platform IN ('unverified','pump.fun*')
            ORDER BY ge.graduated_at DESC""")]
     conn.close()                        # no connection held during the fetch loop
     print(f"mints needing platform classification: {len(todo)}", flush=True)

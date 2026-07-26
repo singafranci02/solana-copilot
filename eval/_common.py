@@ -51,7 +51,9 @@ def load_samples(conn=None) -> list[Sample]:
                  -- NULL/'unverified' platform = a gate that never resolved (old
                  -- outage-era coins, or a future leak) — keep them out of the model,
                  -- not just the live path. Mayhem/foreign already carry other labels.
-                 AND t.platform IN ('pump.fun', 'pump.fun*')
+                 AND t.platform = 'pump.fun'   -- tx-verified classic only; 'unverified'
+                 -- and legacy 'pump.fun*' are NOT trusted (Mayhem also
+                 -- declares createdOn=pump.fun; only the tx confirms)
                  -- manufactured graduations (one entity bought the curve) have no
                  -- organic market — their tape is a puppet show, never a label
                  AND COALESCE(ge.is_manufactured, 0) = 0

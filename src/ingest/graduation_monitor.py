@@ -1425,6 +1425,10 @@ async def _prewarn_team_exit(conn, token_mint: str, pred: dict | None) -> None:
     """
     if not pred:
         return
+    plat = conn.execute(
+        "SELECT platform FROM tokens WHERE mint = ?", (token_mint,)).fetchone()
+    if not plat or plat["platform"] != "pump.fun":
+        return                          # verified-classic only (see exit-alarm gate)
     from src.strategy.model_verdict import alert_threshold
     p = pred.get("p_team_exit10")
     thr = alert_threshold("team_exit10")

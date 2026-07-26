@@ -90,7 +90,10 @@ def build() -> dict:
                WHERE token_mint=? AND price_usd>0 ORDER BY ts""", (mint,))]
 
     prewarns = []
-    for r in conn.execute("SELECT * FROM prewarn_alerts ORDER BY alerted_at DESC"):
+    for r in conn.execute("""SELECT pa.* FROM prewarn_alerts pa
+            JOIN tokens t ON t.mint = pa.token_mint
+            WHERE t.platform = 'pump.fun'
+            ORDER BY pa.alerted_at DESC"""):
         m = r["token_mint"]
         t = traj.get(m, {})
         g = {"outcome": "pending"}
@@ -105,7 +108,10 @@ def build() -> dict:
         })
 
     alarms = []
-    for r in conn.execute("SELECT * FROM team_dump_alerts ORDER BY alerted_at DESC"):
+    for r in conn.execute("""SELECT tda.* FROM team_dump_alerts tda
+            JOIN tokens t ON t.mint = tda.token_mint
+            WHERE t.platform = 'pump.fun'          -- verified-classic record only
+            ORDER BY tda.alerted_at DESC"""):
         m = r["token_mint"]
         t = traj.get(m, {})
         g = {"outcome": "pending"}

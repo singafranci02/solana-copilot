@@ -1,6 +1,6 @@
 # Live track record
 
-*Auto-generated 2026-07-23 03:51 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
+*Auto-generated 2026-07-26 09:45 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
 
 ## Pre-warnings (at graduation: “team exits within 10 min”)
 
@@ -11,60 +11,60 @@ fired **0** · graded 0 · precision **—** · pending 0 · ungradable 0
 
 ## Exit alarms (live: “team is exiting — price not yet broken”)
 
-fired **288** · graded 60 · price lower 1h later 98% · median saved **87.1%** of position · pending 208
+fired **661** · graded 126 · price lower 1h later 99% · median saved **88.5%** of position · pending 506
 
 | time (UTC) | coin | alarm at | outcome | 1h later | saved |
 |---|---|---|---|---|---|
-| 07-23 03:42 | $CEO `7yN1jV8q…` | +2m | pending | — | — |
-| 07-23 03:15 | $ASTEROID `FsnT2jBD…` | +2m | pending | — | — |
-| 07-23 02:48 | $$MRH `51vWTLMp…` | +2m | pending | — | — |
-| 07-23 02:44 | $HANU.p `J7x8QDfs…` | +2m | pending | — | — |
-| 07-23 02:14 | $BENNER `77xRTpej…` | +2m | pending | — | — |
-| 07-23 00:49 | $FLL `8UvDwzd7…` | +2m | pending | — | — |
-| 07-23 00:39 | $Walter `5phZkjAE…` | +2m | pending | — | — |
-| 07-23 00:16 | $SHITCOIN `A4KJumXv…` | +2m | pending | — | — |
-| 07-22 23:57 | $WAVE `65ChuoKX…` | +2m | pending | — | — |
-| 07-22 23:53 | $BDAG `7ee3Wukc…` | +2m | pending | — | — |
-| 07-22 23:48 | $MNSS `Eyj4bckr…` | +3m | pending | — | — |
-| 07-22 23:47 | $POCHITA `CP4jKTNu…` | +2m | pending | — | — |
-| 07-22 23:45 | $RealDege `8Way4WbY…` | +2m | pending | — | — |
-| 07-22 23:33 | $Minelady `Fxhvm8J3…` | +2m | pending | — | — |
-| 07-22 23:26 | $HOGISLAND `Bbrto63n…` | +2m | correct | 0.24x | 76.4% |
-| 07-22 23:21 | $WLIZ `G67jXwYx…` | +3m | pending | — | — |
-| 07-22 23:21 | $sir cat `Dei1TLRN…` | +2m | pending | — | — |
-| 07-22 23:18 | $SAGE `9fN7Ni4V…` | +2m | correct | 0.08x | 91.7% |
-| 07-22 23:16 | $LOID `DW7qo2Ya…` | +2m | correct | 0.06x | 93.6% |
-| 07-22 23:09 | $CHILLS `8cQLU7r4…` | +2m | pending | — | — |
-| 07-22 23:06 | $ULTEST `J2qzhWwz…` | +2m | pending | — | — |
-| 07-22 23:04 | $pyano `gvNdFfXu…` | +5m | pending | — | — |
-| 07-22 23:04 | $HEAD `FJR3eLum…` | +2m | correct | 0.10x | 90.4% |
-| 07-22 23:02 | $HBTRUMP `DY5z4iQm…` | +2m | correct | 0.24x | 76.3% |
-| 07-22 23:01 | $TikGrok `BCwJYrpA…` | +2m | pending | — | — |
-| 07-22 22:54 | $BZGUY `4Rp6AGkM…` | +2m | pending | — | — |
-| 07-22 22:53 | $GAPE `8gb47yBy…` | +2m | pending | — | — |
-| 07-22 22:53 | $NeosAI `7AdDpfHt…` | +2m | pending | — | — |
-| 07-22 22:52 | $Anime `75JTGJnC…` | +2m | pending | — | — |
-| 07-22 22:47 | $Bach `9LyaTCET…` | +2m | pending | — | — |
-| 07-22 22:46 | $Success `3m6bnss3…` | +2m | pending | — | — |
-| 07-22 22:44 | $NKMEME `Au1RXuym…` | +2m | pending | — | — |
-| 07-22 22:43 | $🐗 `8ojeyqow…` | +2m | pending | — | — |
-| 07-22 22:40 | $OFR `GuBchn5R…` | +2m | pending | — | — |
-| 07-22 22:40 | $MOVE `Dj7wyifQ…` | +2m | pending | — | — |
-| 07-22 22:39 | $DUCK `FxaJhU2h…` | +2m | pending | — | — |
-| 07-22 22:37 | $YE `J9QSwpeC…` | +2m | pending | — | — |
-| 07-22 22:32 | $Pud `3wDzL4G2…` | +2m | correct | 0.07x | 92.9% |
-| 07-22 22:23 | $ERUV `G8SFWb2z…` | +2m | pending | — | — |
-| 07-22 22:22 | $fairfarm `C56mVwts…` | +2m | pending | — | — |
-| 07-22 22:22 | $BULLS `C9fcqEA4…` | +3m | pending | — | — |
-| 07-22 22:14 | $Hygrade `EfUGS84L…` | +2m | pending | — | — |
-| 07-22 22:13 | $OTG `J2ffjJ8P…` | +2m | pending | — | — |
-| 07-22 22:11 | $FIGHTER `FWmTXDVz…` | +2m | pending | — | — |
-| 07-22 22:06 | $$Prick `AV935f8t…` | +2m | pending | — | — |
-| 07-22 22:06 | $ALLIN `mxnh8rW8…` | +2m | pending | — | — |
-| 07-22 22:06 | $HGU `DS5HzR4M…` | +2m | pending | — | — |
-| 07-22 21:58 | $Mando AI `9LdNDNSb…` | +2m | pending | — | — |
-| 07-22 21:58 | $IDUN `3Sk3F3Uq…` | +2m | pending | — | — |
-| 07-22 21:58 | $Moemate `ED7Ppgnz…` | +2m | pending | — | — |
+| 07-26 08:23 | $Knotjira `BiZcprpA…` | +2m | pending | — | — |
+| 07-26 00:51 | $jen `7SPbnL2T…` | +2m | correct | 0.44x | 56.2% |
+| 07-26 00:45 | $$WEPE `7Sm3QBwB…` | +2m | pending | — | — |
+| 07-25 23:57 | $Suilana `BWdjTQrp…` | +2m | pending | — | — |
+| 07-25 23:48 | $cheng `E8xFHyuy…` | +2m | pending | — | — |
+| 07-25 23:12 | $14TH `J6UWpPZr…` | +2m | pending | — | — |
+| 07-25 23:07 | $VIBES `68cQjmjD…` | +2m | pending | — | — |
+| 07-25 23:00 | $CCTF `Bg8oaBkM…` | +2m | pending | — | — |
+| 07-25 22:54 | $IRE `HtugGrFu…` | +2m | pending | — | — |
+| 07-25 22:48 | $DEGECOIN `HQ7i1UAW…` | +2m | pending | — | — |
+| 07-25 22:42 | $dillguy `Dx9ER6re…` | +2m | pending | — | — |
+| 07-25 22:36 | $RABBI `6saBQLxj…` | +2m | pending | — | — |
+| 07-25 22:30 | $Dogwifhat `Af3Ua5KA…` | +2m | pending | — | — |
+| 07-25 22:30 | $LOTTOfun `9DhW3f3G…` | +2m | pending | — | — |
+| 07-25 22:18 | $SLENDY `7ASuZm3V…` | +2m | pending | — | — |
+| 07-25 22:06 | $ELD `J4LsJqLD…` | +2m | pending | — | — |
+| 07-25 21:55 | $AetryxAI `6Ex4X687…` | +2m | pending | — | — |
+| 07-25 21:49 | $AetryxAI `3WpdoQbr…` | +2m | pending | — | — |
+| 07-25 21:44 | $COOKIECOIN `HnaG7hDF…` | +2m | pending | — | — |
+| 07-25 21:14 | $FREESBF `57UG6iDP…` | +2m | pending | — | — |
+| 07-25 21:05 | $NEROAI `GqbRZqRg…` | +2m | pending | — | — |
+| 07-25 21:03 | $USDT `C6Qbykvi…` | +2m | pending | — | — |
+| 07-25 20:58 | $aitreides `9hnwGFCr…` | +2m | pending | — | — |
+| 07-25 20:57 | $BPEP `7cLW2ptC…` | +2m | pending | — | — |
+| 07-25 20:48 | $SUITCASE `AMgRJuTL…` | +2m | pending | — | — |
+| 07-25 20:46 | $OPEN `ApEHHJCv…` | +2m | pending | — | — |
+| 07-25 20:43 | $PFORGE `pVVtRpUm…` | +2m | pending | — | — |
+| 07-25 20:42 | $TULSI `5FGHo8ba…` | +2m | pending | — | — |
+| 07-25 20:33 | $DOGE-1 `YLQ54cDc…` | +2m | pending | — | — |
+| 07-25 20:29 | $Matrix `64TbxQuR…` | +2m | pending | — | — |
+| 07-25 20:29 | $SERP `58JZcRFz…` | +2m | pending | — | — |
+| 07-25 20:23 | $AMGE `DE4fviPR…` | +2m | pending | — | — |
+| 07-25 20:07 | $DIT `BnRBN6rr…` | +2m | correct | 0.57x | 42.6% |
+| 07-25 19:50 | $pushcat `BpTpvEPH…` | +2m | pending | — | — |
+| 07-25 19:47 | $Gendo `D75uZUgj…` | +3m | correct | 0.58x | 42.2% |
+| 07-25 19:44 | $icy `2wREZKT4…` | +2m | pending | — | — |
+| 07-25 19:40 | $ZPERM `54MgvWfo…` | +2m | pending | — | — |
+| 07-25 19:31 | $DANIS `9ze9JJ1C…` | +2m | pending | — | — |
+| 07-25 19:29 | $FE `GY9Fk3yi…` | +2m | pending | — | — |
+| 07-25 19:24 | $INDIANGIRL `2v4QBNHW…` | +2m | pending | — | — |
+| 07-25 19:22 | $SCOD `CaDtBqVn…` | +3m | pending | — | — |
+| 07-25 19:16 | $$BTC `CjyiWPcE…` | +2m | pending | — | — |
+| 07-25 19:12 | $1000000000 `4nJX36pf…` | +2m | pending | — | — |
+| 07-25 19:11 | $PNDN `wYoQjiuQ…` | +2m | pending | — | — |
+| 07-25 19:05 | $WOAH `GjLq5cbC…` | +2m | pending | — | — |
+| 07-25 19:00 | $monkeymaxx `7eQWysgo…` | +2m | pending | — | — |
+| 07-25 18:59 | $TAMAGOTCHI `FqgCtJs9…` | +2m | correct | 0.30x | 70.0% |
+| 07-25 18:58 | $whorny `BNmp8UeV…` | +3m | pending | — | — |
+| 07-25 18:56 | $VOTE `FwYw8ujR…` | +2m | pending | — | — |
+| 07-25 18:53 | $NZT48 `BkUcopHM…` | +2m | pending | — | — |
 
 ## Backtest reference (NOT the live record)
 
