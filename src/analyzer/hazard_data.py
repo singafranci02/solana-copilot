@@ -1,35 +1,106 @@
-"""Person-period expansion for discrete-time hazard modeling of team exits.
+"""Person-period expansion for competing-risks discrete-time hazard models (v5).
 
-Turns each coin into one row per time interval it was observed at-risk in, which is
-how a duration-with-censoring problem becomes an ordinary supervised problem
-(Singer & Willett). Why this is the right shape for our data:
+Two coupled models over one pre-registered interval grid (spec: adversarially
+reviewed, see docs/V5_DESIGN.md):
 
-  - the labels ARE durations (time_to_team_exit_s, time_to_collapse_s) with heavy
-    right-censoring from short tapes — binary heads at fixed horizons discard both
-    the timing information and the censored coins;
-  - 231 dense-tape coins expand to ~1,500 interval rows with 168 observed exit
-    events, letting a small-n dataset support a calibrated per-interval model;
-  - the empirical hazard is wildly non-flat (38% of teams sell in the FIRST 30s,
-    then 3-8% per interval, rising again after 20min) — the interval grid below
-    matches that shape, fine early and coarse late.
+  MODEL A (team exit): risk set = coins whose gated team has not sold AND that
+  have not collapsed. Event = first gated-team sell. Collapse removes a coin from
+  A's risk set as a COMPETING event, never silent censoring.
 
-LEAK DISCIPLINE (this project was burned four times; read before touching):
-  - static features come from the frozen graduation snapshot only;
-  - time-varying covariates for the interval [a, b) are computed from tape trades
-    with ts_offset < a STRICTLY — nothing inside the interval being predicted;
-  - a coin contributes an interval row only if its tape OBSERVES the full interval
-    (span >= b) or the event happens inside the observed part; partially-observed
-    event-free intervals are dropped (standard conservative censoring);
-  - event = FIRST team sell in [a, b). After the event the coin exits the risk set.
+  MODEL B (collapse): risk set = coins not yet collapsed. Event = confirmed
+  sustained collapse (delayed stopping time, below). Carries team_exited and
+  time-since-exit as time-varying covariates; evaluated at team_exited=0 it
+  supplies the death-without-exit hazard h_D for the competing-risks CIF.
+
+THE GRID: sorted union of the analysis grid and the live checkpoint cadence
+(EARLY_CHECK_SECONDS), truncated at 3600s (administrative censoring). Every live
+checkpoint is an exact interval boundary, so landmark scoring never straddles an
+edge. The open 60min+ interval is deliberately absent: under the censoring rule an
+unbounded interval can only ever receive event rows, so its hazard degenerates.
+
+COLLAPSE EVENT (delayed stopping time — NOT trajectory.py's whole-tape mirror,
+which backdates collapse across genuine recoveries):
+  anchor    = median of the first k>=3 priced prints (a lone first print re-admits
+              the single-bad-print artifact this project was burned by);
+  candidate = first print < 0.5 * anchor;
+  confirmed = >=3 prints < 0.5 * anchor within W seconds of the candidate;
+  voided    = a sustained recovery (>=3 prints >= 0.5 * anchor) lands before
+              confirmation completes -> candidate dropped, search restarts after
+              the recovery. Decidable with <= W lookahead; event stamped at the
+              CANDIDATE time with confirmations local to it (auditable).
+
+LEAK DISCIPLINE (unchanged, enforced by tests): time-varying covariates for the
+interval [a,b) come from tape trades with ts_offset < a STRICTLY; event-free rows
+require the tape to observe the full interval; the 2026-07-22..24 ingest-truncated
+burst is quarantined from the label-of-record population.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
-# Interval grid (seconds post-graduation): fine where the hazard is (median exit
-# 2.4 min), coarse in the tail. 14 intervals to 60 min.
-DEFAULT_EDGES = (0, 30, 60, 90, 120, 180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600)
+# Pre-registered grid: union of the original analysis edges and the live
+# EARLY_CHECK_SECONDS cadence (120,210,300,390,480,600,720,900,1200,2400).
+GRID_EDGES = (0, 30, 60, 90, 120, 180, 210, 240, 300, 390, 420, 480, 600, 720,
+              900, 1200, 1800, 2400, 2700, 3600)
+T_ADMIN = 3600                      # administrative censoring horizon (s)
+
+COLLAPSE_FRAC = 0.5
+ANCHOR_K = 3                        # prints in the robust first-price anchor
+CONFIRM_N = 3                       # sub-threshold prints needed to confirm
+CONFIRM_W = 120                     # confirmation window (s) — sensitivity axis
+RECOVER_N = 3                       # prints >= threshold that void a candidate
+
+# ingest-truncated burst: quarantined from labels regardless of censoring model
+QUARANTINE_UTC = (1784764800, 1785024000)          # 2026-07-23 00:00 .. 07-26 00:00
+
+
+def robust_anchor(prices: list[tuple[int, float]], k: int = ANCHOR_K) -> float | None:
+    """Median of the first k priced prints; None if fewer than k exist."""
+    px = [p for _, p in prices[: k]]
+    if len(px) < k:
+        return None
+    return float(sorted(px)[len(px) // 2])
+
+
+def collapse_event(prices: list[tuple[int, float]], w: int = CONFIRM_W,
+                   anchor_k: int = ANCHOR_K) -> float | None:
+    """Delayed-stopping-time collapse offset (s), or None. Pure.
+
+    prices: (ts_offset, price) sorted, positive prices only."""
+    anchor = robust_anchor(prices, anchor_k)
+    if anchor is None or anchor <= 0:
+        return None
+    thr = COLLAPSE_FRAC * anchor
+    i = 0
+    n = len(prices)
+    while i < n:
+        if prices[i][1] >= thr:
+            i += 1
+            continue
+        cand_t = prices[i][0]
+        confirms = 0
+        recovers = 0
+        j = i
+        voided_at = None
+        while j < n and prices[j][0] <= cand_t + w:
+            if prices[j][1] < thr:
+                confirms += 1
+                recovers = 0
+                if confirms >= CONFIRM_N:
+                    return float(cand_t)
+            else:
+                recovers += 1
+                if recovers >= RECOVER_N:
+                    voided_at = j
+                    break
+            j += 1
+        if voided_at is not None:
+            i = voided_at + 1                     # restart after the recovery
+        else:
+            i = j if j > i else i + 1             # window exhausted unconfirmed
+    return None
 
 
 @dataclass
@@ -38,68 +109,105 @@ class PersonPeriod:
     interval_idx: int
     t_start: int
     t_end: int
-    event: int                      # first team sell landed in this interval
-    # time-varying covariates — from tape STRICTLY BEFORE t_start
-    tv_trades: float = 0.0          # cumulative trades so far
-    tv_wallets: float = 0.0         # cumulative distinct wallets so far
-    tv_price_vs_first: float = 1.0  # last price before t_start / first price
-    tv_drawdown: float = 0.0        # 1 - (last price / running max before t_start)
-    tv_net_flow_recent: float = 0.0 # buy-sell SOL in the PREVIOUS interval only
-    tv_log_t: float = 0.0           # log1p(t_start) — baseline hazard shape
+    event: int
+    # base time-varying covariates — from tape STRICTLY BEFORE t_start
+    tv_trades: float = 0.0
+    tv_wallets: float = 0.0
+    tv_price_vs_first: float = 1.0     # last robust price / robust anchor
+    tv_drawdown: float = 0.0
+    tv_net_flow_recent: float = 0.0
+    tv_log_t: float = 0.0
+    # model-B extras (0 for A-rows)
+    b_team_exited: float = 0.0
+    b_log_t_since_exit: float = 0.0
+    b_team_sellers: float = 0.0
+    b_log_prints: float = 0.0
+
+
+def _tv(pp: PersonPeriod, pre, prev, anchor: float | None) -> None:
+    pp.tv_trades = float(len(pre))
+    pp.tv_wallets = float(len({x[2] for x in pre if x[2]}))
+    pp.tv_log_t = math.log1p(pp.t_start)
+    priced = [p for _, _, _, _, p in pre if p and p > 0]
+    if anchor and priced:
+        last = priced[-1]
+        pp.tv_price_vs_first = min(last / anchor, 50.0)
+        run_max = max(priced)
+        pp.tv_drawdown = max(0.0, 1.0 - last / run_max) if run_max > 0 else 0.0
+    if prev:
+        buys = sum(s or 0.0 for _, side, _, s, _ in prev if side == "buy")
+        sells = sum(s or 0.0 for _, side, _, s, _ in prev if side == "sell")
+        pp.tv_net_flow_recent = buys - sells
+    pp.b_log_prints = math.log1p(len(priced))
 
 
 def expand_coin(
     token_mint: str,
-    tape: list[tuple[int, str, str, float, float]],   # (ts_offset, side, signer, sol, price) sorted
+    tape: list[tuple[int, str, str, float, float]],   # (ts, side, signer, sol, price)
     team: set[str],
     tape_span_s: float,
     exit_offset_s: float | None,
-    edges: tuple[int, ...] = DEFAULT_EDGES,
-) -> list[PersonPeriod]:
-    """One coin -> its at-risk interval rows. Pure; leak-free by construction."""
-    rows: list[PersonPeriod] = []
-    first_price = next((p for _, _, _, _, p in tape if p and p > 0), None)
+    edges: tuple[int, ...] = GRID_EDGES,
+    confirm_w: int = CONFIRM_W,
+) -> tuple[list[PersonPeriod], list[PersonPeriod], float | None]:
+    """One coin -> (A_rows, B_rows, collapse_offset). Pure; leak-free.
+
+    A-rows: at risk of FIRST TEAM SELL; competing collapse removes from risk set.
+    B-rows: at risk of COLLAPSE; team_exited/time-since-exit as TV covariates."""
+    prices = [(t, p) for t, _, _, _, p in tape if p and p > 0]
+    anchor = robust_anchor(prices)
+    coll = collapse_event(prices, confirm_w) if anchor else None
+    span = min(float(tape_span_s), float(T_ADMIN))
+
+    a_rows: list[PersonPeriod] = []
+    b_rows: list[PersonPeriod] = []
+    team_sells = sorted(t for t, side, sg, _, _ in tape if side == "sell" and sg in team)
 
     for i, (a, b) in enumerate(zip(edges, edges[1:])):
-        if exit_offset_s is not None and exit_offset_s < a:
-            break                                    # event already happened — off risk set
-        event_here = exit_offset_s is not None and a <= exit_offset_s < b
-        if not event_here and tape_span_s < b:
-            break                                    # interval not fully observed — censor
+        pre = [x for x in tape if x[0] < a]
+        prev = [x for x in pre if x[0] >= edges[i - 1]] if i > 0 else []
 
-        pre = [x for x in tape if x[0] < a]          # STRICTLY before interval start
-        prev = [x for x in pre if x[0] >= (edges[i - 1] if i > 0 else 0)] if i > 0 else []
+        # ── model A row: team not exited, not collapsed, interval observed
+        a_alive = ((exit_offset_s is None or exit_offset_s >= a)
+                   and (coll is None or coll >= a))
+        a_event = (exit_offset_s is not None and a <= exit_offset_s < b
+                   and (coll is None or exit_offset_s <= coll))
+        a_competing = coll is not None and a <= coll < b and not a_event
+        if a_alive and (a_event or a_competing or span >= b):
+            pp = PersonPeriod(token_mint, i, a, b, int(a_event))
+            _tv(pp, pre, prev, anchor)
+            if not a_competing or a_event:
+                a_rows.append(pp)
+            if a_event or a_competing:
+                pass                                 # falls off A's risk set after
+        if a_event or a_competing:
+            a_alive = False
 
-        pp = PersonPeriod(token_mint=token_mint, interval_idx=i,
-                          t_start=a, t_end=b, event=int(event_here))
-        pp.tv_trades = float(len(pre))
-        pp.tv_wallets = float(len({x[2] for x in pre if x[2]}))
-        import math
-        pp.tv_log_t = math.log1p(a)
-        if first_price and pre:
-            priced = [p for _, _, _, _, p in pre if p and p > 0]
-            if priced:
-                last = priced[-1]
-                pp.tv_price_vs_first = min(last / first_price, 50.0)
-                run_max = max(priced)
-                pp.tv_drawdown = max(0.0, 1.0 - last / run_max) if run_max > 0 else 0.0
-        if prev:
-            buys = sum(s or 0.0 for _, side, _, s, _ in prev if side == "buy")
-            sells = sum(s or 0.0 for _, side, _, s, _ in prev if side == "sell")
-            pp.tv_net_flow_recent = buys - sells
-        rows.append(pp)
-        if event_here:
+        # ── model B row: not collapsed, interval observed
+        b_alive = coll is None or coll >= a
+        b_event = coll is not None and a <= coll < b
+        if b_alive and (b_event or span >= b):
+            pb = PersonPeriod(token_mint, i, a, b, int(b_event))
+            _tv(pb, pre, prev, anchor)
+            exited = exit_offset_s is not None and exit_offset_s < a
+            pb.b_team_exited = float(exited)
+            pb.b_log_t_since_exit = math.log1p(a - exit_offset_s) if exited else 0.0
+            pb.b_team_sellers = float(len({sg for t, side, sg, _, _ in tape
+                                           if side == "sell" and sg in team and t < a}))
+            b_rows.append(pb)
+        if (exit_offset_s is not None and exit_offset_s < b) and (coll is None or coll >= b):
+            pass
+        if b_event:
+            break                                    # both risk sets end at collapse
+        if not a_alive and (coll is None or coll >= b) and span < b:
             break
-    return rows
+    return a_rows, b_rows, coll
 
 
-def load_person_periods(conn, edges: tuple[int, ...] = DEFAULT_EDGES,
-                        min_price_points: int = 30):
-    """Expand every verified-clean dense-tape coin. Returns (rows, static_features).
-
-    static_features: {token_mint: frozen-snapshot feature dict} for joining the
-    graduation-time covariates. Population filters mirror eval/_common.load_samples.
-    """
+def load_person_periods(conn, edges: tuple[int, ...] = GRID_EDGES,
+                        min_price_points: int = 30, confirm_w: int = CONFIRM_W,
+                        quarantine: bool = True):
+    """Expand every verified-clean dense-tape coin -> (A_rows, B_rows, statics, order)."""
     import json
     coins = [dict(r) for r in conn.execute("""
         SELECT ct.token_mint m, ge.graduated_at g, ct.time_to_team_exit_s tex,
@@ -119,21 +227,25 @@ def load_person_periods(conn, edges: tuple[int, ...] = DEFAULT_EDGES,
         except Exception:
             teams[r["token_mint"]] = set()
 
-    all_rows, statics, grad_order = [], {}, []
+    A, B, statics, order = [], [], {}, []
     for c in coins:
+        if quarantine and QUARANTINE_UTC[0] <= c["g"] < QUARANTINE_UTC[1] \
+                and (c["span"] or 0) < T_ADMIN:
+            continue                     # ingest-truncated burst: not label-of-record
         tape = [(int(x["ts"]) - c["g"], x["side"], x["wallet_address"],
                  float(x["sol_amount"] or 0.0), float(x["price_usd"] or 0.0))
                 for x in conn.execute(
                     """SELECT ts, side, wallet_address, sol_amount, price_usd
                        FROM post_grad_swaps WHERE token_mint = ? ORDER BY ts""", (c["m"],))
                 if int(x["ts"]) >= c["g"]]
-        rows = expand_coin(c["m"], tape, teams.get(c["m"], set()),
-                           float(c["span"] or 0.0), c["tex"], edges)
-        if rows:
-            all_rows.extend(rows)
+        a_rows, b_rows, _ = expand_coin(c["m"], tape, teams.get(c["m"], set()),
+                                        float(c["span"] or 0.0), c["tex"], edges, confirm_w)
+        if a_rows or b_rows:
+            A.extend(a_rows)
+            B.extend(b_rows)
             try:
                 statics[c["m"]] = json.loads(c["fj"] or "{}")
             except Exception:
                 statics[c["m"]] = {}
-            grad_order.append((c["m"], c["g"]))
-    return all_rows, statics, grad_order
+            order.append((c["m"], c["g"]))
+    return A, B, statics, order
