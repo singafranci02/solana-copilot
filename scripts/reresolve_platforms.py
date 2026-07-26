@@ -46,7 +46,7 @@ async def _resolve(mints):
                     out[m] = (co or "unknown")[:40]            # self-declared foreign
                     continue
                 sig = (tok.get("creation") or {}).get("created_tx")
-                p = await resolve_platform(rpc_session, sig)   # multi-endpoint, robust
+                p = await resolve_platform(rpc_session, sig, mint=m)  # chain fallback if no sig
                 if p is not None:                              # only persist a POSITIVE result
                     out[m] = p
             except Exception:

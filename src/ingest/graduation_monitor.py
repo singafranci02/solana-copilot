@@ -94,12 +94,52 @@ async def _get_transaction_multi(session, sig: str) -> dict | None:
     return None
 
 
-async def resolve_platform(session, created_tx: str | None) -> str | None:
+async def _oldest_signature_multi(session, mint: str) -> str | None:
+    """The mint's EARLIEST signature (its creation tx) via getSignaturesForAddress,
+    rotating endpoints. Solana Tracker omits creation.created_tx for some fresh coins
+    (observed live: 4 coins stuck 'unverified' with createdOn=pump.fun but no tx) —
+    this recovers the signature straight from the chain so verification never dead-ends.
+    Pages backward with `before` until the tail; a freshly-graduated coin has few
+    enough txs that this is 1-3 calls."""
+    import aiohttp
+    for url in _RPC_ENDPOINTS:
+        if not url:
+            continue
+        try:
+            before = None
+            oldest = None
+            for _page in range(6):                 # bound the walk (<=6000 sigs)
+                params = [mint, {"limit": 1000, **({"before": before} if before else {})}]
+                async with session.post(url, json={"jsonrpc": "2.0", "id": 1,
+                        "method": "getSignaturesForAddress", "params": params},
+                        timeout=aiohttp.ClientTimeout(total=8)) as r:
+                    d = await r.json()
+                sigs = d.get("result")
+                if sigs is None:
+                    break                          # endpoint failed — try next
+                if not sigs:
+                    return oldest                  # walked to the beginning
+                oldest = sigs[-1]["signature"]
+                if len(sigs) < 1000:
+                    return oldest                  # last page — this is creation
+                before = oldest
+            if oldest:
+                return oldest
+        except Exception:
+            continue
+    return None
+
+
+async def resolve_platform(session, created_tx: str | None,
+                           mint: str | None = None) -> str | None:
     """'pump.fun' | 'mayhem' | None(unresolved) from a creation tx, RPC-robust.
 
-    None means genuinely could-not-resolve (all endpoints failed) — the caller must
-    fail CLOSED (mark 'unverified', never assume classic). Shared by the live gate
-    and the background re-resolver so both use identical, robust logic."""
+    If created_tx is missing but `mint` is given, the creation signature is recovered
+    from the chain (ST sometimes omits it). None means genuinely could-not-resolve —
+    the caller must fail CLOSED (mark 'unverified', never assume classic). Shared by
+    the live gate and the background re-resolver so both use identical logic."""
+    if not created_tx and mint:
+        created_tx = await _oldest_signature_multi(session, mint)
     if not created_tx:
         return None
     tx = await _get_transaction_multi(session, created_tx)
@@ -428,7 +468,7 @@ async def _handle_graduation(
                 import aiohttp
                 async with aiohttp.ClientSession() as _rpc_session:
                     for _attempt in range(2):     # rotation already covers 4 endpoints
-                        platform = await resolve_platform(_rpc_session, created_tx)
+                        platform = await resolve_platform(_rpc_session, created_tx, mint=mint)
                         if platform is not None:
                             break
                         await asyncio.sleep(1.0)
