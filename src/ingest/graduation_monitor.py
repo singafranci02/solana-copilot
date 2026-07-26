@@ -59,6 +59,52 @@ _ALLOWED_VENUES = {"pump-amm", "pump"}
 # an alerted Mayhem coin against a known pump.fun coin — only this differs).
 MAYHEM_PROGRAM = "MAyhSmzXzV1pTf7LsNkrNwkWKTo4ougAJ1PPg47MD4e"
 
+# The platform check reads the creation tx via getTransaction. Why MULTIPLE endpoints:
+# no single free RPC is reliable — public nodes rate-limit under load AND prune
+# historical txs (only archival nodes keep them), and our Helius quota is exhausted.
+# But rotating across several endpoints, first-non-null-wins, resolves recent creation
+# txs 15/15 in testing (graduating coins are created recently, so the tx is still in
+# the ledger). This is the reliability fix for the repeated Mayhem leaks: ONE flaky
+# call was the single point of failure; the rotation makes verification robust with no
+# paid tier. Endpoints are tried in order, so the configured (fastest) one leads.
+_RPC_ENDPOINTS = [
+    settings.rpc_url,
+    "https://solana-rpc.publicnode.com",
+    "https://rpc.ankr.com/solana",
+    "https://api.mainnet-beta.solana.com",
+]
+
+
+async def _get_transaction_multi(session, sig: str) -> dict | None:
+    """getTransaction across rotating endpoints; first result wins. None if all fail."""
+    import aiohttp
+    payload = {"jsonrpc": "2.0", "id": 1, "method": "getTransaction",
+               "params": [sig, {"maxSupportedTransactionVersion": 0, "encoding": "json"}]}
+    for url in _RPC_ENDPOINTS:
+        if not url:
+            continue
+        try:
+            async with session.post(url, json=payload,
+                                    timeout=aiohttp.ClientTimeout(total=6)) as r:
+                d = await r.json()
+                if d.get("result") is not None:
+                    return d["result"]
+        except Exception:
+            continue
+    return None
+
+
+async def resolve_platform(session, created_tx: str | None) -> str | None:
+    """'pump.fun' | 'mayhem' | None(unresolved) from a creation tx, RPC-robust.
+
+    None means genuinely could-not-resolve (all endpoints failed) — the caller must
+    fail CLOSED (mark 'unverified', never assume classic). Shared by the live gate
+    and the background re-resolver so both use identical, robust logic."""
+    if not created_tx:
+        return None
+    tx = await _get_transaction_multi(session, created_tx)
+    return _platform_from_tx(tx)
+
 
 def _platform_from_tx(tx: dict | None) -> str | None:
     """'mayhem' | 'pump.fun' | None(unknown) from a getTransaction response. Pure."""
@@ -379,18 +425,13 @@ async def _handle_graduation(
             created_tx = (tok.get("creation") or {}).get("created_tx")
             platform = None
             if created_tx:
-                from src.ingest.rpc import RpcClient
-                for _attempt in range(3):
-                    try:
-                        async with RpcClient() as rpc:
-                            tx = await rpc._call("getTransaction", [created_tx,
-                                {"maxSupportedTransactionVersion": 0, "encoding": "json"}])
-                        platform = _platform_from_tx(tx)
+                import aiohttp
+                async with aiohttp.ClientSession() as _rpc_session:
+                    for _attempt in range(2):     # rotation already covers 4 endpoints
+                        platform = await resolve_platform(_rpc_session, created_tx)
                         if platform is not None:
                             break
-                    except Exception as exc:
-                        logger.debug("platform tx check failed for %s: %s", mint[:8], exc)
-                    await asyncio.sleep(1.0)
+                        await asyncio.sleep(1.0)
             if platform == "mayhem":
                 logger.info("skipping MAYHEM token %s (creation tx contains %s)",
                             mint[:8], MAYHEM_PROGRAM[:8])

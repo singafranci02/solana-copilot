@@ -21,7 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.common.db import get_connection
-from src.ingest.graduation_monitor import _is_pump_fun_token, _platform_from_tx
+from src.ingest.graduation_monitor import _is_pump_fun_token
 
 PURGE_TABLES = (
     "graduation_events", "coin_trajectory", "team_clusters", "team_members",
@@ -32,10 +32,11 @@ PURGE_TABLES = (
 
 
 async def _resolve(mints):
-    from src.ingest.rpc import RpcClient
+    import aiohttp
+    from src.ingest.graduation_monitor import resolve_platform
     from src.ingest.solana_tracker import SolanaTrackerClient
     out = {}
-    async with SolanaTrackerClient() as st, RpcClient() as rpc:
+    async with SolanaTrackerClient() as st, aiohttp.ClientSession() as rpc_session:
         for m in mints:
             try:
                 d = await st.get_token_info(m) or {}
@@ -45,14 +46,12 @@ async def _resolve(mints):
                     out[m] = (co or "unknown")[:40]            # self-declared foreign
                     continue
                 sig = (tok.get("creation") or {}).get("created_tx")
-                tx = await rpc._call("getTransaction", [sig,
-                    {"maxSupportedTransactionVersion": 0, "encoding": "json"}]) if sig else None
-                p = _platform_from_tx(tx)
+                p = await resolve_platform(rpc_session, sig)   # multi-endpoint, robust
                 if p is not None:                              # only persist a POSITIVE result
                     out[m] = p
             except Exception:
                 pass                                           # stay unverified, retry next run
-            await asyncio.sleep(0.3)                           # gentle on the RPC
+            await asyncio.sleep(0.3)
     return out
 
 
