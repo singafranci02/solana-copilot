@@ -97,3 +97,31 @@ def test_censoring_requires_full_interval_observation():
     A, B, _ = expand_coin("m", tape, set(), 100, None)
     assert max(r.t_end for r in A) <= 100
     assert max(r.t_end for r in B) <= 100
+
+
+# ── landmark scoring (live checkpoint path) ──────────────────────────────────────
+
+def test_landmark_row_leak_discipline_and_exit_state():
+    from src.analyzer.hazard_data import landmark_row
+    tape = [tape_row(1), tape_row(2), tape_row(3),
+            tape_row(50, "sell", "team", sol=2.0),
+            tape_row(125, price=9.0)]                  # future print, must be invisible
+    pp = landmark_row(tape, {"team"}, 120)
+    assert pp is not None and pp.t_start == 120
+    assert pp.tv_trades == 4.0                         # t=125 excluded
+    assert pp.tv_price_vs_first == 1.0                 # 9x spike invisible
+    assert pp.b_team_exited == 1.0 and pp.b_team_sellers == 1.0
+
+
+def test_landmark_row_rejects_non_grid_checkpoints():
+    from src.analyzer.hazard_data import landmark_row
+    assert landmark_row([tape_row(1)], set(), 100) is None      # not a grid edge
+    assert landmark_row([tape_row(1)], set(), 3600) is None     # terminal edge
+
+
+def test_hazard_verdict_fail_safe_without_artifact(monkeypatch):
+    import src.strategy.hazard_verdict as hv
+    monkeypatch.setattr(hv, "_ARTIFACT", hv._ARTIFACT.with_name("nope.pkl"))
+    monkeypatch.setattr(hv, "_cache", None)
+    monkeypatch.setattr(hv, "_load_failed", False)
+    assert hv.score_t0({"team_supply_pct": 10}) is None          # never raises

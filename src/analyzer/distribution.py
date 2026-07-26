@@ -106,6 +106,7 @@ async def _do_early_check(token_mint: str, graduation_ts: int, offset_s: int) ->
         conn.commit()
 
         att = _score_attention(conn, token_mint, swaps, graduation_ts, team, offset_s)
+        _score_hazard_landmark(conn, token_mint, swaps, graduation_ts, team, offset_s)
 
         logger.info(
             "early %.1fm — %s  peak=%.1fx  team_sold=%s  collapsed=%s%s",
@@ -122,6 +123,33 @@ async def _do_early_check(token_mint: str, graduation_ts: int, offset_s: int) ->
             await _alert_team_dumping(conn, token_mint, offset_s, traj, grade)
     finally:
         conn.close()
+
+
+def _score_hazard_landmark(conn, token_mint: str, swaps, graduation_ts: int,
+                           team: set[str], offset_s: int) -> None:
+    """v5 shadow: next-interval exit/collapse hazards at this checkpoint. The grid
+    contains every EARLY_CHECK_SECONDS value, so offset_s is an exact interval edge;
+    covariates come from the fetched tape STRICTLY before the edge. Never raises."""
+    try:
+        from src.analyzer.hazard_data import landmark_row
+        from src.strategy import hazard_verdict
+        tape = [(s_.timestamp - graduation_ts, s_.side, s_.signer,
+                 float(s_.sol_amount or 0.0), float(s_.price_usd or 0.0))
+                for s_ in swaps if s_.timestamp >= graduation_ts]
+        pp = landmark_row(tape, team, offset_s)
+        if pp is None:
+            return
+        row = conn.execute(
+            "SELECT features_json FROM graduation_feature_snapshot WHERE token_mint = ?",
+            (token_mint,)).fetchone()
+        statics = json.loads(row["features_json"] or "{}") if row else {}
+        scored = hazard_verdict.score_landmark(statics, pp)
+        if scored:
+            hazard_verdict.persist_landmark(conn, token_mint, offset_s,
+                                            scored[0], scored[1],
+                                            pp.b_team_exited > 0)
+    except Exception:
+        logger.debug("v5 landmark shadow failed for %s at %ds", token_mint[:8], offset_s)
 
 
 def _score_attention(conn, token_mint: str, swaps, graduation_ts: int,

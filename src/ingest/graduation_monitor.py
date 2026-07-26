@@ -842,6 +842,20 @@ async def analyse_graduation(
     except Exception:
         logger.debug("manufactured detection failed for %s", event.token_mint[:8])
     _model_pred = _record_model_second_opinion(event.token_mint, read, conn)
+    try:
+        from src.strategy import hazard_verdict
+        _row = conn.execute(
+            "SELECT features_json FROM graduation_feature_snapshot WHERE token_mint = ?",
+            (event.token_mint,)).fetchone()
+        if _row:
+            import json as _json
+            _cifs = hazard_verdict.score_t0(_json.loads(_row["features_json"] or "{}"))
+            if _cifs:
+                hazard_verdict.persist_t0(conn, event.token_mint, _cifs)
+                logger.info("v5 T0 shadow %s — p_exit(5m)=%.2f p_exit(10m)=%.2f",
+                            event.token_mint[:8], _cifs.get(300, 0), _cifs.get(600, 0))
+    except Exception:
+        logger.debug("v5 T0 shadow failed for %s", event.token_mint[:8])
 
     _print_graduation_alert(event, symbol, team_cluster, sm_buyers, funder_rep, read)
 

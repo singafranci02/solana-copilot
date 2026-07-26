@@ -140,7 +140,7 @@ The real labels come from the swap tape, in `src/analyzer/trajectory.py`:
 price prints** (one coin printed 2055× on one trade; its true peak was 1.11×). Without
 the sustain rule the 10× rate reads a fake 26% instead of the true ~9%.
 
-Live checks run at **5 / 10 / 20 / 40 min**, then 1h / 4h / 24h.
+Live checks run at **EARLY_CHECK_SECONDS** (120,210,300,390,480,600,720,900,1200,2400s\n— every value is a v5 hazard-grid edge), then 1h / 4h / 24h.
 
 Distribution signal thresholds (distribution.py):
 - DUMPED:       holders < 5

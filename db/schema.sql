@@ -757,3 +757,22 @@ CREATE TABLE IF NOT EXISTS skipped_graduations (
     skipped_at INTEGER NOT NULL,
     created_on TEXT
 );
+
+-- v5 hazard shadow predictions (src/strategy/hazard_verdict.py). One row per scored
+-- probability; `mode` distinguishes the graduation-time pre-warn (T0, composed CIF
+-- at a horizon) from live checkpoint re-scores (LANDMARK, next-interval hazard).
+-- Shadow only: nothing here drives alerts until the V5 promotion gates pass.
+CREATE TABLE IF NOT EXISTS hazard_predictions (
+    token_mint    TEXT NOT NULL,
+    scored_at     INTEGER NOT NULL,
+    mode          TEXT NOT NULL,            -- 'T0' | 'LANDMARK'
+    checkpoint_s  INTEGER NOT NULL,         -- 0 for T0; grid-edge offset for LANDMARK
+    horizon_s     INTEGER NOT NULL DEFAULT 0,  -- T0: CIF horizon; 0 for LANDMARK
+                                              -- (NULL in a PK is never equal to
+                                              -- itself in SQLite -> dup rows)
+    p_exit        REAL,                     -- T0: CIF_A(horizon); LANDMARK: next-interval h_A
+    p_collapse    REAL,                     -- LANDMARK only: next-interval h_B
+    team_exited   INTEGER NOT NULL DEFAULT 0,
+    model_version TEXT,
+    PRIMARY KEY (token_mint, mode, checkpoint_s, horizon_s)
+);

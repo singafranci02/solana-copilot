@@ -1,6 +1,6 @@
 # Live track record
 
-*Auto-generated 2026-07-26 10:05 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
+*Auto-generated 2026-07-26 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
 
 ## Pre-warnings (at graduation: “team exits within 10 min”)
 
@@ -11,10 +11,13 @@ fired **0** · graded 0 · precision **—** · pending 0 · ungradable 0
 
 ## Exit alarms (live: “team is exiting — price not yet broken”)
 
-fired **547** · graded 100 · price lower 1h later 100% · median saved **88.2%** of position · pending 430
+fired **550** · graded 100 · price lower 1h later 100% · median saved **88.2%** of position · pending 433
 
 | time (UTC) | coin | alarm at | outcome | 1h later | saved |
 |---|---|---|---|---|---|
+| 07-26 16:47 | $BTK `81a5uAwi…` | +2m | pending | — | — |
+| 07-26 16:19 | $Kimchi `Bv3yDoUL…` | +2m | pending | — | — |
+| 07-26 12:54 | $Kimchi `9cw8n593…` | +2m | pending | — | — |
 | 07-26 08:23 | $Knotjira `BiZcprpA…` | +2m | pending | — | — |
 | 07-26 00:51 | $jen `7SPbnL2T…` | +2m | correct | 0.44x | 56.2% |
 | 07-26 00:45 | $$WEPE `7Sm3QBwB…` | +2m | pending | — | — |
@@ -62,9 +65,6 @@ fired **547** · graded 100 · price lower 1h later 100% · median saved **88.2%
 | 07-25 18:53 | $NZT48 `BkUcopHM…` | +2m | pending | — | — |
 | 07-25 18:49 | $OpenZK `4itF5ddL…` | +2m | pending | — | — |
 | 07-25 18:48 | $scubi `HnuUUsdv…` | +2m | pending | — | — |
-| 07-25 18:45 | $anyway `BcJQRYTy…` | +2m | pending | — | — |
-| 07-25 18:39 | $TRUMP2.0 `DMVcn7Np…` | +2m | pending | — | — |
-| 07-25 18:34 | $$Quantumai `37MLA1gx…` | +2m | pending | — | — |
 
 ## Backtest reference (NOT the live record)
 

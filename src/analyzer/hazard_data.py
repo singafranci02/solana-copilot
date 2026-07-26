@@ -204,6 +204,38 @@ def expand_coin(
     return a_rows, b_rows, coll
 
 
+def landmark_row(
+    tape: list[tuple[int, str, str, float, float]],
+    team: set[str],
+    checkpoint_s: int,
+    edges: tuple[int, ...] = GRID_EDGES,
+) -> PersonPeriod | None:
+    """The single person-period row for the interval STARTING at a checkpoint.
+
+    Live scoring helper: covariates from tape STRICTLY before the checkpoint (which
+    is a grid edge by construction — the grid is the union of the analysis edges and
+    EARLY_CHECK_SECONDS). Returns None if the checkpoint is not a grid edge or is
+    the terminal edge. Exit state is derived from observed team sells before the
+    checkpoint, so the caller needs no external exit bookkeeping."""
+    if checkpoint_s not in edges or checkpoint_s == edges[-1]:
+        return None
+    i = edges.index(checkpoint_s)
+    a, b = edges[i], edges[i + 1]
+    pre = [x for x in tape if x[0] < a]
+    prev = [x for x in pre if x[0] >= edges[i - 1]] if i > 0 else []
+    prices = [(t, pz) for t, _, _, _, pz in tape if pz and pz > 0]
+    anchor = robust_anchor(prices)
+    pp = PersonPeriod("", i, a, b, 0)
+    _tv(pp, pre, prev, anchor)
+    team_sells = sorted(t for t, side, sg, _, _ in pre if side == "sell" and sg in team)
+    if team_sells:
+        pp.b_team_exited = 1.0
+        pp.b_log_t_since_exit = math.log1p(a - team_sells[0])
+        pp.b_team_sellers = float(len({sg for t, side, sg, _, _ in pre
+                                       if side == "sell" and sg in team}))
+    return pp
+
+
 def load_person_periods(conn, edges: tuple[int, ...] = GRID_EDGES,
                         min_price_points: int = 30, confirm_w: int = CONFIRM_W,
                         quarantine: bool = True):

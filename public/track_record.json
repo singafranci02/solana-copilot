@@ -1,5 +1,5 @@
 {
- "generated_at": 1785060347,
+ "generated_at": 1785093005,
  "live_since": 1783980000,
  "prewarn": {
   "summary": {
@@ -14,15 +14,39 @@
  },
  "exit_alarm": {
   "summary": {
-   "fired": 547,
+   "fired": 550,
    "graded": 100,
    "correct": 100,
    "precision": 1.0,
-   "pending": 430,
+   "pending": 433,
    "ungradable": 17
   },
   "median_saved_pct": 88.2,
   "alerts": [
+   {
+    "mint": "81a5uAwiKExSKDqAZDb7GreQFFcEU1o3hKDPyYmqpump",
+    "symbol": "BTK",
+    "alerted_at": 1785084456,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "Bv3yDoULwxn6Uz9FyhmvQgJvFrip9QAnvLcfoHHxpump",
+    "symbol": "Kimchi",
+    "alerted_at": 1785082793,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "9cw8n593XBGJ1eJuFJA9F89KmmVwdSNc6TDLFS1zpump",
+    "symbol": "Kimchi",
+    "alerted_at": 1785070464,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
    {
     "mint": "BiZcprpAUMJLvzHNu5zRzdpphKKeUNe8gYCm3yQ8pump",
     "symbol": "Knotjira",
