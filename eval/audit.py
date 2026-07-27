@@ -100,7 +100,11 @@ def stage_data(conn) -> list[Check]:
         """SELECT COUNT(*),
                   SUM(EXISTS(SELECT 1 FROM graduation_feature_snapshot g
                              WHERE g.token_mint = ge.token_mint))
-           FROM graduation_events ge WHERE pipeline_version >= 2
+           FROM graduation_events ge JOIN tokens t ON t.mint = ge.token_mint
+           WHERE pipeline_version >= 2
+             AND t.platform IN ('pump.fun','pump.fun*')  -- verified coins get snapshots;
+             -- unverified/unresolvable are pending, not analysed, so no snapshot is
+             -- correct and must not count as a pipeline failure
              AND ge.graduated_at > strftime('%s','now') - 86400""").fetchone()
     cov = (n_snap or 0) / max(n_v2, 1)
     # 24h scope: the purge concentrated old outage-era gaps into the surviving
@@ -223,6 +227,8 @@ def stage_data(conn) -> list[Check]:
         LEFT JOIN tokens t ON t.mint = ge.token_mint
         WHERE ge.graduated_at > strftime('%s','now') - 172800
           AND (t.platform IS NULL OR t.platform = 'unverified')""").fetchone()[0]
+    # 'unresolvable' (ancient, creation tx pruned everywhere) is a terminal state, not
+    # a backlog; only fresh unverified count toward the re-resolver's health
     out.append(Check("data", "no unverified BACKLOG (<=3 transient in 48h)",
                      unresolved <= 3, f"{unresolved} NULL/unverified"))
     bad_lp = conn.execute("""SELECT COUNT(*) FROM graduation_events ge

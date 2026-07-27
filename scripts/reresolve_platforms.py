@@ -38,19 +38,25 @@ async def _resolve(mints):
     out = {}
     async with SolanaTrackerClient() as st, aiohttp.ClientSession() as rpc_session:
         for m in mints:
-            try:
+            co, sig = "", None
+            try:                                               # ST is a BONUS, not a gate
                 d = await st.get_token_info(m) or {}
                 tok = (d.get("token") if isinstance(d.get("token"), dict) else d) or {}
                 co = tok.get("createdOn") or ""
-                if not _is_pump_fun_token(co or None, m):
-                    out[m] = (co or "unknown")[:40]            # self-declared foreign
-                    continue
                 sig = (tok.get("creation") or {}).get("created_tx")
-                p = await resolve_platform(rpc_session, sig, mint=m)  # chain fallback if no sig
-                if p is not None:                              # only persist a POSITIVE result
+            except Exception:
+                pass          # ST 404s on un-indexed fresh coins — the chain doesn't
+            try:
+                # metadata check only when ST gave us a createdOn; otherwise the mint
+                # suffix + on-chain program check decide (Mayhem needs the tx anyway)
+                if co and not _is_pump_fun_token(co, m):
+                    out[m] = co[:40]                           # self-declared foreign
+                    continue
+                p = await resolve_platform(rpc_session, sig, mint=m)  # ST-independent
+                if p is not None:                              # only persist POSITIVE
                     out[m] = p
             except Exception:
-                pass                                           # stay unverified, retry next run
+                pass                                           # stay unverified, retry
             await asyncio.sleep(0.3)
     return out
 
@@ -62,7 +68,8 @@ def main() -> None:
     mints = [r[0] for r in conn.execute(
         """SELECT ge.token_mint FROM graduation_events ge
            JOIN tokens t ON t.mint = ge.token_mint
-           WHERE t.platform IS NULL OR t.platform IN ('unverified', 'pump.fun*')
+           WHERE (t.platform IS NULL OR t.platform IN ('unverified', 'pump.fun*'))
+             AND ge.graduated_at > strftime('%s','now') - 259200
            ORDER BY ge.graduated_at DESC LIMIT ?""", (limit,))]
     conn.close()
     if not mints:

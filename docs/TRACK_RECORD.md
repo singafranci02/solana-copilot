@@ -1,6 +1,6 @@
 # Live track record
 
-*Auto-generated 2026-07-26 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
+*Auto-generated 2026-07-27 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
 
 ## Pre-warnings (at graduation: “team exits within 10 min”)
 
@@ -11,11 +11,17 @@ fired **0** · graded 0 · precision **—** · pending 0 · ungradable 0
 
 ## Exit alarms (live: “team is exiting — price not yet broken”)
 
-fired **550** · graded 100 · price lower 1h later 100% · median saved **88.2%** of position · pending 433
+fired **556** · graded 101 · price lower 1h later 100% · median saved **88.1%** of position · pending 434
 
 | time (UTC) | coin | alarm at | outcome | 1h later | saved |
 |---|---|---|---|---|---|
-| 07-26 16:47 | $BTK `81a5uAwi…` | +2m | pending | — | — |
+| 07-27 14:34 | $BALLSACK `Dm5DHcdd…` | +2m | pending | — | — |
+| 07-27 10:48 | $KOLIN `FFSUGdy2…` | +2m | ungradable | — | — |
+| 07-27 07:39 | $Dinger `b9B33dGK…` | +2m | ungradable | — | — |
+| 07-27 01:42 | $CATE `8reEoZZi…` | +2m | ungradable | — | — |
+| 07-27 01:38 | $CTO `8gJUTwn9…` | +12m | correct | 0.76x | 23.9% |
+| 07-26 19:42 | $Kabosu `E99DaioP…` | +2m | pending | — | — |
+| 07-26 16:47 | $BTK `81a5uAwi…` | +2m | ungradable | — | — |
 | 07-26 16:19 | $Kimchi `Bv3yDoUL…` | +2m | pending | — | — |
 | 07-26 12:54 | $Kimchi `9cw8n593…` | +2m | pending | — | — |
 | 07-26 08:23 | $Knotjira `BiZcprpA…` | +2m | pending | — | — |
@@ -59,12 +65,6 @@ fired **550** · graded 100 · price lower 1h later 100% · median saved **88.2%
 | 07-25 19:11 | $PNDN `wYoQjiuQ…` | +2m | pending | — | — |
 | 07-25 19:05 | $WOAH `GjLq5cbC…` | +2m | pending | — | — |
 | 07-25 19:00 | $monkeymaxx `7eQWysgo…` | +2m | pending | — | — |
-| 07-25 18:59 | $TAMAGOTCHI `FqgCtJs9…` | +2m | correct | 0.30x | 70.0% |
-| 07-25 18:58 | $whorny `BNmp8UeV…` | +3m | pending | — | — |
-| 07-25 18:56 | $VOTE `FwYw8ujR…` | +2m | pending | — | — |
-| 07-25 18:53 | $NZT48 `BkUcopHM…` | +2m | pending | — | — |
-| 07-25 18:49 | $OpenZK `4itF5ddL…` | +2m | pending | — | — |
-| 07-25 18:48 | $scubi `HnuUUsdv…` | +2m | pending | — | — |
 
 ## Backtest reference (NOT the live record)
 

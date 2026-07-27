@@ -1,5 +1,5 @@
 {
- "generated_at": 1785093005,
+ "generated_at": 1785179407,
  "live_since": 1783980000,
  "prewarn": {
   "summary": {
@@ -14,22 +14,73 @@
  },
  "exit_alarm": {
   "summary": {
-   "fired": 550,
-   "graded": 100,
-   "correct": 100,
+   "fired": 556,
+   "graded": 101,
+   "correct": 101,
    "precision": 1.0,
-   "pending": 433,
-   "ungradable": 17
+   "pending": 434,
+   "ungradable": 21
   },
-  "median_saved_pct": 88.2,
+  "median_saved_pct": 88.1,
   "alerts": [
+   {
+    "mint": "Dm5DHcddpCsoNwDBwkJkR8yFWdcxz41swUFr4Rc8pump",
+    "symbol": "BALLSACK",
+    "alerted_at": 1785162873,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "FFSUGdy2dYcRyQvqDwrtxYNwFgXemAcY6SCDgTaXpump",
+    "symbol": "KOLIN",
+    "alerted_at": 1785149294,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "ungradable"
+   },
+   {
+    "mint": "b9B33dGKpMF7Fd2dmqVVxLcNesjVMxz3JPSwZSJMSj3",
+    "symbol": "Dinger",
+    "alerted_at": 1785137964,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "ungradable"
+   },
+   {
+    "mint": "8reEoZZiSpcQL1ix2m6CZBdigeWHF7dqRepMVPoupump",
+    "symbol": "CATE",
+    "alerted_at": 1785116521,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "ungradable"
+   },
+   {
+    "mint": "8gJUTwn9XqbKVHmScBVs6Gx3Vcf3b9C9DQsvGVrmbm12",
+    "symbol": "CTO",
+    "alerted_at": 1785116311,
+    "minute_offset": 12,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "correct",
+    "price_1h_after_vs_alert": 0.761,
+    "exit_saved_pct": 23.9,
+    "collapse_followed": false
+   },
+   {
+    "mint": "E99DaioPTmpqkNAeux2uafakPiGsNn1ycGGEQAkE4CJF",
+    "symbol": "Kabosu",
+    "alerted_at": 1785094920,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
    {
     "mint": "81a5uAwiKExSKDqAZDb7GreQFFcEU1o3hKDPyYmqpump",
     "symbol": "BTK",
     "alerted_at": 1785084456,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
+    "outcome": "ungradable"
    },
    {
     "mint": "Bv3yDoULwxn6Uz9FyhmvQgJvFrip9QAnvLcfoHHxpump",
