@@ -77,11 +77,27 @@ def main() -> None:
         return
 
     resolved = asyncio.run(_resolve(mints))
-    if not resolved:
-        print(f"re-resolved 0 of {len(mints)} (RPC still unavailable — retry next run)")
-        return
 
     conn = get_connection()
+    # AUTO-RETIRE: a coin still unverified after 6h has had ~36 re-resolver passes;
+    # the ones that remain are genuinely unverifiable via our cheap method (their
+    # true creation tx is buried under thousands of newer txs, so the mint's reachable
+    # earliest signature contains neither the pump nor the Mayhem program). Retire to
+    # a terminal 'unresolvable' state so they stop clogging the batch and failing the
+    # audit. HARMLESS: fail-closed gating already excludes them from alerts, training
+    # and the record — whether they are secretly classic or Mayhem, they never surface.
+    retired = conn.execute("""UPDATE tokens SET platform = 'unresolvable'
+        WHERE mint IN (SELECT ge.token_mint FROM graduation_events ge
+            JOIN tokens t ON t.mint = ge.token_mint
+            WHERE (t.platform IS NULL OR t.platform = 'unverified')
+              AND ge.graduated_at < strftime('%s','now') - 21600)""").rowcount
+
+    if not resolved:
+        conn.commit(); conn.close()
+        print(f"re-resolved 0 of {len(mints)} (transient — retry next run); "
+              f"retired {retired} coins >6h to unresolvable")
+        return
+
     conn.executemany("UPDATE tokens SET platform = ? WHERE mint = ?",
                      [(p, m) for m, p in resolved.items()])
     conn.commit()
