@@ -17,7 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 MODELS = ROOT / "models"
-ARTIFACTS = ["verdict_model_v4.pkl", "early_model_v1.pkl"]
+ARTIFACTS = ["verdict_model_v4.pkl", "early_model_v1.pkl", "hazard_model_v5.pkl"]
 
 
 def run(args, timeout):
@@ -35,9 +35,11 @@ def main() -> int:
 
     r1 = run(["scripts/train_model.py"], 3600)
     r2 = run(["scripts/train_early_model.py"], 3600)
+    r3 = run(["scripts/train_hazard_model.py"], 3600)      # v5 competing-risks pair
     audit = run(["-m", "eval.audit"], 1800)
 
-    if r1.returncode == 0 and r2.returncode == 0 and audit.returncode == 0:
+    if r1.returncode == 0 and r2.returncode == 0 and r3.returncode == 0 \
+            and audit.returncode == 0:
         for b in backups.values():
             b.unlink(missing_ok=True)
         # graduation monitor caches the artifact per process — reload it
@@ -49,7 +51,8 @@ def main() -> int:
     for a, b in backups.items():          # restore — a bad retrain never ships
         shutil.copy2(b, MODELS / a)
         b.unlink(missing_ok=True)
-    tail = "\n".join((audit.stdout or r1.stderr or r2.stderr or "").splitlines()[-8:])
+    tail = "\n".join((audit.stdout or r1.stderr or r2.stderr or r3.stderr
+                       or "").splitlines()[-8:])
     from src.notifications.telegram import send_message
     asyncio.run(send_message(
         "🔴 <b>WEEKLY RETRAIN REJECTED</b>\n"

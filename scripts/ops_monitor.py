@@ -149,6 +149,15 @@ def run_checks(conn) -> list[tuple[str, bool, str]]:
         out.append(("machine_awake", True, "pmset unavailable — skipped"))
 
     try:
+        import os
+        art = Path(__file__).parent.parent / "models" / "hazard_model_v5.pkl"
+        age_d = (now - art.stat().st_mtime) / 86400 if art.exists() else 999
+        out.append(("artifact_fresh", age_d <= 8.5,
+                    f"hazard artifact {age_d:.1f}d old (weekly retrain due <=8d)"))
+    except Exception:
+        out.append(("artifact_fresh", True, "stat unavailable — skipped"))
+
+    try:
         loaded = subprocess.run(["launchctl", "list"], capture_output=True, text=True,
                                 timeout=20).stdout
         missing = [s for s in EXPECTED_SERVICES if s not in loaded]

@@ -1,5 +1,5 @@
 {
- "generated_at": 1785179407,
+ "generated_at": 1785265811,
  "live_since": 1783980000,
  "prewarn": {
   "summary": {
@@ -14,15 +14,129 @@
  },
  "exit_alarm": {
   "summary": {
-   "fired": 556,
-   "graded": 101,
-   "correct": 101,
+   "fired": 568,
+   "graded": 107,
+   "correct": 107,
    "precision": 1.0,
-   "pending": 434,
-   "ungradable": 21
+   "pending": 437,
+   "ungradable": 24
   },
-  "median_saved_pct": 88.1,
+  "median_saved_pct": 88.0,
   "alerts": [
+   {
+    "mint": "ELoNpmG9iBEbiWvzT1AF3KKLuYWxCf1o3ZX7AoFAWpYx",
+    "symbol": "ELON",
+    "alerted_at": 1785258259,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "BQaxKoDhGhsSJMLSiwBSPA8EkE8eykPb2q5FRWRBpump",
+    "symbol": "Collective",
+    "alerted_at": 1785249002,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "ungradable"
+   },
+   {
+    "mint": "Kx48CzzprcCJJDZCRZTLjWuaVwQaey2k5bLCGoFpump",
+    "symbol": "RunnerXBT",
+    "alerted_at": 1785246691,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "correct",
+    "price_1h_after_vs_alert": 0.033,
+    "exit_saved_pct": 96.7,
+    "collapse_followed": true
+   },
+   {
+    "mint": "2p91GCpv3oPe86SqdmY3EnEA8kNPXirhi31zQ8NQpump",
+    "symbol": "MOONDOGE",
+    "alerted_at": 1785227302,
+    "minute_offset": 10,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "correct",
+    "price_1h_after_vs_alert": 0.316,
+    "exit_saved_pct": 68.4,
+    "collapse_followed": true
+   },
+   {
+    "mint": "CGgx8Rnv9GSfkexu83Hs6fHEtb55XavNLZNkwxsVYAAT",
+    "symbol": "MOONDOGE",
+    "alerted_at": 1785225785,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "ungradable"
+   },
+   {
+    "mint": "APmiwHMn2oNd3pxEjHT4BwPExTcCvZfHKKyd4MfWpump",
+    "symbol": "MOONDOGE",
+    "alerted_at": 1785224076,
+    "minute_offset": 5,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "ungradable"
+   },
+   {
+    "mint": "65Z8SaBUGderuAPCZ8ko5Cq1LzYRFJk23hUGMk2Nf5iq",
+    "symbol": "Laika",
+    "alerted_at": 1785223013,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "correct",
+    "price_1h_after_vs_alert": 0.237,
+    "exit_saved_pct": 76.3,
+    "collapse_followed": true
+   },
+   {
+    "mint": "9dND7E1jN9q9TgneTXDUPqectpKcV4VohEJv2159Mbx4",
+    "symbol": "ONDO",
+    "alerted_at": 1785211126,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "9jzGAPYLEQYvXch2mjF9xxK2x3PBufveWdcUB3B9pump",
+    "symbol": "RIP Luigi",
+    "alerted_at": 1785208223,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "correct",
+    "price_1h_after_vs_alert": 0.392,
+    "exit_saved_pct": 60.8,
+    "collapse_followed": true
+   },
+   {
+    "mint": "75XFdvZioZum9v9ufQd3fd6oUqrJQmkvP1nKeTbupump",
+    "symbol": "GAME",
+    "alerted_at": 1785196039,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "correct",
+    "price_1h_after_vs_alert": 0.126,
+    "exit_saved_pct": 87.4,
+    "collapse_followed": true
+   },
+   {
+    "mint": "7oDMYSNNdSdK3QEjuzopwYtvyVaLxvVkBpH9ZEqCpump",
+    "symbol": "2027",
+    "alerted_at": 1785192660,
+    "minute_offset": 40,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "3F4x5unCVMEhxsvs98v8VfzTT1u9oYmCXTfdDKxru7ms",
+    "symbol": "AAPL",
+    "alerted_at": 1785179572,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "correct",
+    "price_1h_after_vs_alert": 0.662,
+    "exit_saved_pct": 33.8,
+    "collapse_followed": true
+   },
    {
     "mint": "Dm5DHcddpCsoNwDBwkJkR8yFWdcxz41swUFr4Rc8pump",
     "symbol": "BALLSACK",

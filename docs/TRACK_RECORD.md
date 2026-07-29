@@ -1,6 +1,6 @@
 # Live track record
 
-*Auto-generated 2026-07-27 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
+*Auto-generated 2026-07-28 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
 
 ## Pre-warnings (at graduation: “team exits within 10 min”)
 
@@ -11,10 +11,22 @@ fired **0** · graded 0 · precision **—** · pending 0 · ungradable 0
 
 ## Exit alarms (live: “team is exiting — price not yet broken”)
 
-fired **556** · graded 101 · price lower 1h later 100% · median saved **88.1%** of position · pending 434
+fired **568** · graded 107 · price lower 1h later 100% · median saved **88.0%** of position · pending 437
 
 | time (UTC) | coin | alarm at | outcome | 1h later | saved |
 |---|---|---|---|---|---|
+| 07-28 17:04 | $ELON `ELoNpmG9…` | +2m | pending | — | — |
+| 07-28 14:30 | $Collective `BQaxKoDh…` | +2m | ungradable | — | — |
+| 07-28 13:51 | $RunnerXBT `Kx48Czzp…` | +2m | correct | 0.03x | 96.7% |
+| 07-28 08:28 | $MOONDOGE `2p91GCpv…` | +10m | correct | 0.32x | 68.4% |
+| 07-28 08:03 | $MOONDOGE `CGgx8Rnv…` | +2m | ungradable | — | — |
+| 07-28 07:34 | $MOONDOGE `APmiwHMn…` | +5m | ungradable | — | — |
+| 07-28 07:16 | $Laika `65Z8SaBU…` | +2m | correct | 0.24x | 76.3% |
+| 07-28 03:58 | $ONDO `9dND7E1j…` | +2m | pending | — | — |
+| 07-28 03:10 | $RIP Luigi `9jzGAPYL…` | +2m | correct | 0.39x | 60.8% |
+| 07-27 23:47 | $GAME `75XFdvZi…` | +2m | correct | 0.13x | 87.4% |
+| 07-27 22:51 | $2027 `7oDMYSNN…` | +40m | pending | — | — |
+| 07-27 19:12 | $AAPL `3F4x5unC…` | +2m | correct | 0.66x | 33.8% |
 | 07-27 14:34 | $BALLSACK `Dm5DHcdd…` | +2m | pending | — | — |
 | 07-27 10:48 | $KOLIN `FFSUGdy2…` | +2m | ungradable | — | — |
 | 07-27 07:39 | $Dinger `b9B33dGK…` | +2m | ungradable | — | — |
@@ -53,18 +65,6 @@ fired **556** · graded 101 · price lower 1h later 100% · median saved **88.1%
 | 07-25 20:42 | $TULSI `5FGHo8ba…` | +2m | pending | — | — |
 | 07-25 20:33 | $DOGE-1 `YLQ54cDc…` | +2m | pending | — | — |
 | 07-25 20:29 | $Matrix `64TbxQuR…` | +2m | pending | — | — |
-| 07-25 20:07 | $DIT `BnRBN6rr…` | +2m | correct | 0.57x | 42.6% |
-| 07-25 19:50 | $pushcat `BpTpvEPH…` | +2m | pending | — | — |
-| 07-25 19:44 | $icy `2wREZKT4…` | +2m | pending | — | — |
-| 07-25 19:40 | $ZPERM `54MgvWfo…` | +2m | pending | — | — |
-| 07-25 19:29 | $FE `GY9Fk3yi…` | +2m | pending | — | — |
-| 07-25 19:24 | $INDIANGIRL `2v4QBNHW…` | +2m | pending | — | — |
-| 07-25 19:22 | $SCOD `CaDtBqVn…` | +3m | pending | — | — |
-| 07-25 19:16 | $$BTC `CjyiWPcE…` | +2m | pending | — | — |
-| 07-25 19:12 | $1000000000 `4nJX36pf…` | +2m | pending | — | — |
-| 07-25 19:11 | $PNDN `wYoQjiuQ…` | +2m | pending | — | — |
-| 07-25 19:05 | $WOAH `GjLq5cbC…` | +2m | pending | — | — |
-| 07-25 19:00 | $monkeymaxx `7eQWysgo…` | +2m | pending | — | — |
 
 ## Backtest reference (NOT the live record)
 
