@@ -52,7 +52,11 @@ ROC_BANDS = {
     "moon10x":     (None, 0.68),   # measured 0.583 == UNPREDICTABLE; "working" = leak
 }
 BASE_RATE_BANDS = {
-    "survive60":   (0.06, 0.30),   # 15.7%; the fake-survivor bug read 53%
+    "survive60":   (0.02, 0.30),   # CLASSIC-only ~4-6% (mixed was 15.7%); floor
+                                   # re-anchored 2026-08-02 as classic data matured +
+                                   # the market accelerated (median collapse 10.5->5.8
+                                   # min). Upper bound unchanged — still guards the
+                                   # thin-tape fake-survivor leak (which reads HIGH).
     "moon10x":     (0.03, 0.16),   # 9-10%; the bad-print bug read 26%
     "team_exit10": (0.40, 0.80),   # 62-66%
     "rug":         (0.75, 0.97),   # 89%

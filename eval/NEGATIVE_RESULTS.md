@@ -293,3 +293,21 @@ coin 85% of the time.** Keep the memory (free — funder_reputation + team_membe
 already store it), surface it as an annotation ("this team held its last coin — rare"),
 but it is NOT a buy signal and (like prior-tempo, #8) almost certainly adds nothing as
 a model feature on top of funder reputation. Do not build more than the annotation.
+
+---
+
+## 12. (Drift, not a negative) Classic pump.fun accelerated — survival fell to ~6%.
+
+Measured 2026-08-02 on verified-classic dense coins (n=334): 60-min survival is now
+~4-6% (full-tape-only 5.9%), down from the 15.7% of the old MIXED population, and the
+median coin collapses at **5.8 min vs 10.5 min** historically. The later half of the
+timeline survives just 1.2% (partly recency censoring — recent survivors are still
+ungradable while recent deaths are already labeled — but the full-tape number confirms
+the level is genuinely ~6%).
+
+This is real market drift toward brutality, NOT a labeling regression (collapse stamps
+are sane, single-print artifacts already killed). The survive60 base-rate band floor
+was re-anchored 0.06 -> 0.02 to reflect the classic population; the upper bound stays
+0.30 as the thin-tape fake-survivor guard. The v5 hazard model is the right instrument
+for this regime — a faster market makes the EARLY hazard (first 30s-5min) more, not
+less, the whole game.
