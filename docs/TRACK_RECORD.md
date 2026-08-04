@@ -1,6 +1,6 @@
 # Live track record
 
-*Auto-generated 2026-08-02 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
+*Auto-generated 2026-08-04 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
 
 ## Pre-warnings (at graduation: “team exits within 10 min”)
 
@@ -11,12 +11,46 @@ fired **0** · graded 0 · precision **—** · pending 0 · ungradable 0
 
 ## Exit alarms (live: “team is exiting — price not yet broken”)
 
-fired **610** · graded 131 · price lower 1h later 96% · median saved **86.9%** of position · pending 442
+fired **644** · graded 148 · price lower 1h later 96% · median saved **84.2%** of position · pending 445
 
 | time (UTC) | coin | alarm at | outcome | 1h later | saved |
 |---|---|---|---|---|---|
-| 08-02 17:45 | $BIN `j5qDcN4j…` | +2m | pending | — | — |
-| 08-02 17:05 | $ANSEM `Dju9zobL…` | +2m | pending | — | — |
+| 08-04 18:47 | $SCAMCOIN `HsssEDe8…` | +2m | pending | — | — |
+| 08-04 17:55 | $UP `Atq1GrWG…` | +2m | pending | — | — |
+| 08-04 16:51 | $POPCAT `AhVE3k8Z…` | +2m | pending | — | — |
+| 08-04 15:23 | $BEEVS `652d5R2F…` | +2m | pending | — | — |
+| 08-04 14:23 | $FOMO `f48nfnuq…` | +2m | ungradable | — | — |
+| 08-04 05:00 | $pibble `FSeq1HJN…` | +2m | pending | — | — |
+| 08-04 03:08 | $KITTY `D2CpiYSG…` | +2m | wrong | 1.45x | -45.2% |
+| 08-04 02:04 | $venoom `FnWFkhQL…` | +2m | correct | 0.66x | 34.3% |
+| 08-04 01:05 | $Telegone `7f3hE4qw…` | +5m | ungradable | — | — |
+| 08-03 23:18 | $BINGUS `Ed2yA1ZW…` | +2m | correct | 0.02x | 98.0% |
+| 08-03 22:33 | $OHSHIT `FrQpP6Mb…` | +2m | correct | 0.76x | 23.8% |
+| 08-03 19:25 | $DORKL `4TeY4yMA…` | +2m | ungradable | — | — |
+| 08-03 18:14 | $APE `31tzk5GS…` | +2m | correct | 0.04x | 95.6% |
+| 08-03 17:45 | $Rich `uWxjAWXB…` | +2m | correct | 0.19x | 81.1% |
+| 08-03 17:39 | $Ishi `HjMu2uiU…` | +2m | correct | 0.08x | 91.9% |
+| 08-03 17:31 | $HENRY `FpDah6v5…` | +2m | ungradable | — | — |
+| 08-03 17:10 | $Queefcoin `8G4XEHtN…` | +2m | ungradable | — | — |
+| 08-03 16:54 | $helia `2tnppbXS…` | +8m | correct | 0.34x | 66.4% |
+| 08-03 15:55 | $Lucky `875ZTr1D…` | +2m | correct | 0.36x | 64.0% |
+| 08-03 13:45 | $Buythis `DDuSafJV…` | +2m | ungradable | — | — |
+| 08-03 12:49 | $Pussy `WtYLuDYa…` | +2m | ungradable | — | — |
+| 08-03 12:23 | $BULLE `E4XcM3x3…` | +2m | ungradable | — | — |
+| 08-03 11:42 | $Meme `9QsrVeW7…` | +2m | correct | 0.35x | 64.9% |
+| 08-03 06:09 | $Haerin `Cq3YrfEa…` | +2m | correct | 0.95x | 5.1% |
+| 08-03 04:18 | $KITE `CRQqyc4L…` | +5m | ungradable | — | — |
+| 08-03 02:23 | $$CTO `HF4Swu5t…` | +2m | correct | 0.16x | 84.0% |
+| 08-03 02:22 | $Cat `Hn32qtqc…` | +3m | ungradable | — | — |
+| 08-03 02:04 | $Onigiri `DtmKxyps…` | +12m | correct | 0.56x | 44.5% |
+| 08-03 01:53 | $GINNAN `7MVw9yza…` | +2m | correct | 0.35x | 65.1% |
+| 08-03 00:43 | $CATE `AWhYm15w…` | +2m | ungradable | — | — |
+| 08-02 22:59 | $MEOW `4NiNjxvE…` | +2m | ungradable | — | — |
+| 08-02 20:24 | $HENRY `A8b5gh43…` | +2m | correct | 0.02x | 97.7% |
+| 08-02 20:03 | $GOONER `F8shSPpv…` | +3m | ungradable | — | — |
+| 08-02 19:56 | $CateCoin `BMsfBMKv…` | +2m | correct | 0.28x | 72.3% |
+| 08-02 17:45 | $BIN `j5qDcN4j…` | +2m | correct | 0.04x | 96.0% |
+| 08-02 17:05 | $ANSEM `Dju9zobL…` | +2m | ungradable | — | — |
 | 08-02 14:14 | $Naseem `HUv4CSqt…` | +2m | correct | 0.95x | 5.2% |
 | 08-02 12:37 | $ONIGIRI `BDEvSn6L…` | +2m | correct | 0.45x | 55.4% |
 | 08-02 06:55 | $Martians `7nLukVng…` | +2m | correct | 0.76x | 24.1% |
@@ -31,40 +65,6 @@ fired **610** · graded 131 · price lower 1h later 96% · median saved **86.9%*
 | 07-31 21:01 | $MySpace `2NSHQefn…` | +2m | ungradable | — | — |
 | 07-31 19:25 | $NGTYCLAUS `DvW8KEcq…` | +2m | correct | 0.10x | 90.1% |
 | 07-31 12:52 | $4Lazy `Awy9waxR…` | +2m | pending | — | — |
-| 07-31 10:58 | $FRIEND `HuZ2yj2H…` | +2m | ungradable | — | — |
-| 07-31 02:18 | $nubcat `DZcmVMuk…` | +5m | correct | 0.47x | 52.6% |
-| 07-30 20:25 | $usagi `3gXBaXmP…` | +2m | correct | 0.22x | 78.1% |
-| 07-30 18:05 | $FRIEND `8MoRoruS…` | +2m | correct | 0.37x | 63.2% |
-| 07-30 17:35 | $TDCCP `93r9Jko4…` | +2m | pending | — | — |
-| 07-30 17:17 | $Rokid `EqTTEiJQ…` | +2m | pending | — | — |
-| 07-30 16:28 | $$FAN `7QjEbsvc…` | +2m | wrong | 1.55x | -55.4% |
-| 07-30 13:33 | $frogcat `6ZjsyxzM…` | +5m | ungradable | — | — |
-| 07-30 11:46 | $nudaeng `4BCy5qPS…` | +2m | wrong | 2.04x | -104.2% |
-| 07-30 11:27 | $MOMO `BPgBpHTj…` | +2m | ungradable | — | — |
-| 07-30 06:05 | $Chonk `EjMVpNNh…` | +2m | ungradable | — | — |
-| 07-30 05:05 | $Balltze `8WhJiwVu…` | +8m | correct | 0.50x | 49.6% |
-| 07-30 02:09 | $THINGS `CwN4xxsf…` | +2m | correct | 0.07x | 92.9% |
-| 07-29 23:14 | $FLACO `2cp4Ftn5…` | +15m | correct | 0.59x | 41.4% |
-| 07-29 21:01 | $COVIDGATE `3vU6AJ8i…` | +2m | ungradable | — | — |
-| 07-29 17:15 | $FUTA `DHQtp8gA…` | +2m | wrong | 1.40x | -39.7% |
-| 07-29 17:07 | $inu `GRaUR7eV…` | +3m | correct | 0.18x | 81.8% |
-| 07-29 16:03 | $SCAM `EJVL4JPj…` | +2m | wrong | 1.40x | -39.6% |
-| 07-29 15:08 | $FAUCI `Bvuxt4yw…` | +40m | correct | 0.09x | 90.6% |
-| 07-29 14:52 | $antony `BBdGYY6c…` | +2m | ungradable | — | — |
-| 07-29 13:49 | $SATOSHI `C2SSsVV2…` | +2m | ungradable | — | — |
-| 07-29 12:05 | $CATE `DTxcPAkc…` | +2m | correct | 0.04x | 95.9% |
-| 07-29 11:01 | $Dark Arena `BeHD8dY1…` | +2m | ungradable | — | — |
-| 07-29 06:48 | $REDO `51uaudia…` | +2m | ungradable | — | — |
-| 07-29 02:12 | $Ollie `3e8ogSFL…` | +2m | wrong | 1.05x | -5.5% |
-| 07-28 19:30 | $First `4A789PJ2…` | +2m | pending | — | — |
-| 07-28 17:04 | $ELON `ELoNpmG9…` | +2m | correct | 0.26x | 73.6% |
-| 07-28 14:30 | $Collective `BQaxKoDh…` | +2m | ungradable | — | — |
-| 07-28 13:51 | $RunnerXBT `Kx48Czzp…` | +2m | correct | 0.03x | 96.7% |
-| 07-28 08:28 | $MOONDOGE `2p91GCpv…` | +10m | correct | 0.32x | 68.4% |
-| 07-28 08:03 | $MOONDOGE `CGgx8Rnv…` | +2m | ungradable | — | — |
-| 07-28 07:34 | $MOONDOGE `APmiwHMn…` | +5m | ungradable | — | — |
-| 07-28 07:16 | $Laika `65Z8SaBU…` | +2m | correct | 0.24x | 76.3% |
-| 07-28 03:58 | $ONDO `9dND7E1j…` | +2m | pending | — | — |
 
 ## Backtest reference (NOT the live record)
 

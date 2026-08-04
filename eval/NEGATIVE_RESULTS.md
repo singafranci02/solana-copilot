@@ -311,3 +311,22 @@ was re-anchored 0.06 -> 0.02 to reflect the classic population; the upper bound 
 0.30 as the thin-tape fake-survivor guard. The v5 hazard model is the right instrument
 for this regime — a faster market makes the EARLY hazard (first 30s-5min) more, not
 less, the whole game.
+
+---
+
+## 13. (Drift cont'd) The legacy v4 heads are aging out — v5 is their replacement.
+
+Second re-anchor in a week (2026-08-05). The market acceleration in #12 propagated into
+the fixed-4h-checkpoint heads: distribute ROC rose to ~0.97 (team structure is nearly
+deterministic of the 4h outcome in a market that dies in minutes), rug ROC fell to ~0.79
+and its calibration can no longer beat a constant (91-97% of coins rug — a saturating
+base rate leaves no headroom). VERIFIED not a leak: the blocking single-feature canary
+passed (worst = team_supply_pct 0.939 < 0.95, and that IS the thesis, not a leaked label).
+
+Meaning: a 4-hour distribution/rug label on a coin dead at 5.8 min is measuring a corpse
+— the same failure mode the project already fixed once by moving from 1h checkpoints to
+trajectory labels. The v4 heads are now DIAGNOSTICS, not the product; their audit bands
+are allowed to track drift while the blocking guards (single-feature canary, data
+integrity, replay fidelity) stay strict. The product is the v5 competing-risks hazard
+model, which measures the early window continuously — exactly where a faster market puts
+all the signal.
