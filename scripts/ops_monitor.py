@@ -148,6 +148,20 @@ def run_checks(conn) -> list[tuple[str, bool, str]]:
     except Exception:
         out.append(("machine_awake", True, "pmset unavailable — skipped"))
 
+    # REJECTION-RATE PLAUSIBILITY: a gate silently rejecting almost everything in a
+    # category is the quiet-failure class that discarded 330 real coins (the metadata
+    # gate demanded a literal string ST does not stably return). Mayhem legitimately
+    # dominates, so this watches only NON-mayhem rejections: if we reject far more
+    # non-mayhem coins than we accept, the gate is probably wrong again.
+    rej = conn.execute("""SELECT COUNT(*) FROM skipped_graduations
+        WHERE skipped_at > ? AND COALESCE(created_on,'') != 'mayhem'""",
+        (now - 86400,)).fetchone()[0]
+    acc = conn.execute("SELECT COUNT(*) FROM graduation_events WHERE graduated_at > ?",
+                       (now - 86400,)).fetchone()[0]
+    ratio = rej / max(acc, 1)
+    out.append(("rejection_plausible", ratio <= 1.5 or acc < 5,
+                f"{rej} non-mayhem rejected vs {acc} accepted (24h, ratio {ratio:.1f})"))
+
     try:
         import os
         art = Path(__file__).parent.parent / "models" / "hazard_model_v5.pkl"
