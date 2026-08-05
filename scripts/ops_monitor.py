@@ -91,11 +91,19 @@ def run_checks(conn) -> list[tuple[str, bool, str]]:
     out.append(("feed_alive", not feed_gap_is_alarming(gap_m, g24),
                 f"last graduation {gap_m:.0f}m ago ({g24} in 24h)"))
 
+    # Backlog scales with VOLUME: a fixed "5" was calibrated at ~23 coins/day and
+    # flapped constantly once capture rose. Threshold = 20% of 24h intake (min 15),
+    # with HYSTERESIS (clear at 60% of the alarm level) so it cannot oscillate.
     backlog = conn.execute("""SELECT COUNT(*) FROM graduation_events ge
         LEFT JOIN tokens t ON t.mint = ge.token_mint
         WHERE (t.platform IS NULL OR t.platform = 'unverified')
           AND ge.graduated_at > ?""", (now - 86400,)).fetchone()[0]
-    out.append(("gate_backlog", backlog <= 5, f"{backlog} unverified (24h)"))
+    alarm_at = max(15, int(0.20 * g24))
+    prev = conn.execute("SELECT ok FROM ops_state WHERE check_name='gate_backlog'").fetchone()
+    currently_alarmed = prev is not None and not prev["ok"]
+    threshold = int(alarm_at * 0.6) if currently_alarmed else alarm_at
+    out.append(("gate_backlog", backlog <= threshold,
+                f"{backlog} unverified (24h) vs limit {threshold}"))
 
     recent_grads = conn.execute("""SELECT COUNT(*) FROM graduation_events ge
         JOIN tokens t ON t.mint = ge.token_mint
@@ -105,6 +113,21 @@ def run_checks(conn) -> list[tuple[str, bool, str]]:
                           "WHERE scored_at > ?", (now - 21600,)).fetchone()[0]
     out.append(("shadow_scoring", recent_grads == 0 or scored > 0,
                 f"{scored} coins scored vs {recent_grads} verified grads (6h)"))
+
+    # CORE DEPENDENCY: a Solana Tracker 401/403 silently breaks team detection for
+    # every coin. Detect it directly from the analysis failure signature rather than
+    # waiting for the generic consecutive-failure watchdog.
+    try:
+        import subprocess as _sp
+        log = Path(__file__).parent.parent / "logs" / "graduation_monitor.err"
+        recent = _sp.run(["tail", "-300", str(log)], capture_output=True,
+                         text=True, timeout=15).stdout if log.exists() else ""
+        auth_fail = recent.count("401") + recent.count("Invalid API key")
+        out.append(("data_source_auth", auth_fail < 3,
+                    f"{auth_fail} auth failures in recent log"
+                    + (" — CHECK SOLANA TRACKER KEY/SUBSCRIPTION" if auth_fail >= 3 else "")))
+    except Exception:
+        out.append(("data_source_auth", True, "log unreadable — skipped"))
 
     try:
         from src.strategy.hazard_verdict import _load
