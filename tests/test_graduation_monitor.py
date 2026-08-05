@@ -145,10 +145,14 @@ def test_platform_gate_created_on_is_definitive():
     assert _is_pump_fun_token("https://pump.fun", "X" * 44)
     assert _is_pump_fun_token("pump.fun", "X" * 44)
     assert not _is_pump_fun_token("https://mayhem.fun", "SomeMintEndingInpump")
+    # (Mayhem's real coins declare pump.fun and are caught by the on-chain check.)
     assert not _is_pump_fun_token("https://rapidlaunch.io", "SomeMintEndingInpump")
     assert not _is_pump_fun_token("https://bags.fm", "X" * 44)
     assert _is_pump_fun_token(None, "GJamcN2ZP31twgwBkRFJQYZYsw2dFBW6BtvSbbBLpUmP")
-    assert not _is_pump_fun_token(None, "25emjiLfw5AbCdEfGhIjKlMnOpQrStUvWxYz123456")
+    # NO-METADATA now DEFERS to the creation-tx check rather than rejecting: the old
+    # "no suffix -> reject" rule discarded 169 coins ST simply had not indexed yet,
+    # several of which resolved to pump.fun on-chain.
+    assert _is_pump_fun_token(None, "25emjiLfw5AbCdEfGhIjKlMnOpQrStUvWxYz123456")
 
 
 def test_platform_from_creation_tx_catches_mayhem():
@@ -182,3 +186,25 @@ def test_manufactured_detection_needs_two_flags():
     assert is_manufactured(bundled)
     missing = manufactured_flags(None, None, None, None, None)    # no data = no claim
     assert missing == []
+
+
+def test_metadata_gate_accepts_all_pump_fun_variants():
+    """createdOn is not a stable string — 'pump', 'pump_v2', 'pumpfun' are all real
+    pump.fun coins. Requiring the literal 'pump.fun' discarded 146 verified coins."""
+    from src.ingest.graduation_monitor import _is_pump_fun_token
+    for v in ("https://pump.fun", "pump.fun", "pump", "pump_v2", "pumpfun", "PUMP"):
+        assert _is_pump_fun_token(v, "X" * 44), f"{v} must pass the pre-filter"
+
+
+def test_metadata_gate_defers_to_chain_when_metadata_missing():
+    """No metadata must NOT mean rejection — the creation tx is the authority."""
+    from src.ingest.graduation_monitor import _is_pump_fun_token
+    assert _is_pump_fun_token(None, "X" * 44)
+    assert _is_pump_fun_token("", "X" * 44)
+
+
+def test_metadata_gate_still_rejects_declared_foreign_platforms():
+    from src.ingest.graduation_monitor import _is_pump_fun_token
+    for v in ("https://rapidlaunch.io", "https://slerf.tools", "https://bonk.fun",
+              "https://migrate.fun", "bags.fm"):
+        assert not _is_pump_fun_token(v, "SomeMintEndingInpump"), f"{v} must be rejected"

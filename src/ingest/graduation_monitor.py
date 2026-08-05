@@ -163,13 +163,30 @@ def _platform_from_tx(tx: dict | None) -> str | None:
     return None
 
 
+# createdOn values observed live for LEGITIMATE pump.fun coins. The string is not
+# stable: 'https://pump.fun', 'pump.fun', 'pump', 'pump_v2', 'pumpfun' all appear.
+# Requiring the literal 'pump.fun' discarded 146 real coins (verified on-chain) before
+# the authoritative check could run.
+_PUMP_CREATED_ON = {"pump", "pump_v2", "pumpfun", "pump.fun", "pumpdotfun"}
+
+
 def _is_pump_fun_token(created_on: str | None, mint: str) -> bool:
-    """Metadata-level gate (first line of defence): catches platforms that declare
-    themselves (rapidlaunch, bags, ...). Mayhem declares pump.fun and needs the
-    on-chain check above. Missing metadata falls back to the mint suffix."""
-    if created_on:
-        return "pump.fun" in created_on.lower()
-    return mint.lower().endswith("pump")
+    """Metadata PRE-FILTER — cheap rejection of platforms that DECLARE themselves
+    foreign (rapidlaunch, slerf, bonk.fun, ...). Deliberately permissive: the
+    creation-transaction check is the authority, and a coin must never be discarded
+    on metadata alone when the chain could still confirm it.
+
+    Passes when: createdOn is a known pump.fun variant, OR createdOn is absent/
+    unrecognised (let the chain decide), OR the mint carries the pump suffix.
+    Rejects ONLY an explicit, recognisably-foreign platform string."""
+    if not created_on:
+        return True                       # no metadata -> defer to the on-chain check
+    co = created_on.strip().lower().rstrip("/")
+    if co in _PUMP_CREATED_ON or "pump.fun" in co:
+        return True
+    if co.startswith("http") or "." in co:
+        return False                      # a real foreign platform URL/domain
+    return True                           # unrecognised non-URL token -> chain decides
 
 
 def _is_allowed_venue(pool: str | None) -> bool:
