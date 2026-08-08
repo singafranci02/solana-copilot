@@ -38,23 +38,31 @@ async def _resolve(mints):
     out = {}
     async with SolanaTrackerClient() as st, aiohttp.ClientSession() as rpc_session:
         for m in mints:
-            co, sig = "", None
-            try:                                               # ST is a BONUS, not a gate
+            # CHAIN FIRST (free), paid API only when the chain cannot decide. This
+            # loop ran every 10 min over up to 60 coins and was the single largest
+            # consumer of Solana Tracker credits; the on-chain check resolves most
+            # coins on its own, so ST is now the exception rather than the default.
+            try:
+                p = await resolve_platform(rpc_session, None, mint=m)
+                if p is not None:
+                    out[m] = p
+                    await asyncio.sleep(0.3)
+                    continue
+            except Exception:
+                pass
+            # chain undecided -> ask ST once for self-declared-foreign metadata
+            try:
                 d = await st.get_token_info(m) or {}
                 tok = (d.get("token") if isinstance(d.get("token"), dict) else d) or {}
                 co = tok.get("createdOn") or ""
-                sig = (tok.get("creation") or {}).get("created_tx")
-            except Exception:
-                pass          # ST 404s on un-indexed fresh coins — the chain doesn't
-            try:
-                # metadata check only when ST gave us a createdOn; otherwise the mint
-                # suffix + on-chain program check decide (Mayhem needs the tx anyway)
                 if co and not _is_pump_fun_token(co, m):
                     out[m] = co[:40]                           # self-declared foreign
                     continue
-                p = await resolve_platform(rpc_session, sig, mint=m)  # ST-independent
-                if p is not None:                              # only persist POSITIVE
-                    out[m] = p
+                sig = (tok.get("creation") or {}).get("created_tx")
+                if sig:
+                    p = await resolve_platform(rpc_session, sig, mint=m)
+                    if p is not None:
+                        out[m] = p
             except Exception:
                 pass                                           # stay unverified, retry
             await asyncio.sleep(0.3)

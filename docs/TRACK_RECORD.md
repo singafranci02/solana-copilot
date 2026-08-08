@@ -1,6 +1,6 @@
 # Live track record
 
-*Auto-generated 2026-08-04 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
+*Auto-generated 2026-08-07 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
 
 ## Pre-warnings (at graduation: “team exits within 10 min”)
 
@@ -11,16 +11,21 @@ fired **0** · graded 0 · precision **—** · pending 0 · ungradable 0
 
 ## Exit alarms (live: “team is exiting — price not yet broken”)
 
-fired **644** · graded 148 · price lower 1h later 96% · median saved **84.2%** of position · pending 445
+fired **649** · graded 152 · price lower 1h later 96% · median saved **84.2%** of position · pending 442
 
 | time (UTC) | coin | alarm at | outcome | 1h later | saved |
 |---|---|---|---|---|---|
-| 08-04 18:47 | $SCAMCOIN `HsssEDe8…` | +2m | pending | — | — |
+| 08-05 07:49 | $GOAT `8UCM6vPA…` | +2m | pending | — | — |
+| 08-05 04:06 | $PEREZ `pEREzg4G…` | +8m | correct | 0.47x | 53.5% |
+| 08-05 02:16 | $tecker `79pa2zXR…` | +2m | correct | 0.08x | 92.1% |
+| 08-04 20:31 | $BEAR `G7Frzen8…` | +2m | ungradable | — | — |
+| 08-04 20:00 | $Bear `8ZoMGK5C…` | +2m | ungradable | — | — |
+| 08-04 18:47 | $SCAMCOIN `HsssEDe8…` | +2m | ungradable | — | — |
 | 08-04 17:55 | $UP `Atq1GrWG…` | +2m | pending | — | — |
-| 08-04 16:51 | $POPCAT `AhVE3k8Z…` | +2m | pending | — | — |
-| 08-04 15:23 | $BEEVS `652d5R2F…` | +2m | pending | — | — |
+| 08-04 16:51 | $POPCAT `AhVE3k8Z…` | +2m | ungradable | — | — |
+| 08-04 15:23 | $BEEVS `652d5R2F…` | +2m | correct | 0.46x | 54.5% |
 | 08-04 14:23 | $FOMO `f48nfnuq…` | +2m | ungradable | — | — |
-| 08-04 05:00 | $pibble `FSeq1HJN…` | +2m | pending | — | — |
+| 08-04 05:00 | $pibble `FSeq1HJN…` | +2m | correct | 0.04x | 96.3% |
 | 08-04 03:08 | $KITTY `D2CpiYSG…` | +2m | wrong | 1.45x | -45.2% |
 | 08-04 02:04 | $venoom `FnWFkhQL…` | +2m | correct | 0.66x | 34.3% |
 | 08-04 01:05 | $Telegone `7f3hE4qw…` | +5m | ungradable | — | — |
@@ -60,11 +65,6 @@ fired **644** · graded 148 · price lower 1h later 96% · median saved **84.2%*
 | 08-01 08:50 | $balls `6zfhtLpG…` | +2m | ungradable | — | — |
 | 08-01 03:05 | $croc `GTFd8P5d…` | +2m | correct | 0.04x | 96.0% |
 | 08-01 01:38 | $UPDOG `5DNGaru5…` | +2m | ungradable | — | — |
-| 08-01 00:26 | $mao `8JB8KKPq…` | +3m | correct | 0.67x | 32.7% |
-| 07-31 22:13 | $MYSPACE `BBmn2FiL…` | +15m | correct | 0.25x | 74.9% |
-| 07-31 21:01 | $MySpace `2NSHQefn…` | +2m | ungradable | — | — |
-| 07-31 19:25 | $NGTYCLAUS `DvW8KEcq…` | +2m | correct | 0.10x | 90.1% |
-| 07-31 12:52 | $4Lazy `Awy9waxR…` | +2m | pending | — | — |
 
 ## Backtest reference (NOT the live record)
 

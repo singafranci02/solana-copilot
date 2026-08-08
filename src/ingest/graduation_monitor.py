@@ -595,7 +595,16 @@ async def _handle_graduation(
             # Holders at graduation, with pool/curve/program accounts excluded so
             # they never surface as "top holders" or team members.
             structural = structural_set(token_info, get_all_cex_addresses(conn))
-            accounts = await st.get_token_holders(mint)
+            # FREE RPC first, paid API only as fallback: the holders call was 16% of
+            # Solana Tracker usage, and an ST outage (401 on 2026-08-08) previously
+            # broke team detection for every coin. Now ST going down costs only the
+            # trade tape, not the whole analysis.
+            import aiohttp as _aio
+            from src.ingest.rpc_holders import get_token_holders_resilient
+            async with _aio.ClientSession() as _hs:
+                accounts, _hsrc = await get_token_holders_resilient(_hs, mint, st)
+            if _hsrc != "rpc":
+                logger.info("holders via %s for %s", _hsrc, mint[:8])
             accounts = [a for a in accounts if a.get("address") not in structural]
             bc_top_holders = _parse_bc_holders(accounts, total_supply)
             bc_swaps = await _reconstruct_bc(
