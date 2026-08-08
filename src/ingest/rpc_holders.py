@@ -30,6 +30,13 @@ logger = logging.getLogger(__name__)
 # uses the top holders, and the gate's top-5 concentration reads the head of this list.
 MAX_ACCOUNTS = 20
 
+# A real holder is a wallet: its account is owned by the System Program. Pools,
+# vaults and program escrows are PDAs owned by their program. Filtering on this is
+# generic — it excludes the AMM pool without depending on any vendor's pool list.
+# (The previous exclusion set came from Solana Tracker's token_info; when that API
+# died the pool was counted as a holder and team supply exceeded 100%.)
+SYSTEM_PROGRAM = "11111111111111111111111111111111"
+
 
 async def _rpc(session, endpoints, method: str, params: list):
     """First endpoint that returns a non-null result wins. None if all fail."""
@@ -73,7 +80,7 @@ async def get_token_holders_rpc(session, mint: str,
                       [accounts, {"encoding": "jsonParsed"}])
     parsed = (info or {}).get("value") or []
 
-    out: list[dict] = []
+    candidates: list[dict] = []
     for acct, entry in zip(accounts, parsed):
         owner = None
         try:
@@ -84,7 +91,23 @@ async def get_token_holders_rpc(session, mint: str,
         # dropping it is correct — a token account address must never be treated as
         # a holder wallet (it would pollute team membership with non-wallet entities).
         if owner:
-            out.append({"address": owner, "uiAmount": amounts.get(acct, 0.0)})
+            candidates.append({"address": owner, "uiAmount": amounts.get(acct, 0.0)})
+    if not candidates:
+        return []
+
+    # Drop program-controlled owners (AMM pool, vaults). One batched call.
+    owners = [c["address"] for c in candidates]
+    oinfo = await _rpc(session, endpoints, "getMultipleAccounts",
+                       [owners, {"encoding": "jsonParsed"}])
+    ovals = (oinfo or {}).get("value") or []
+    out: list[dict] = []
+    for cand, entry in zip(candidates, ovals or [None] * len(candidates)):
+        # entry is None for an unfunded wallet — that IS a wallet, so keep it.
+        # Only a live account owned by something other than the System Program is a
+        # program/PDA and must be excluded.
+        if entry is not None and entry.get("owner") not in (None, SYSTEM_PROGRAM):
+            continue
+        out.append(cand)
 
     # merge duplicates: one wallet can control several token accounts for a mint
     merged: dict[str, float] = {}

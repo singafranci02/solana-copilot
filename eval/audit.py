@@ -152,6 +152,14 @@ def stage_data(conn) -> list[Check]:
     sizes = [r[0] for r in conn.execute(
         "SELECT COUNT(*) FROM team_members WHERE is_member=1 GROUP BY token_mint")]
     mx = max(sizes) if sizes else 0
+    # supply_pct > 100% is physically impossible and means a non-wallet (AMM pool,
+    # program vault) was counted as a holder. 0 of 1,015 historical coins ever did;
+    # it appeared the moment holder sourcing changed, so it is a live tripwire.
+    over = conn.execute("SELECT COUNT(*) FROM team_clusters "
+                        "WHERE supply_pct_at_graduation > 100").fetchone()[0]
+    out.append(Check("data", "no team supply_pct > 100% (pool counted as holder)",
+                     over == 0, f"{over} impossible rows"))
+
     out.append(Check("data", "no team exceeds 40 members (bloat regression)",
                      mx <= 40, f"max team size {mx}"))
 
