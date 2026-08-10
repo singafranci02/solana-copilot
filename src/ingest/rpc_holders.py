@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import logging
 
+from src.common.pubkey import is_on_curve
+
 logger = logging.getLogger(__name__)
 
 # getTokenLargestAccounts returns at most 20; that is ample — team detection only
@@ -102,10 +104,16 @@ async def get_token_holders_rpc(session, mint: str,
     ovals = (oinfo or {}).get("value") or []
     out: list[dict] = []
     for cand, entry in zip(candidates, ovals or [None] * len(candidates)):
-        # entry is None for an unfunded wallet — that IS a wallet, so keep it.
-        # Only a live account owned by something other than the System Program is a
-        # program/PDA and must be excluded.
+        # Two independent exclusions, because either one alone leaks:
+        #  - a LIVE account owned by some program is a PDA (vault, escrow);
+        #  - an address OFF the ed25519 curve is a PDA even when its account was
+        #    never initialized, which is the usual state of a pool authority. That
+        #    case returns entry=None and is indistinguishable from an unfunded
+        #    wallet by ownership alone — it is what put one shared PumpSwap PDA
+        #    into the team cluster of 15 coins and pushed supply past 100%.
         if entry is not None and entry.get("owner") not in (None, SYSTEM_PROGRAM):
+            continue
+        if not is_on_curve(cand["address"]):
             continue
         out.append(cand)
 
@@ -134,3 +142,26 @@ async def get_token_holders_resilient(session, mint: str, st_client=None) -> tup
         except Exception as exc:
             logger.debug("ST holders fallback failed for %s: %s", mint[:8], exc)
     return [], "none"
+
+
+async def get_token_supply_rpc(session, mint: str,
+                               endpoints: list[str] | None = None) -> float | None:
+    """Circulating supply straight from the chain. None if unavailable.
+
+    supply_pct is a denominator-sensitive feature — it drives the >=50% hard SKIP,
+    the manufactured-launch flags and the <20% score bonus. It used to come from
+    Solana Tracker's pools[].tokenSupply and fell back to a hardcoded 1e9 whenever
+    that was absent; once the pipeline went RPC-first that fallback became the norm
+    and 24 of the 25 newest coins carried the wrong denominator. Real supplies are
+    NOT 1e9 — burns push them to ~0.7-1.0e9 and some mints run to ~2e9 — so the
+    assumption was silently mis-scaling every team-supply figure.
+    """
+    if endpoints is None:
+        from src.ingest.graduation_monitor import _RPC_ENDPOINTS
+        endpoints = _RPC_ENDPOINTS
+    try:
+        r = await _rpc(session, endpoints, "getTokenSupply", [mint])
+        amt = float(((r or {}).get("value") or {}).get("uiAmount") or 0.0)
+        return amt if amt > 0 else None
+    except Exception:
+        return None

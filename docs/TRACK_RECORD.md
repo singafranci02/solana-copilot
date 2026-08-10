@@ -1,6 +1,6 @@
 # Live track record
 
-*Auto-generated 2026-08-09 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
+*Auto-generated 2026-08-10 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
 
 ## Pre-warnings (at graduation: “team exits within 10 min”)
 
@@ -11,10 +11,16 @@ fired **0** · graded 0 · precision **—** · pending 0 · ungradable 0
 
 ## Exit alarms (live: “team is exiting — price not yet broken”)
 
-fired **645** · graded 151 · price lower 1h later 96% · median saved **84.4%** of position · pending 441
+fired **651** · graded 152 · price lower 1h later 96% · median saved **84.2%** of position · pending 446
 
 | time (UTC) | coin | alarm at | outcome | 1h later | saved |
 |---|---|---|---|---|---|
+| 08-10 19:10 | $FOMO `trqPu7My…` | +0m | pending | — | — |
+| 08-10 18:02 | $DCN `CUTFq2j7…` | +0m | pending | — | — |
+| 08-10 14:54 | $DATBOI `6KHBotE9…` | +1m | correct | 0.89x | 10.6% |
+| 08-10 12:43 | $ZEUS `EdYRCd8G…` | +2m | pending | — | — |
+| 08-10 12:26 | $PARKIFY `7Syw6tu4…` | +2m | pending | — | — |
+| 08-10 12:09 | $DopeBara `5XrExabv…` | +10m | pending | — | — |
 | 08-05 07:49 | $GOAT `8UCM6vPA…` | +2m | pending | — | — |
 | 08-05 04:06 | $PEREZ `pEREzg4G…` | +8m | correct | 0.47x | 53.5% |
 | 08-05 02:16 | $tecker `79pa2zXR…` | +2m | correct | 0.08x | 92.1% |
@@ -59,12 +65,6 @@ fired **645** · graded 151 · price lower 1h later 96% · median saved **84.4%*
 | 08-02 12:37 | $ONIGIRI `BDEvSn6L…` | +2m | correct | 0.45x | 55.4% |
 | 08-02 06:55 | $Martians `7nLukVng…` | +2m | correct | 0.76x | 24.1% |
 | 08-01 22:00 | $SOLCat `3XaTv7tT…` | +2m | ungradable | — | — |
-| 08-01 18:31 | $COGE `2ZvVDdBF…` | +2m | correct | 0.36x | 63.8% |
-| 08-01 15:13 | $DOGE `CVUsqDS8…` | +2m | correct | 0.62x | 38.2% |
-| 08-01 08:50 | $balls `6zfhtLpG…` | +2m | ungradable | — | — |
-| 08-01 03:05 | $croc `GTFd8P5d…` | +2m | correct | 0.04x | 96.0% |
-| 08-01 01:38 | $UPDOG `5DNGaru5…` | +2m | ungradable | — | — |
-| 08-01 00:26 | $mao `8JB8KKPq…` | +3m | correct | 0.67x | 32.7% |
 
 ## Backtest reference (NOT the live record)
 

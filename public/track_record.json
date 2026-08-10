@@ -1,5 +1,5 @@
 {
- "generated_at": 1786302615,
+ "generated_at": 1786389026,
  "live_since": 1783980000,
  "prewarn": {
   "summary": {
@@ -14,15 +14,66 @@
  },
  "exit_alarm": {
   "summary": {
-   "fired": 645,
-   "graded": 151,
-   "correct": 145,
-   "precision": 0.96,
-   "pending": 441,
+   "fired": 651,
+   "graded": 152,
+   "correct": 146,
+   "precision": 0.961,
+   "pending": 446,
    "ungradable": 53
   },
-  "median_saved_pct": 84.4,
+  "median_saved_pct": 84.2,
   "alerts": [
+   {
+    "mint": "trqPu7MyYW7CYNPLd5bm1GBH9SXkPpnyQEXnK1Tpump",
+    "symbol": "FOMO",
+    "alerted_at": 1786389009,
+    "minute_offset": 0,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "CUTFq2j7HXCMZzMxFgQpVuaCiH6Got3gzdZt7VyJpump",
+    "symbol": "DCN",
+    "alerted_at": 1786384971,
+    "minute_offset": 0,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "6KHBotE9ZML9SWVrovxUYNjkJ1oCtVe44w8mEAJoB6Aw",
+    "symbol": "DATBOI",
+    "alerted_at": 1786373675,
+    "minute_offset": 1,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "correct",
+    "price_1h_after_vs_alert": 0.894,
+    "exit_saved_pct": 10.6,
+    "collapse_followed": true
+   },
+   {
+    "mint": "EdYRCd8GKreiRhqzs2ZrHr9TkPwj8EiEQNm2XSjCpump",
+    "symbol": "ZEUS",
+    "alerted_at": 1786365838,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "7Syw6tu4Jx692uhoryjok5yBwTqje1oftit9E3LHpump",
+    "symbol": "PARKIFY",
+    "alerted_at": 1786364800,
+    "minute_offset": 2,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
+   {
+    "mint": "5XrExabv4p4VGHZKwdPzUssuNFE7wfVaGLC9zGDTpump",
+    "symbol": "DopeBara",
+    "alerted_at": 1786363768,
+    "minute_offset": 10,
+    "claim": "team is exiting \u2014 price not yet broken",
+    "outcome": "pending"
+   },
    {
     "mint": "8UCM6vPAP4ieACXWwCDWQmjPVa3tauKuMiHGKVjUs2YQ",
     "symbol": "GOAT",

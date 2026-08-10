@@ -65,7 +65,16 @@ BASE_RATE_BANDS = {
                                    # min). Upper bound unchanged — still guards the
                                    # thin-tape fake-survivor leak (which reads HIGH).
     "moon10x":     (0.03, 0.16),   # 9-10%; the bad-print bug read 26%
-    "team_exit10": (0.40, 0.80),   # 62-66%
+    "team_exit10": (0.88, 0.99),   # re-anchored 2026-08-11. The old 40-80% band was
+                                   # measured when late-opening tapes hid the fast
+                                   # exits: a tape whose first print landed minutes
+                                   # (sometimes hours) after graduation could not see
+                                   # a 21-second exit, so the coin read as no-exit.
+                                   # On the anchor-gated population the exit
+                                   # distribution is p10=2s, p50=21s, p90=223s — so
+                                   # 96.4% exiting inside 10 min is the arithmetic
+                                   # consequence, not a detection bug. Ceiling <1.0
+                                   # still catches team detection over-firing.
     "rug":         (0.75, 0.97),   # 89%
 }
 REPLAY_FIDELITY_MIN = 0.995        # rules replayed from snapshots vs stored verdicts

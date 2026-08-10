@@ -90,14 +90,44 @@ def _load_swaps_from_db(conn, token_mint: str, graduation_ts: int):
         SimpleNamespace(
             timestamp=int(r["ts"]), side=r["side"], signer=r["wallet_address"],
             sol_amount=float(r["sol_amount"] or 0.0),
+            token_amount=float(r["token_amount"] or 0.0),
             price_usd=float(r["price_usd"]) if r["price_usd"] else None,
             slot=int(r["slot"] or 0), token_mint=token_mint,
         )
         for r in conn.execute(
-            """SELECT ts, side, wallet_address, sol_amount, price_usd, slot
+            """SELECT ts, side, wallet_address, sol_amount, token_amount, price_usd, slot
                FROM post_grad_swaps WHERE token_mint = ? AND ts >= ?
                ORDER BY ts""", (token_mint, graduation_ts))
     ]
+
+
+def _apply_tape_flags(conn, token_mint: str, team: set, snipers: set,
+                      smart_money: set) -> None:
+    """Re-stamp is_team/is_sniper/is_smart_money across the whole stored tape.
+
+    The early checkpoints persist rows before the sniper and smart-money sets are
+    known, and trajectory's team-exit label reads is_team straight from these rows.
+    The hourly pass used to correct them by re-upserting the entire refetched tape;
+    doing it in SQL is the same result without the API calls.
+    """
+    tape_wallets = {
+        r[0] for r in conn.execute(
+            "SELECT DISTINCT wallet_address FROM post_grad_swaps WHERE token_mint = ?",
+            (token_mint,))
+    }
+    if not tape_wallets:
+        return
+    conn.execute(
+        "UPDATE post_grad_swaps SET is_team=0, is_sniper=0, is_smart_money=0 "
+        "WHERE token_mint = ?", (token_mint,))
+    for col, wallets in (("is_team", team), ("is_sniper", snipers),
+                         ("is_smart_money", smart_money)):
+        hit = tape_wallets & (wallets or set())
+        if hit:
+            conn.executemany(
+                f"UPDATE post_grad_swaps SET {col}=1 "
+                "WHERE token_mint = ? AND wallet_address = ?",
+                [(token_mint, w) for w in hit])
 
 
 async def _do_early_check(token_mint: str, graduation_ts: int, offset_s: int) -> None:
@@ -431,15 +461,34 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
             smart_money_set = {w.address for w in get_smart_money_wallets(conn)}
 
             if tracked:
+                # INCREMENTAL. These 1h/4h/24h passes each refetched the tape from
+                # graduation — the same O(n^2) burn already fixed in the early
+                # checkpoints, and the larger half of it: 18,174 /trades calls in one
+                # day (~137 per coin) against a 200k/month budget, because by 24h the
+                # tape is thousands of trades and every page is re-downloaded three
+                # times. Pull only what is newer than the newest stored row, then
+                # rebuild the full tape from the DB so the consumers below are unchanged.
+                last_row = conn.execute(
+                    "SELECT MAX(ts) FROM post_grad_swaps WHERE token_mint = ?",
+                    (token_mint,),
+                ).fetchone()
+                last_ts = int(last_row[0]) if last_row and last_row[0] else graduated_at
+
                 async with SolanaTrackerClient() as st2:
-                    team_swaps = await fetch_team_swaps(
-                        st2, token_mint, tracked, since_ts=graduated_at,
+                    new_swaps = await fetch_team_swaps(
+                        st2, token_mint, tracked, since_ts=last_ts,
                     )
                 sniper_set = team_addresses if is_bc_sniper else set()
-                upsert_swaps(
-                    conn, token_mint, team_swaps, sniper_set,
-                    team_wallets=team_addresses, smart_money_wallets=smart_money_set,
-                )
+                if new_swaps:
+                    upsert_swaps(
+                        conn, token_mint, new_swaps, sniper_set,
+                        team_wallets=team_addresses, smart_money_wallets=smart_money_set,
+                    )
+                _apply_tape_flags(conn, token_mint, team_addresses, sniper_set,
+                                  smart_money_set)
+                conn.commit()
+                team_swaps = (_load_swaps_from_db(conn, token_mint, graduated_at)
+                              or new_swaps)
                 # team-only metrics for the behavior row (keeps signal meaning stable)
                 team_only_swaps = [s for s in team_swaps if s.signer in team_addresses]
                 metrics = compute_metrics(

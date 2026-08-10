@@ -36,6 +36,11 @@ class Sample:
     mc_change_pct: dict[int, float | None] = field(default_factory=dict)
 
 
+# Graduation anchor tolerance: the first post-graduation print must arrive within
+# this window, or the coin's zero-point is unverified and its labels are unusable.
+MAX_ANCHOR_LAG_S = 120
+
+
 def load_samples(conn=None) -> list[Sample]:
     """Every pipeline-v2 snapshot joined to its graduation time + all labels."""
     own = conn is None
@@ -57,7 +62,19 @@ def load_samples(conn=None) -> list[Sample]:
                  -- manufactured graduations (one entity bought the curve) have no
                  -- organic market — their tape is a puppet show, never a label
                  AND COALESCE(ge.is_manufactured, 0) = 0
-               ORDER BY ge.graduated_at""",
+                 -- OBSERVABILITY: the tape must open at the graduation it claims.
+                 -- Coins backfilled after the 2026-08-08 outage had their first
+                 -- print arrive up to 52h late, and re-analysis had overwritten
+                 -- graduated_at, so the anchor every label is measured against was
+                 -- wrong. Effect was not subtle: late-anchored coins read a 25.1%
+                 -- 60-min survival rate against a true 5.2%, and rug ROC fell from
+                 -- 0.79 to 0.54 as they came to outnumber the clean ones. A label
+                 -- measured from the wrong zero is not a weak label, it is a wrong
+                 -- one -- so these are excluded rather than down-weighted.
+                 AND (SELECT MIN(p.ts) FROM post_grad_swaps p
+                      WHERE p.token_mint = ge.token_mint)
+                     BETWEEN ge.graduated_at AND ge.graduated_at + ?
+               ORDER BY ge.graduated_at""", (MAX_ANCHOR_LAG_S,)
         ).fetchall()
 
         # bulk-load labels once

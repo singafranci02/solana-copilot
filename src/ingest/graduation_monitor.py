@@ -506,7 +506,15 @@ async def _handle_graduation(
             meta = _extract_meta_fields(mint, token_info)
             creator_wallet, created_time = extract_creation(token_info)
             pool_accounts = extract_pool_accounts(token_info)
-            total_supply = extract_total_supply(token_info)
+            # CHAIN FIRST: authoritative and free. extract_total_supply falls back
+            # to a hardcoded 1e9 when token_info lacks the field, which became the
+            # common case once the pipeline went RPC-first — 24 of the 25 newest
+            # coins carried the wrong denominator, mis-scaling every supply_pct.
+            import aiohttp as _aio
+            from src.ingest.rpc_holders import get_token_supply_rpc as _supply
+            async with _aio.ClientSession() as _sup_session:
+                _chain_supply = await _supply(_sup_session, mint)
+            total_supply = _chain_supply or extract_total_supply(token_info)
             # NON-RECOVERABLE point-in-time market + holder state (zero extra API)
             market = extract_market_state(token_info)
 
@@ -573,12 +581,22 @@ async def _handle_graduation(
             amm_pool_address = next(iter(sorted(ds_pairs)), None)
 
             conn.execute(
+                # graduated_at is WRITE-ONCE. A coin graduates exactly once, but this
+                # row is re-written whenever a coin is re-analysed, and OR REPLACE was
+                # stamping `now` over the original moment. The outage recovery on
+                # 2026-08-09 re-ran 162 stranded coins through here and moved their
+                # graduation weeks forward — which silently re-anchors every label
+                # derived from it (trajectory, team-exit timing, collapse). Keep the
+                # first value; let every other column refresh.
                 """INSERT OR REPLACE INTO graduation_events
                    (token_mint, graduated_at, detection_lag_seconds,
                     pumpswap_pool_address, migration_venue, amm_pool_address,
                     pool_accounts_json, pipeline_version, bc_top_holders_json)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, 2, '[]')""",
-                (mint, now, detection_lag, amm_pool_address, pool_address,
+                   VALUES (?,
+                           COALESCE((SELECT graduated_at FROM graduation_events
+                                     WHERE token_mint = ?), ?),
+                           ?, ?, ?, ?, ?, 2, '[]')""",
+                (mint, mint, now, detection_lag, amm_pool_address, pool_address,
                  amm_pool_address, json.dumps(sorted(pool_accounts))),
             )
             conn.execute(

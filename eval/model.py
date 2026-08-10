@@ -180,13 +180,27 @@ def roc_auc(scores: np.ndarray, y: np.ndarray) -> float:
 _TRAJ: dict | None = None
 
 
+# A tape that opens later than this cannot witness the early collapse, so every
+# trajectory label derived from it is unmeasurable rather than negative.
+MAX_TAPE_OPEN_LAG_S = 120
+
+
 def _trajectory() -> dict:
     """Continuous-time labels from coin_trajectory (measured: median collapse is
     10.5 min, so the old 1h/4h checkpoints were measuring the corpse).
 
     Requires n_price_points >= 30: a thin tape simply misses the collapse and
     mislabels the coin as a survivor (1-29 point tapes read a fake 77.8% survival
-    rate vs 13.0% on 100+ point tapes). A sparse trajectory is not a measurement."""
+    rate vs 13.0% on 100+ point tapes). A sparse trajectory is not a measurement.
+
+    Requires the tape to OPEN within MAX_TAPE_OPEN_LAG_S of graduation, which is
+    the same failure from the other end. The median collapse lands at 5.8 min, so
+    a tape whose first print arrives hours later cannot observe it and the coin
+    reads as a survivor. Measured: coins whose tape opens <=120s survive 60min at
+    5.2% (matching the documented classic base rate); coins whose tape opens later
+    read 25.1% — a 5x inflation that is pure observation artifact, not market.
+    This is left-truncation: events before the first print are unobservable, and
+    unobservable is not the same as did-not-happen."""
     global _TRAJ
     if _TRAJ is None:
         from src.common.db import get_connection
@@ -194,7 +208,14 @@ def _trajectory() -> dict:
         try:
             _TRAJ = {r["token_mint"]: dict(r)
                      for r in conn.execute(
-                         "SELECT * FROM coin_trajectory WHERE n_price_points >= 30")}
+                         """SELECT ct.* FROM coin_trajectory ct
+                            JOIN graduation_events ge ON ge.token_mint = ct.token_mint
+                            WHERE ct.n_price_points >= 30
+                              AND (SELECT MIN(p.ts) FROM post_grad_swaps p
+                                   WHERE p.token_mint = ct.token_mint)
+                                  BETWEEN ge.graduated_at
+                                      AND ge.graduated_at + ?""",
+                         (MAX_TAPE_OPEN_LAG_S,))}
         except Exception:
             _TRAJ = {}
         finally:
