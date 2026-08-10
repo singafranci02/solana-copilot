@@ -387,8 +387,15 @@ async def _do_check(token_mint: str, offset_h: int) -> PostGradBehavior | None:
             grad_team_pct = float(cluster_row["supply_pct_at_graduation"] or 0)
             is_bc_sniper = bool(cluster_row["is_bc_sniper"])
 
-        async with SolanaTrackerClient() as st:
-            accounts = await st.get_token_holders(token_mint)
+        # RPC FIRST. This was the last paid holders call in the pipeline — 4,651
+        # credits a day, spent on data two free RPC calls return. It also made the
+        # distribution check die whenever the vendor did, which is precisely when
+        # the holder snapshot matters most.
+        import aiohttp as _aio
+
+        from src.ingest.rpc_holders import get_token_holders_resilient
+        async with SolanaTrackerClient() as st, _aio.ClientSession() as _hs:
+            accounts, _ = await get_token_holders_resilient(_hs, token_mint, st)
 
         if not accounts:
             return None
