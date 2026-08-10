@@ -71,6 +71,28 @@ async def _deferred_early_check(token_mint: str, graduation_ts: int, offset_s: i
         logger.debug("early check failed for %s at %ds", token_mint[:8], offset_s)
 
 
+def _load_swaps_from_db(conn, token_mint: str, graduation_ts: int):
+    """Rebuild the post-graduation tape from persisted rows.
+
+    Returns objects exposing the same attributes the Swap consumers use
+    (timestamp/side/signer/sol_amount/price_usd), so trajectory, attention,
+    hazard and sell-structure code is untouched by the incremental change.
+    """
+    from types import SimpleNamespace
+    return [
+        SimpleNamespace(
+            timestamp=int(r["ts"]), side=r["side"], signer=r["wallet_address"],
+            sol_amount=float(r["sol_amount"] or 0.0),
+            price_usd=float(r["price_usd"]) if r["price_usd"] else None,
+            slot=int(r["slot"] or 0), token_mint=token_mint,
+        )
+        for r in conn.execute(
+            """SELECT ts, side, wallet_address, sol_amount, price_usd, slot
+               FROM post_grad_swaps WHERE token_mint = ? AND ts >= ?
+               ORDER BY ts""", (token_mint, graduation_ts))
+    ]
+
+
 async def _do_early_check(token_mint: str, graduation_ts: int, offset_s: int) -> None:
     """Minute-level trajectory pass: has the team started dumping? has price broken?
 
@@ -79,7 +101,7 @@ async def _do_early_check(token_mint: str, graduation_ts: int, offset_s: int) ->
     first time the team is caught selling, which is the actionable moment.
     """
     from src.ingest.solana_tracker import SolanaTrackerClient
-    from src.analyzer.post_grad_swaps import fetch_team_swaps
+    from src.analyzer.post_grad_swaps import fetch_team_swaps, upsert_swaps
     from src.analyzer.trajectory import compute_trajectory, upsert_trajectory
 
     conn = get_connection()
@@ -90,8 +112,29 @@ async def _do_early_check(token_mint: str, graduation_ts: int, offset_s: int) ->
         ).fetchone()
         team = set(json.loads(row["member_addresses"] or "[]")) if row else set()
 
+        # INCREMENTAL FETCH. get_token_trades walks the cursor from `since_ts`, so
+        # re-fetching from graduation at all 10 checkpoints re-downloads the whole
+        # (growing) tape each time — O(n^2) in API calls. Measured cost: /trades
+        # usage hit 44,662 calls in one day and projected 550k/month against a 200k
+        # budget. Now each checkpoint pulls only trades newer than the newest one
+        # already stored, and the full tape is reassembled from the DB.
+        last_row = conn.execute(
+            "SELECT MAX(ts) FROM post_grad_swaps WHERE token_mint = ?", (token_mint,)
+        ).fetchone()
+        last_ts = int(last_row[0]) if last_row and last_row[0] else graduation_ts
+
         async with SolanaTrackerClient() as st:
-            swaps = await fetch_team_swaps(st, token_mint, None, since_ts=graduation_ts)
+            new_swaps = await fetch_team_swaps(st, token_mint, None, since_ts=last_ts)
+
+        if new_swaps:
+            upsert_swaps(conn, token_mint, new_swaps, sniper_wallets=set(),
+                         team_wallets=team)
+            conn.commit()
+
+        # full tape = everything persisted so far (this checkpoint's delta included)
+        swaps = _load_swaps_from_db(conn, token_mint, graduation_ts)
+        if not swaps:
+            swaps = new_swaps
         if not swaps:
             return
 

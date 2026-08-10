@@ -1,5 +1,5 @@
 {
- "generated_at": 1786129819,
+ "generated_at": 1786302615,
  "live_since": 1783980000,
  "prewarn": {
   "summary": {
@@ -14,14 +14,14 @@
  },
  "exit_alarm": {
   "summary": {
-   "fired": 649,
-   "graded": 152,
-   "correct": 146,
-   "precision": 0.961,
-   "pending": 442,
-   "ungradable": 55
+   "fired": 645,
+   "graded": 151,
+   "correct": 145,
+   "precision": 0.96,
+   "pending": 441,
+   "ungradable": 53
   },
-  "median_saved_pct": 84.2,
+  "median_saved_pct": 84.4,
   "alerts": [
    {
     "mint": "8UCM6vPAP4ieACXWwCDWQmjPVa3tauKuMiHGKVjUs2YQ",
@@ -92,17 +92,6 @@
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "ungradable"
-   },
-   {
-    "mint": "652d5R2FcoCeqcA1A3qXv8j3oCvEaNNDbSDpvyNbpump",
-    "symbol": "BEEVS",
-    "alerted_at": 1785856983,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "correct",
-    "price_1h_after_vs_alert": 0.455,
-    "exit_saved_pct": 54.5,
-    "collapse_followed": true
    },
    {
     "mint": "f48nfnuqniQK7te2gdogCvFRok7D6UXTimHNyYfpump",
@@ -813,14 +802,6 @@
     "price_1h_after_vs_alert": 0.264,
     "exit_saved_pct": 73.6,
     "collapse_followed": true
-   },
-   {
-    "mint": "BQaxKoDhGhsSJMLSiwBSPA8EkE8eykPb2q5FRWRBpump",
-    "symbol": "Collective",
-    "alerted_at": 1785249002,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "ungradable"
    },
    {
     "mint": "Kx48CzzprcCJJDZCRZTLjWuaVwQaey2k5bLCGoFpump",
@@ -4551,14 +4532,6 @@
     "outcome": "pending"
    },
    {
-    "mint": "8ubrQUJGmUkCJsRDDX8pUVHMhYVyRrkH3hv2igBNpump",
-    "symbol": "GROK6",
-    "alerted_at": 1784743489,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "pending"
-   },
-   {
     "mint": "5VyqSCD8Hdy3eg8YQSdYtduudEZNsQVxGmZf8iabpump",
     "symbol": "HJBLISS",
     "alerted_at": 1784743375,
@@ -5527,14 +5500,6 @@
     "mint": "2TSVBXq29oD7CL2cSgfwbkURUwby3Mbe95Rvo7Repump",
     "symbol": "FARTCOON",
     "alerted_at": 1784684422,
-    "minute_offset": 2,
-    "claim": "team is exiting \u2014 price not yet broken",
-    "outcome": "ungradable"
-   },
-   {
-    "mint": "6Lg8hJABEbBWHCgK7wSDp3eqUAwBvghTdeuHH3vzpump",
-    "symbol": "Liquititty",
-    "alerted_at": 1784649141,
     "minute_offset": 2,
     "claim": "team is exiting \u2014 price not yet broken",
     "outcome": "ungradable"
