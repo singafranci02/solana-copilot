@@ -39,7 +39,14 @@ CHECK_OFFSETS_H = (1, 4, 24)
 # Detection alone cannot fix it though — even INSTANT detection only buys a 2.3 min
 # median warning. That is why the real lead time comes from PREDICTING the exit at
 # graduation (_prewarn_team_exit in graduation_monitor.py), not from watching for it.
-EARLY_CHECK_SECONDS = (120, 210, 300, 390, 480, 600, 720, 900, 1200, 2400)
+# MEASURED 2026-08-10: the median team now exits at 29 SECONDS (it was 2.4 min when
+# this grid was set), so a first look at 120s missed 64% of exits — the alarm was
+# confirming dumps rather than catching them. Solana Tracker's indexing lag was
+# measured at a median of 5s (p25 3s, min 1s) on actively-trading coins, so sub-minute
+# checkpoints see real data. 30/60/90 are already edges in the v5 hazard grid, so live
+# sampling now aligns exactly with the intervals the model reasons about, and the
+# incremental tape fetch makes each extra checkpoint cost ~1 API call.
+EARLY_CHECK_SECONDS = (30, 60, 90, 120, 210, 300, 390, 480, 600, 720, 900, 1200, 2400)
 
 # Classification thresholds
 _DUMPED_HOLDER_THRESHOLD = 5       # fewer than 5 unique holders → DUMPED
