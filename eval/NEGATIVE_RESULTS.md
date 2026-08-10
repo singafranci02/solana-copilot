@@ -373,3 +373,47 @@ median best SUSTAINED price after a confirmed collapse is 0.68x the opening anch
 p90 is 2.79x. So a collapsed coin usually keeps trading — it just rarely gets back to
 where it started. "Dead" is better defined as "never sustainably recovers half" than
 "stops trading".
+
+---
+
+## 15. THE STRUCTURAL ANSWER: post-graduation drift is negative and nothing escapes it.
+
+After six falsified entry rules, the right question stopped being "which signal?" and
+became "what does the price path actually do?" Measured on dense-tape classic coins,
+entry at T+10s (a realistic race lag), robust 3-print prices, n=271-277:
+
+| hold from T+10s | median return |
+|---|---|
+| 20s  | 1.000 |
+| 45s  | 0.999 |
+| 60s  | 0.994 |
+| 5 min | 0.970 |
+| 15 min | **0.676** |
+| 30 min | **0.455** |
+
+**The median coin loses half its value within 30 minutes of graduation.** There is no
+holding period with positive median return, and P(price > entry) never exceeds 42% at
+any horizon. The "graduation pop" is already over before T+10s — i.e. it belongs to the
+MEV/bot race, not to anyone acting on data.
+
+TWO GATES TESTED AGAINST IT, BOTH FAIL:
+- exiting BEFORE the team (coins whose team exits >120s): 60s median 1.000x — no better
+- the v5 model's OWN out-of-time danger score, safest decile: 0.970 / 0.833 / 0.564 at
+  5/15/30 min. The best selection the system can make still loses 44% in half an hour.
+
+WHY EVERY LONG ENTRY FAILED, IN ONE SENTENCE: a long position must overcome a ~-55%/30min
+median drift using a right tail that is measured-unpredictable (#1, #9). That is
+arithmetically hopeless, and it explains #5, #6, #9 and #14 as one phenomenon rather
+than four coincidences.
+
+WHAT THIS MAKES THE DATA GOOD FOR — the same fact inverted:
+- the negative drift is RELIABLE, which is precisely why exit timing pays (median 88%
+  of position preserved by acting on the team-exit alarm)
+- avoidance has real value: rug prediction at ROC 0.91 tells you what not to touch
+- shorting would monetise the drift directly, but new memecoins have no borrow market,
+  so it is not accessible
+
+CONCLUSION: this dataset makes an excellent RISK instrument and a hopeless ENTRY
+instrument, and that is a property of the asset class, not a limitation of the model.
+Do not test another long-entry variant without first showing the median drift has
+changed sign.
