@@ -330,3 +330,46 @@ are allowed to track drift while the blocking guards (single-feature canary, dat
 integrity, replay fidelity) stay strict. The product is the v5 competing-risks hazard
 model, which measures the early window continuously — exactly where a faster market puts
 all the signal.
+
+---
+
+## 14. "Buy the dip, but condition on WHO buys the recovery" — the signal is real, the trade still loses.
+
+**Hypothesis (owner's, and a genuinely new variable):** #5 falsified dip-buying after a
+team dump, but never asked *who buys it back*. If the TEAM re-accumulates that is a
+different animal from random retail catching a knife — so gate the dip trade on buyer
+identity.
+
+**The descriptive claim is TRUE.** Entry = 5 min after the team's first sell, buyers
+categorised inside that window (n=378 coins, robust prices, no look-ahead):
+
+| buyer signal (top vs bottom quartile) | median forward peak | P(reaches 2x) |
+|---|---|---|
+| **team buys back** | 1.22x vs 1.13x | **26% vs 16%** |
+| team share of buy SOL | 1.17x vs 1.13x | 18% vs 16% |
+| OTHER teams' wallets buying | 1.19x vs 1.10x | 16% vs 15% |
+
+So team re-accumulation genuinely marks a fatter right tail (~1.6x lift on P(2x)).
+Other teams' wallets buying carries NO signal — that part of the hypothesis is dead.
+
+**The trade is still unprofitable, and gating makes the typical outcome WORSE:**
+
+    buy 5min after team's first sell, TP at sustained 2x, 30min cap, 3% costs
+      no gate            mean 0.801x   median 0.752x   P(win) 24%
+      team rebuy > med   mean 0.753x   median 0.639x   P(win) 23%
+      team rebuy top 25% mean 0.766x   median 0.601x   P(win) 25%
+      bootstrap CI [0.647, 0.894]   P(true edge <= break-even) = 100%
+
+The paradox is the finding: team rebuy predicts the TAIL but degrades the BODY. Coins
+the team buys back are more volatile in both directions — more 2x, and a worse median.
+Selecting for them buys lottery tickets at a worse average price.
+
+Sixth independent falsification of a long-side entry (10x, early attention, dip-buy,
+sell-structure, 2x, and now buyer-identity-gated dip-buy). The long side stays closed.
+
+**Useful by-product — what "dead" actually means** (confirmed-collapse coins, robust
+sustained prices, n=361): 28% never sustainably regain half their opening price; the
+median best SUSTAINED price after a confirmed collapse is 0.68x the opening anchor and
+p90 is 2.79x. So a collapsed coin usually keeps trading — it just rarely gets back to
+where it started. "Dead" is better defined as "never sustainably recovers half" than
+"stops trading".
