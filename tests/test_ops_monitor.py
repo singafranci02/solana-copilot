@@ -1,6 +1,8 @@
 """Ops monitor — the anti-spam state machine and pure thresholds are the contract."""
 
-from scripts.ops_monitor import feed_gap_is_alarming, should_alert, st_pace_exceeds_budget
+from scripts.ops_monitor import (
+    feed_gap_is_alarming, should_alert, st_pace_exceeds_budget, st_plan_anchor_day,
+)
 
 T = 1_000_000
 
@@ -13,9 +15,12 @@ def test_feed_gap_scales_with_flow():
 
 
 def test_st_budget_projection():
-    assert not st_pace_exceeds_budget(50_000, day_of_month=15)   # -> 100k/mo: fine
-    assert st_pace_exceeds_budget(150_000, day_of_month=15)      # -> 300k/mo: alarm
-    assert not st_pace_exceeds_budget(40_000, day_of_month=2)    # grace early in month
+    # days_elapsed counts from the plan's renewal day, not the 1st of the month:
+    # the billing cycle starts when the plan was bought, and counting the calendar
+    # month charges a fresh plan for the previous one's spend.
+    assert not st_pace_exceeds_budget(50_000, days_elapsed=15)   # -> 100k/mo: fine
+    assert st_pace_exceeds_budget(150_000, days_elapsed=15)      # -> 300k/mo: alarm
+    assert not st_pace_exceeds_budget(40_000, days_elapsed=2)    # grace after renewal
 
 
 def test_alert_once_then_cooldown_then_realert():
@@ -40,3 +45,10 @@ def test_healthy_never_alerts():
     assert a is None
     a2, _ = should_alert(s, ok=True, now=T + 999_999)
     assert a2 is None
+
+
+def test_plan_anchor_day_falls_back_to_calendar_month_when_unset_or_absurd():
+    """An out-of-range anchor must degrade to the 1st, never produce a window that
+    silently drops days of usage from the count."""
+    d = st_plan_anchor_day()
+    assert 1 <= d <= 28

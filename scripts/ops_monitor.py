@@ -53,11 +53,24 @@ def feed_gap_is_alarming(minutes_since_last: float, grads_last_24h: int) -> bool
     return minutes_since_last > 720
 
 
-def st_pace_exceeds_budget(calls_this_month: int, day_of_month: int) -> bool:
-    """Projected month-end usage > budget, with 3 days of grace early in the month."""
-    if day_of_month < 3:
+def st_plan_anchor_day() -> int:
+    """Day of month the Solana Tracker plan renews (ST_PLAN_ANCHOR_DAY, default 1).
+
+    The billing cycle runs from the purchase date, not from the 1st. Counting the
+    calendar month charges the new plan for the previous one's usage: after the
+    2026-08-10 repurchase the check read 185,010 of 200,000 and alarmed, while the
+    actual spend on the live plan was 1,900.
+    """
+    from src.common.config import settings
+    d = int(settings.st_plan_anchor_day or 1)
+    return d if 1 <= d <= 28 else 1
+
+
+def st_pace_exceeds_budget(calls_this_cycle: int, days_elapsed: int) -> bool:
+    """Projected cycle-end usage > budget, with 3 days of grace after renewal."""
+    if days_elapsed < 3:
         return False
-    projected = calls_this_month / day_of_month * 30
+    projected = calls_this_cycle / days_elapsed * 30
     return projected > ST_MONTHLY_BUDGET
 
 
@@ -151,11 +164,22 @@ def run_checks(conn) -> list[tuple[str, bool, str]]:
     free_gb = shutil.disk_usage("/").free / 1e9
     out.append(("disk_space", free_gb >= 15, f"{free_gb:.0f} GB free"))
 
-    row = conn.execute("""SELECT COALESCE(SUM(count),0), CAST(strftime('%d','now') AS INT)
-        FROM api_usage WHERE provider='solana_tracker'
-          AND day >= date('now','start of month')""").fetchone()
+    # Cycle start = the most recent occurrence of the plan's anchor day.
+    anchor = st_plan_anchor_day()
+    row = conn.execute("""
+        WITH c(start) AS (SELECT CASE
+                WHEN CAST(strftime('%d','now') AS INT) >= :a
+                THEN date('now','start of month','+' || (:a - 1) || ' days')
+                ELSE date('now','start of month','-1 month','+' || (:a - 1) || ' days')
+            END)
+        SELECT COALESCE(SUM(u.count),0),
+               CAST(julianday('now') - julianday((SELECT start FROM c)) AS INT) + 1,
+               (SELECT start FROM c)
+        FROM api_usage u
+        WHERE u.provider='solana_tracker' AND u.day >= (SELECT start FROM c)""",
+        {"a": anchor}).fetchone()
     out.append(("st_budget", not st_pace_exceeds_budget(row[0], row[1]),
-                f"{row[0]:,} calls this month (day {row[1]})"))
+                f"{row[0]:,} calls this cycle (day {row[1]}, since {row[2]})"))
 
     try:
         slept = subprocess.run(["pmset", "-g", "log"], capture_output=True, text=True,

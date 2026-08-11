@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     telegram_bot_token: str = Field(default="", alias="TELEGRAM_BOT_TOKEN")
     telegram_chat_id: str = Field(default="", alias="TELEGRAM_CHAT_ID")
 
+    # Day of month the Solana Tracker plan renews. The billing cycle runs from the
+    # purchase date, not the 1st, and the budget alarm counts usage since then —
+    # counting the calendar month charges a fresh plan for the old one's spend.
+    st_plan_anchor_day: int = Field(default=1, alias="ST_PLAN_ANCHOR_DAY")
+
     # Server
     server_host: str = Field(default="0.0.0.0", alias="SERVER_HOST")
     server_port: int = Field(default=8000, alias="SERVER_PORT")
