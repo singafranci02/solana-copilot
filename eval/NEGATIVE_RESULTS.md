@@ -444,3 +444,42 @@ moving it to accommodate the reading would delete the finding. Two honest readin
 
 Consistent with #15: the entry side keeps getting worse while the risk side keeps
 being reliable. Retire the rug head from scoring before adding anything to it.
+
+---
+
+## #17 — candlestick shape: real reflexivity, no tradable content (2026-08-11)
+
+Hypothesis worth taking seriously: traders act on what they SEE, so the visual
+shape of the chart is causal, and reading candles should add information. Tested
+properly rather than dismissed — bars built from the stored tape at zero API cost,
+features strictly from bars <= t, targets strictly after t, out-of-time split with
+coins never spanning train and test. 196 coins, 38,960 bar-observations.
+
+**Finding 1 — there is no chart to read before the dump.** Median 18 trades and
+21 seconds elapse before the team's first sell. 41.7% of coins have fewer than 10
+trades of history at that moment; only 6.5% have five or more 1-minute bars. Chart
+reading cannot anticipate a dump that happens before a chart exists. Only 20 of 309
+coins (6.5%) exit later than 5 minutes.
+
+**Finding 2 — chart features DO predict retail behaviour.** Predicting top-quartile
+retail buy volume over the next 2 minutes: baseline (price level + elapsed time +
+recent return) ROC 0.727, adding chart features 0.758. Coin-bootstrapped delta
++0.030, 95% CI [+0.009, +0.053], P(no effect) 0.2%. The reflexive channel is real.
+
+**Finding 3 — but the content is ACTIVITY, not geometry.** Leave-one-out on the
+test ROC attributes the gain to trade count (+0.0122), volatility (+0.0067) and
+volume surge (+0.0023). The features a human eye actually reads contribute nothing:
+body/range -0.0008, upper wick -0.0003, lower wick +0.0006, green streak +0.0007,
+red streak +0.0010 — and two are net NEGATIVE, i.e. the model is better without
+them. There is no candlestick-pattern effect here. There is a busy-coin effect,
+which the tape already measures directly without drawing a candle.
+
+**Finding 4 — none of it predicts price.** Same features, same discipline, target
+"price up over the next 5 minutes": baseline 0.523, with chart features 0.525. A
+coin flip, exactly as #1 and #9 found through other channels.
+
+CONCLUSION: this is the attention result again, arriving through a third door. We
+can see the crowd, we can now also see the crowd REACTING to the chart, and neither
+predicts the price. Do not build a candlestick feature set: its measurable content
+is trade count and volatility, which are already features. Do not revisit without
+a mechanism that is not "activity" in disguise.

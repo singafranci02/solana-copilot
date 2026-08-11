@@ -52,8 +52,18 @@ ROC_BANDS = {
     # distribute's rise is team_supply_pct (0.939, the thesis itself), not a leak.
     "distribute":  (0.88, 0.99),   # was 0.937, now ~0.97 (more determinative in a
                                    # faster market — team structure -> 4h outcome)
-    "rug":         (0.74, 0.96),   # was 0.912, now ~0.79 (SATURATING: 91-97% rug
-                                   # leaves little discriminative headroom)
+    "rug":         (None, 0.96),   # RETIRED as a signal 2026-08-11 (NEGATIVE_RESULTS
+                                   # #16): 0.912 -> ~0.64 at a 97.1% base rate. ~17
+                                   # negatives in 581 coins leave nothing to
+                                   # discriminate, and that is the market changing,
+                                   # not the model breaking. The floor is dropped
+                                   # because the weekly retrain gates on a clean
+                                   # audit, so one dead head was rolling back EVERY
+                                   # artifact — the models sat frozen on 2026-08-05
+                                   # labels (the corrupted ones) and could never
+                                   # ship again. The 0.96 ceiling stays: that is the
+                                   # leak tripwire, and a rug head that suddenly
+                                   # scored well would be the alarm, not the win.
     "survive60":   (0.70, 0.90),   # measured ~0.81
     "team_exit10": (0.66, 0.86),   # measured 0.765 on gated labels
     "moon10x":     (None, 0.68),   # measured 0.583 == UNPREDICTABLE; "working" = leak
