@@ -43,6 +43,27 @@ from src.common.db import get_connection
 # ── measured baseline bands (source: eval/BASELINE.md, MODEL_BASELINE.md,
 #    NEGATIVE_RESULTS.md; every number was measured out-of-time on this tape) ──────
 
+# ── which heads may block a deployment ────────────────────────────────────────────
+# A head earns a blocking floor by having something to predict. Once a base rate
+# saturates past ~95% the question answers itself, ROC is estimated on a handful of
+# minority cases, and a "degraded" reading reports the market changing rather than
+# the model breaking. Those heads are RETIRED: still trained, still measured, still
+# reported — but they no longer roll back a retrain.
+#
+# This distinction exists because the weekly retrain gates on a clean audit. With
+# every head blocking, one dead head froze all three artifacts, and the models sat
+# on 2026-08-05 labels (the corrupted ones) for six days, unable to ship.
+#
+# A retired head keeps its CEILING. That is the leak tripwire, and it is the more
+# important half: a head we have concluded is uninformative suddenly scoring well
+# is evidence of a leak, not of a discovery.
+RETIRED_HEADS = {
+    "rug":         "97% base rate — ~17 negatives in 582 coins (NEGATIVE_RESULTS #16)",
+    "team_exit10": "96.5% base rate — 'will they exit' answers itself; timing is the "
+                   "live question and the hazard model owns it",
+    "moon10x":     "measured unpredictable (NEGATIVE_RESULTS #1); ceiling-only already",
+}
+
 ROC_BANDS = {
     # head: (min ok, max plausible). Above max = suspicious jump -> audit for a leak.
     # LEGACY v4 heads (fixed 4h checkpoint) — superseded by v5 hazard. Re-anchored
@@ -65,7 +86,13 @@ ROC_BANDS = {
                                    # leak tripwire, and a rug head that suddenly
                                    # scored well would be the alarm, not the win.
     "survive60":   (0.70, 0.90),   # measured ~0.81
-    "team_exit10": (0.66, 0.86),   # measured 0.765 on gated labels
+    "team_exit10": (None, 0.86),   # RETIRED 2026-08-12 — base rate 96.5%, so "will
+                                   # the team exit" is right by default and the ROC
+                                   # is carried by ~11 negatives. Not a regression:
+                                   # the exit still happens and still matters, but
+                                   # the answerable question is WHEN, which the v5
+                                   # hazard model predicts (rank corr 0.219 vs 0.003
+                                   # for every price target measured).
     "moon10x":     (None, 0.68),   # measured 0.583 == UNPREDICTABLE; "working" = leak
 }
 BASE_RATE_BANDS = {
@@ -90,7 +117,11 @@ BASE_RATE_BANDS = {
 REPLAY_FIDELITY_MIN = 0.995        # rules replayed from snapshots vs stored verdicts
 SINGLE_FEATURE_ROC_MAX = 0.95      # any lone snapshot feature this good = leaked label
 PREWARN_THRESHOLD = 0.90
-PREWARN_PRECISION_MIN = 0.85       # measured 94.2%
+PREWARN_PRECISION_MIN = 0.85       # legacy absolute floor, kept for reference only
+PREWARN_MIN_LIFT = 0.0             # the alert must beat always-saying-yes. Absolute
+                                   # precision is not evidence at a 96.5% base rate:
+                                   # 94.2% "precision" is a LOSS of 2.3 points against
+                                   # simply assuming every team exits within 10 min.
 PREWARN_FIRE_BAND = (0.03, 0.40)   # era-calibrated fire rate drifts (6-23%) while
                                    # precision holds; the floor only catches "alert died"
 EXIT_MEDIAN_MAX = 0.50             # median 1h-after-exit multiple; measured 0.24x
@@ -416,7 +447,9 @@ def stage_backtest(conn) -> list[Check]:
         ok = (lo is None or roc >= lo) and roc <= hi
         why = ("SUSPICIOUS JUMP — audit for a leak before believing it" if roc > hi
                else ("degraded below band" if (lo is not None and roc < lo) else "in band"))
-        out.append(Check("backtest", f"{head} ROC in [{lo if lo is not None else '—'}, {hi}]",
+        tag = " [RETIRED — leak tripwire only]" if head in RETIRED_HEADS else ""
+        out.append(Check("backtest",
+                         f"{head} ROC in [{lo if lo is not None else '—'}, {hi}]{tag}",
                          ok, f"{roc:.3f} (n={len(yy)}) — {why}"))
     return out
 
@@ -440,9 +473,16 @@ def stage_alerts(conn) -> list[Check]:
     p, yc = _walk_forward(X, y)
     fired = p >= PREWARN_THRESHOLD
     prec = yc[fired].mean() if fired.sum() >= 25 else float("nan")
-    out.append(Check("alerts", f"pre-warn precision @p>={PREWARN_THRESHOLD} >= {PREWARN_PRECISION_MIN:.0%}",
-                     bool(fired.sum() >= 25 and prec >= PREWARN_PRECISION_MIN),
-                     f"{prec:.1%} on {fired.sum()} fires of {len(yc)}"))
+    # LIFT, not raw precision. At a 96.5% base rate an alert can hit "94% precision"
+    # while being WORSE than assuming every team exits, so an absolute threshold
+    # certifies nothing. What must hold is that firing beats not bothering.
+    base = yc.mean() if len(yc) else float("nan")
+    lift = prec - base
+    out.append(Check("alerts",
+                     f"pre-warn beats its own base rate (lift > {PREWARN_MIN_LIFT:+.0%})",
+                     bool(fired.sum() >= 25 and lift > PREWARN_MIN_LIFT),
+                     f"precision {prec:.1%} vs base {base:.1%} = {lift:+.1%} lift, "
+                     f"on {fired.sum()} fires of {len(yc)}"))
     fr = fired.mean() if len(yc) else 0.0
     out.append(Check("alerts", "pre-warn fire rate in band",
                      PREWARN_FIRE_BAND[0] <= fr <= PREWARN_FIRE_BAND[1], f"{fr:.0%}"))

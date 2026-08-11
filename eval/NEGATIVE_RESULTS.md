@@ -483,3 +483,30 @@ can see the crowd, we can now also see the crowd REACTING to the chart, and neit
 predicts the price. Do not build a candlestick feature set: its measurable content
 is trade count and volatility, which are already features. Do not revisit without
 a mechanism that is not "activity" in disguise.
+
+---
+
+## #18 — the pre-warn alert cannot beat its own base rate (2026-08-12)
+
+The pre-warn alert fires when p_team_exit10 clears a threshold "chosen for >=93%
+precision", and the audit certified it at 94.2%. Both numbers are real and both
+are meaningless, because the base rate of "team exits within 10 min" on the
+anchor-gated classic population is **96.5%** (n=312).
+
+An alert with 94.2% precision against a 96.5% base rate is 2.3 points WORSE than
+assuming every team exits and never alerting at all. The absolute floor
+(PREWARN_PRECISION_MIN) could never have detected this: it measures the alert
+against a constant instead of against the strategy of not bothering.
+
+It has also fired **0 times** on verified-classic coins, so nothing was lost in
+practice — but it would have looked healthy in the audit while being worthless.
+
+Fixed by gating on LIFT (precision - base rate) rather than absolute precision.
+The general lesson, which applies to every alert this system will ever add: on a
+saturated outcome, precision is a property of the base rate, not of the model.
+Always quote the lift.
+
+The live question is not WHETHER the team exits — it is WHEN, and how long the
+liquidation runs (median 323s from the first sell). That is a timing problem and
+belongs to the v5 hazard model, which is the only place a real signal was found:
+rank correlation 0.219 for exit timing against 0.003-0.049 for every price target.
