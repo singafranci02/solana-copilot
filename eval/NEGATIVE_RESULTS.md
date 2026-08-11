@@ -417,3 +417,30 @@ CONCLUSION: this dataset makes an excellent RISK instrument and a hopeless ENTRY
 instrument, and that is a property of the asset class, not a limitation of the model.
 Do not test another long-entry variant without first showing the median drift has
 changed sign.
+
+---
+
+## #16 — the rug head is dying of base-rate saturation (2026-08-11)
+
+The "will it rug" head measured ROC 0.912 when the population still contained
+survivors. On the current anchor-gated classic population it reads **0.636** at a
+base rate of **97.1%** (n=581), and the audit band [0.74, 0.96] now fails.
+
+This is NOT the label-anchor bug fixed the same day — that one inflated survival by
+counting unobservable events as non-events, and it was corrected before these
+numbers were taken. This is the opposite and it is real: **97.1% of anchor-valid
+classic graduations now rug.** There are ~17 negatives per 581 coins left to
+discriminate, so the question "will this rug?" has almost no information content,
+and ROC estimated on that many negatives is noisy besides.
+
+Do not fix this by re-anchoring the band. A band exists to detect exactly this, and
+moving it to accommodate the reading would delete the finding. Two honest readings:
+
+- as a SIGNAL the head is finished — "yes" is right 97.1% of the time without a
+  model, so no threshold on it can pay for its own complexity;
+- as a MEASUREMENT the saturation is itself the product. A market where 97.1% of
+  graduations rug is a different market from the one where 89% did, and the drift
+  is worth tracking as a regime indicator.
+
+Consistent with #15: the entry side keeps getting worse while the risk side keeps
+being reliable. Retire the rug head from scoring before adding anything to it.

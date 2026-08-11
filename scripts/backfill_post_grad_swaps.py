@@ -78,7 +78,13 @@ async def main() -> None:
             swaps = await fetch_team_swaps(st, mint, sorted(members), since_ts=graduated_at)
 
         sniper_set = set(members) if is_sniper else set()
-        n = upsert_swaps(conn, mint, swaps, sniper_set, is_team=True)
+        # is_team=True marks EVERY row as team activity, but fetch_team_swaps
+        # returns the whole tape rather than just the wallets passed to it — so
+        # that flagged every trader on the coin as a team member, and the
+        # team-exit label is read straight off is_team (trajectory.py). Pass the
+        # membership set and let upsert_swaps mark only the actual members.
+        n = upsert_swaps(conn, mint, swaps, sniper_set, is_team=False,
+                         team_wallets=set(members))
         total_swaps += n
 
         grad_positions = _load_grad_positions(mint, conn)
