@@ -510,3 +510,49 @@ The live question is not WHETHER the team exits — it is WHEN, and how long the
 liquidation runs (median 323s from the first sell). That is a timing problem and
 belongs to the v5 hazard model, which is the only place a real signal was found:
 rank correlation 0.219 for exit timing against 0.003-0.049 for every price target.
+
+---
+
+## #19 — following the team's path loses money (2026-08-13)
+
+The most direct test yet of the trading thesis: the team's trades are observable,
+so copy them. Simulated on 195 anchor-gated coins / 2,810 team buys, with
+execution lag swept, limit fills, fees deducted, and no look-ahead.
+
+**Exit when they exit:** median round trip 0.948x, 32.7% of trips win, compounded
+median 0.654x per coin. Only 18.0% of coins finish above 1.0.
+
+**Latency is not the problem.** Sweeping the lag: 0s -> 0.956x, 2s -> 0.951x,
+5s -> 0.948x, 30s -> 0.960x. Even physically-impossible zero-latency execution
+loses. This retires the idea that a faster feed rescues the strategy — it was
+tested BEFORE building the free-RPC pipeline, which is the only reason that work
+wasn't wasted.
+
+**No exit rule rescues it** once a deadline and 1.5% fees are applied:
+  +20% within  60s  mean 0.993      +50% within 300s  mean 0.975
+  +20% within 300s  mean 0.973      +50% within 600s  mean 0.954
+  +20% within 600s  mean 0.963      +20% unbounded    mean 1.056
+Only the UNBOUNDED rule profits, and that is an artifact: "wait indefinitely for
++20%" means holding through a 90% drawdown until the price happens to trade there
+again. It is not a trade anyone takes.
+
+**Nor does entry selection**, including the specific rebuy hypothesis:
+  first buy (before any team sell)  mean 0.984 (n=155)
+  rebuy (after a team sell)         mean 0.961 (n=2616)
+  rebuy >=20% below their own sell  mean 0.944 (n=148)
+The most targeted version of the thesis is the WORST of the three.
+
+THE TRAP WORTH REMEMBERING: +20%/600s shows a 55.4% win rate and a median of
+1.045 while its MEAN is 0.963. You win more often than not and still lose money,
+because the losses are larger than the wins. Any future strategy result quoted as
+a win rate or a median is uninterpretable — this asset class is defined by its
+left tail. Quote the mean, or quote nothing.
+
+This also explains the earlier 1.56x "lift after a team rebuy" (#cycle research):
+that used raw MAX price over the following 10 minutes — the best possible exit.
+Made executable at a realistic fill it is 0.948x. The gap between those two
+numbers is the entire distance between a backtest and a trade.
+
+CONCLUSION: the team's path is DESCRIPTIVE, not tradable. Consistent with #15 and
+#17 — the structure is real and measurable, and it does not convert into an entry.
+Do not retest without a mechanism that is not "follow the insider".
