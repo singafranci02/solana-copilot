@@ -1,6 +1,6 @@
 # Live track record
 
-*Auto-generated 2026-08-10 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
+*Auto-generated 2026-08-11 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
 
 ## Pre-warnings (at graduation: “team exits within 10 min”)
 
@@ -11,15 +11,22 @@ fired **0** · graded 0 · precision **—** · pending 0 · ungradable 0
 
 ## Exit alarms (live: “team is exiting — price not yet broken”)
 
-fired **651** · graded 152 · price lower 1h later 96% · median saved **84.2%** of position · pending 446
+fired **656** · graded 155 · price lower 1h later 95% · median saved **82.6%** of position · pending 448
 
 | time (UTC) | coin | alarm at | outcome | 1h later | saved |
 |---|---|---|---|---|---|
-| 08-10 19:10 | $FOMO `trqPu7My…` | +0m | pending | — | — |
-| 08-10 18:02 | $DCN `CUTFq2j7…` | +0m | pending | — | — |
+| 08-11 17:18 | $GrokBOT `HZEP6DFb…` | +8m | pending | — | — |
+| 08-11 15:27 | $STR `7LDGFsw6…` | +6m | pending | — | — |
+| 08-11 13:37 | $BYND `3W7hrBSr…` | +1m | pending | — | — |
+| 08-11 13:33 | $BYND `5fGoYsDt…` | +1m | pending | — | — |
+| 08-11 12:41 | $FDog `BEMnzWDj…` | +0m | pending | — | — |
+| 08-11 11:21 | $TOED `G98Ee3Ru…` | +0m | pending | — | — |
+| 08-10 21:19 | $TS `NEW2SaM1…` | +0m | correct | 0.42x | 57.8% |
+| 08-10 19:10 | $FOMO `trqPu7My…` | +0m | correct | 0.73x | 27.0% |
+| 08-10 18:02 | $DCN `CUTFq2j7…` | +0m | wrong | 7.62x | -662.5% |
 | 08-10 14:54 | $DATBOI `6KHBotE9…` | +1m | correct | 0.89x | 10.6% |
-| 08-10 12:43 | $ZEUS `EdYRCd8G…` | +2m | pending | — | — |
-| 08-10 12:26 | $PARKIFY `7Syw6tu4…` | +2m | pending | — | — |
+| 08-10 12:43 | $ZEUS `EdYRCd8G…` | +2m | correct | 0.52x | 48.3% |
+| 08-10 12:26 | $PARKIFY `7Syw6tu4…` | +2m | wrong | 1.22x | -21.8% |
 | 08-10 12:09 | $DopeBara `5XrExabv…` | +10m | pending | — | — |
 | 08-05 07:49 | $GOAT `8UCM6vPA…` | +2m | pending | — | — |
 | 08-05 04:06 | $PEREZ `pEREzg4G…` | +8m | correct | 0.47x | 53.5% |
@@ -58,13 +65,6 @@ fired **651** · graded 152 · price lower 1h later 96% · median saved **84.2%*
 | 08-02 22:59 | $MEOW `4NiNjxvE…` | +2m | ungradable | — | — |
 | 08-02 20:24 | $HENRY `A8b5gh43…` | +2m | correct | 0.02x | 97.7% |
 | 08-02 20:03 | $GOONER `F8shSPpv…` | +3m | ungradable | — | — |
-| 08-02 19:56 | $CateCoin `BMsfBMKv…` | +2m | correct | 0.28x | 72.3% |
-| 08-02 17:45 | $BIN `j5qDcN4j…` | +2m | correct | 0.04x | 96.0% |
-| 08-02 17:05 | $ANSEM `Dju9zobL…` | +2m | ungradable | — | — |
-| 08-02 14:14 | $Naseem `HUv4CSqt…` | +2m | correct | 0.95x | 5.2% |
-| 08-02 12:37 | $ONIGIRI `BDEvSn6L…` | +2m | correct | 0.45x | 55.4% |
-| 08-02 06:55 | $Martians `7nLukVng…` | +2m | correct | 0.76x | 24.1% |
-| 08-01 22:00 | $SOLCat `3XaTv7tT…` | +2m | ungradable | — | — |
 
 ## Backtest reference (NOT the live record)
 

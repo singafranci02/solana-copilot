@@ -62,6 +62,7 @@ RETIRED_HEADS = {
     "team_exit10": "96.5% base rate — 'will they exit' answers itself; timing is the "
                    "live question and the hazard model owns it",
     "moon10x":     "measured unpredictable (NEGATIVE_RESULTS #1); ceiling-only already",
+    "survive60":   "5.6% base rate — saturated the other way; ~21 positives in 389",
 }
 
 ROC_BANDS = {
@@ -85,7 +86,13 @@ ROC_BANDS = {
                                    # ship again. The 0.96 ceiling stays: that is the
                                    # leak tripwire, and a rug head that suddenly
                                    # scored well would be the alarm, not the win.
-    "survive60":   (0.70, 0.90),   # measured ~0.81
+    "survive60":   (None, 0.90),   # RETIRED 2026-08-12 for the same reason as the
+                                   # others, just mirrored: a 5.6% base rate means
+                                   # 94.4% do not survive, so its ROC rides on ~21
+                                   # positives in 389. Retiring the FLOOR costs no
+                                   # protection — the thin-tape fake-survivor leak
+                                   # reads HIGH survival and is caught by the
+                                   # BASE_RATE ceiling (30%), not by this floor.
     "team_exit10": (None, 0.86),   # RETIRED 2026-08-12 — base rate 96.5%, so "will
                                    # the team exit" is right by default and the ROC
                                    # is carried by ~11 negatives. Not a regression:
@@ -595,6 +602,23 @@ def main() -> int:
     failed = [c for c in checks if not c.ok]
     print(f"\n{'='*80}\n{len(checks) - len(failed)}/{len(checks)} checks passed "
           f"({time.time()-t0:.0f}s, mode={'quick' if quick else 'full'})")
+
+    # COVERAGE. A suspended head prints PASS, which is honest per-check and
+    # misleading in aggregate: "33/33" can mean every out-of-time claim was
+    # withheld for want of rows. State plainly whether anything is actually being
+    # guarded, so a green audit is never mistaken for a validated model.
+    blocking = [h for h, (lo, _) in ROC_BANDS.items() if lo is not None]
+    armed = [c for c in checks if c.stage == "backtest"
+             and "SUSPENDED" not in c.detail
+             and any(c.name.startswith(h) for h in blocking)]
+    if blocking:
+        print(f"GATE: {len(armed)}/{len(blocking)} blocking heads making a claim "
+              f"({', '.join(blocking)})"
+              + ("" if armed else "  ← UNARMED: no out-of-time validation is in "
+                                 "force; green means 'nothing contradicted', not "
+                                 "'model validated'"))
+    else:
+        print("GATE: UNARMED — no head has a blocking floor")
     if failed:
         print("FAILED:")
         for c in failed:
