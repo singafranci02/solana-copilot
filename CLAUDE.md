@@ -32,6 +32,39 @@ they stay in the DB and the live pipeline (recognising one and skipping it is pr
 value; alerts carry an annotation), but they are EXCLUDED from every model/label
 population — their tape is one entity's puppet show, not price discovery.
 
+## Main goal (owner, 2026-08-13)
+
+**Make money.** Everything below serves that. The system is not an academic
+exercise — it is a proprietary dataset nobody else is collecting, and the two
+routes to monetising it are (a) trading the structure it reveals and (b) tooling
+that helps coins launch well and not rug. Keep both live when weighing work.
+
+### The cycle question — the current research frontier
+
+Most teams dump. That much is settled (96.9% rug, median first sell 29s). The
+open and more valuable question is what they do AFTER the first dump:
+
+> do teams sell into strength, re-buy cheaper, and push the coin up again —
+> and can that cycle be detected early enough to act on?
+
+First measurement (2026-08-13, 391 anchor-gated coins): **38.9% of coins show the
+team selling then re-buying >=10% lower**, 2,795 round-trips, median discount
+captured **32.4%**. Price after the rebuy reached a median 1.56x within 10 min
+(51.7% >=1.5x, 33.8% >=2x). CAVEAT: those lift figures used raw MAX price and are
+UPPER BOUNDS — they must be re-run under MIN_TRADES_AT_PEAK before being quoted,
+because 78% of raw extremes in this tape are single bad prints.
+
+Two things this does NOT yet establish, and both gate any trading use:
+- the rebuy is chosen by the team, so the forward move is conditional on their
+  intent — it is not yet shown to be a signal an outsider can act on
+- it has not been tested whether a rebuy is detectable in time to follow
+
+What is legitimate to build from this: detection of the cycle (product value —
+recognising a managed distribution is worth as much as recognising a rug), and
+launch tooling that makes distribution transparent and pre-committed. What is not:
+tooling that times insider sells to avoid detection. That line is about
+concealment, not about analysis.
+
 ## Core strategic focus: graduation-first analysis
 
 ~99.3% of Pump.fun tokens never complete their bonding curve. The system focuses
