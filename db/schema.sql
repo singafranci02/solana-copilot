@@ -776,3 +776,29 @@ CREATE TABLE IF NOT EXISTS hazard_predictions (
     model_version TEXT,
     PRIMARY KEY (token_mint, mode, checkpoint_s, horizon_s)
 );
+
+-- Realised follow-return per wallet (src/analyzer/follow_return.py).
+-- wallet_stats/funder_reputation count whether the COIN mooned or rugged; these
+-- record what copying the WALLET would actually have realised, which is the
+-- quantity that varies per wallet (NEGATIVE_RESULTS #19: recurring wallets 0.9923
+-- vs one-off 0.9475, and a wallet's early returns predict its later ones).
+CREATE TABLE IF NOT EXISTS wallet_follow_returns (
+    wallet_address     TEXT NOT NULL,
+    token_mint         TEXT NOT NULL,
+    bought_at          INTEGER NOT NULL,
+    realised_multiple  REAL NOT NULL,
+    PRIMARY KEY (wallet_address, token_mint, bought_at)
+);
+CREATE INDEX IF NOT EXISTS idx_wfr_wallet ON wallet_follow_returns(wallet_address);
+
+-- Derived aggregate: always rebuilt from wallet_follow_returns, never incremented
+-- in place, so it cannot drift the way the legacy counters did.
+CREATE TABLE IF NOT EXISTS wallet_follow_stats (
+    wallet_address   TEXT PRIMARY KEY,
+    n_trades         INTEGER NOT NULL,
+    n_coins          INTEGER NOT NULL,
+    mean_multiple    REAL,
+    median_multiple  REAL,
+    win_rate         REAL,
+    updated_at       INTEGER NOT NULL
+);
