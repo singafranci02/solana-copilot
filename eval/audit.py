@@ -349,11 +349,21 @@ def stage_labels(conn) -> list[Check]:
     att = dict(conn.execute(
         "SELECT state, COUNT(*) FROM coin_attribution GROUP BY state").fetchall())
     scored = sum(att.values())
+    # Coins graduating between the nightly rebuild and this audit are not yet
+    # classified, and that is normal rather than a fault. Requiring exact coverage
+    # made the check fail whenever a coin arrived in the gap — and the weekly
+    # retrain gates on a clean audit, so an intermittent failure here would roll
+    # back every artifact. Judge only coins old enough to have been rebuilt.
     n_traj = conn.execute(
-        """SELECT COUNT(*) FROM coin_trajectory ct JOIN tokens t ON t.mint=ct.token_mint
-           WHERE t.platform='pump.fun' AND ct.n_price_points >= 30""").fetchone()[0]
-    out.append(Check("labels", "attribution classified for every scored coin",
-                     scored >= n_traj, f"{scored} classified of {n_traj} trajectories"))
+        """SELECT COUNT(*) FROM coin_trajectory ct
+           JOIN tokens t ON t.mint = ct.token_mint
+           JOIN graduation_events ge ON ge.token_mint = ct.token_mint
+           WHERE t.platform='pump.fun' AND ct.n_price_points >= 30
+             AND ge.graduated_at < strftime('%s','now') - 86400""").fetchone()[0]
+    out.append(Check("labels", "attribution classified for every settled coin",
+                     scored >= n_traj,
+                     f"{scored} classified, {n_traj} settled (>24h) — "
+                     f"newer coins classified on next rebuild"))
     unc = att.get("uncertain", 0)
     frac = unc / max(scored, 1)
     out.append(Check("labels", "attribution-uncertain share < 15%",
