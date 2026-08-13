@@ -164,6 +164,20 @@ def run_checks(conn) -> list[tuple[str, bool, str]]:
     free_gb = shutil.disk_usage("/").free / 1e9
     out.append(("disk_space", free_gb >= 15, f"{free_gb:.0f} GB free"))
 
+    # LOG BLOAT. A service stuck in a failing retry loop writes megabytes a minute
+    # and nothing else notices: wallet_watcher reached 7.9 GB of consecutive
+    # rate-limit lines before anyone looked. Disk headroom alone missed it — 212 GB
+    # were still free while the service had been dead for days, so the size of a
+    # single log is the signal, not the free space.
+    logs = Path(__file__).parent.parent / "logs"
+    biggest, big_mb = None, 0.0
+    for f in logs.glob("*.err") if logs.exists() else []:
+        mb = f.stat().st_size / 1e6
+        if mb > big_mb:
+            biggest, big_mb = f.name, mb
+    out.append(("log_bloat", big_mb < 500,
+                f"largest log {biggest or 'none'} at {big_mb:.0f} MB"))
+
     # Cycle start = the most recent occurrence of the plan's anchor day.
     anchor = st_plan_anchor_day()
     row = conn.execute("""

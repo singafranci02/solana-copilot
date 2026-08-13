@@ -137,4 +137,6 @@ def classify_status(current_velocity: float, peak_velocity: float) -> str:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    from src.common.logging_setup import quiet_url_loggers
+    quiet_url_loggers()   # httpx logs API keys in URLs at INFO
     asyncio.run(track_narratives())
