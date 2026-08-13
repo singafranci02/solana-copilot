@@ -33,6 +33,11 @@ def main() -> int:
             backups[a] = src.with_suffix(".pkl.bak")
             shutil.copy2(src, backups[a])
 
+    # Derived tables first: labels and reputation are computed FROM these, so a
+    # retrain on stale attribution would learn from a stale blind spot.
+    run(["scripts/rebuild_attribution.py"], 1800)
+    run(["scripts/rebuild_follow_returns.py"], 1800)
+
     r1 = run(["scripts/train_model.py"], 3600)
     r2 = run(["scripts/train_early_model.py"], 3600)
     r3 = run(["scripts/train_hazard_model.py"], 3600)      # v5 competing-risks pair

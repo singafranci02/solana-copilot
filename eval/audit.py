@@ -339,6 +339,28 @@ def stage_labels(conn) -> list[Check]:
     out.append(Check("labels", "stored trajectories == recompute from tape (n=200)",
                      frac <= TRAJ_RECOMPUTE_TOLERANCE, f"{frac:.1%} differ"))
 
+    # ATTRIBUTION COVERAGE. "no team exit" is only evidence of loyalty when nobody
+    # in the funding graph sold either. Among low-supply teams 45% show no exit at
+    # all (vs 4% for >=35% holders), and a third of those had an ungated BC buyer
+    # selling — a blind spot, not a measurement. team_exit10 already returns None
+    # for no-exit coins so the MODEL is unaffected; this guards the next consumer,
+    # because reading "held" off a NULL is the natural mistake and it biases toward
+    # flattering the team.
+    att = dict(conn.execute(
+        "SELECT state, COUNT(*) FROM coin_attribution GROUP BY state").fetchall())
+    scored = sum(att.values())
+    n_traj = conn.execute(
+        """SELECT COUNT(*) FROM coin_trajectory ct JOIN tokens t ON t.mint=ct.token_mint
+           WHERE t.platform='pump.fun' AND ct.n_price_points >= 30""").fetchone()[0]
+    out.append(Check("labels", "attribution classified for every scored coin",
+                     scored >= n_traj, f"{scored} classified of {n_traj} trajectories"))
+    unc = att.get("uncertain", 0)
+    frac = unc / max(scored, 1)
+    out.append(Check("labels", "attribution-uncertain share < 15%",
+                     frac < 0.15,
+                     f"{frac:.1%} uncertain ({unc}), {att.get('held',0)} held, "
+                     f"{att.get('observed',0)} observed"))
+
     # the sustain rule actually holds on every reached_10x label
     bad = n10 = 0
     for r in conn.execute(

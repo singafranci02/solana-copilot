@@ -1,6 +1,6 @@
 # Live track record
 
-*Auto-generated 2026-08-11 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
+*Auto-generated 2026-08-12 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
 
 ## Pre-warnings (at graduation: “team exits within 10 min”)
 
@@ -11,12 +11,20 @@ fired **0** · graded 0 · precision **—** · pending 0 · ungradable 0
 
 ## Exit alarms (live: “team is exiting — price not yet broken”)
 
-fired **656** · graded 155 · price lower 1h later 95% · median saved **82.6%** of position · pending 448
+fired **664** · graded 163 · price lower 1h later 95% · median saved **81.8%** of position · pending 448
 
 | time (UTC) | coin | alarm at | outcome | 1h later | saved |
 |---|---|---|---|---|---|
-| 08-11 17:18 | $GrokBOT `HZEP6DFb…` | +8m | pending | — | — |
-| 08-11 15:27 | $STR `7LDGFsw6…` | +6m | pending | — | — |
+| 08-12 16:02 | $$STORM `HpRhaYxh…` | +10m | pending | — | — |
+| 08-12 15:24 | $hmm `JBQtnQNx…` | +0m | pending | — | — |
+| 08-12 14:31 | $Bani `8DWa3umS…` | +2m | correct | 0.51x | 48.6% |
+| 08-12 01:58 | $JOEVER `4YYbeJsQ…` | +2m | correct | 0.24x | 75.6% |
+| 08-12 00:18 | $NSC `9HMox2J4…` | +3m | correct | 0.06x | 93.6% |
+| 08-11 23:09 | $Lenny `7QHEYQXw…` | +6m | correct | 0.74x | 26.0% |
+| 08-11 22:54 | $64 `5b3Rc9j1…` | +1m | correct | 0.13x | 87.3% |
+| 08-11 20:16 | $MIM `BQ9khUUh…` | +0m | correct | 0.10x | 90.2% |
+| 08-11 17:18 | $GrokBOT `HZEP6DFb…` | +8m | correct | 0.34x | 66.3% |
+| 08-11 15:27 | $STR `7LDGFsw6…` | +6m | correct | 0.84x | 15.7% |
 | 08-11 13:37 | $BYND `3W7hrBSr…` | +1m | pending | — | — |
 | 08-11 13:33 | $BYND `5fGoYsDt…` | +1m | pending | — | — |
 | 08-11 12:41 | $FDog `BEMnzWDj…` | +0m | pending | — | — |
@@ -57,14 +65,6 @@ fired **656** · graded 155 · price lower 1h later 95% · median saved **82.6%*
 | 08-03 11:42 | $Meme `9QsrVeW7…` | +2m | correct | 0.35x | 64.9% |
 | 08-03 06:09 | $Haerin `Cq3YrfEa…` | +2m | correct | 0.95x | 5.1% |
 | 08-03 04:18 | $KITE `CRQqyc4L…` | +5m | ungradable | — | — |
-| 08-03 02:23 | $$CTO `HF4Swu5t…` | +2m | correct | 0.16x | 84.0% |
-| 08-03 02:22 | $Cat `Hn32qtqc…` | +3m | ungradable | — | — |
-| 08-03 02:04 | $Onigiri `DtmKxyps…` | +12m | correct | 0.56x | 44.5% |
-| 08-03 01:53 | $GINNAN `7MVw9yza…` | +2m | correct | 0.35x | 65.1% |
-| 08-03 00:43 | $CATE `AWhYm15w…` | +2m | ungradable | — | — |
-| 08-02 22:59 | $MEOW `4NiNjxvE…` | +2m | ungradable | — | — |
-| 08-02 20:24 | $HENRY `A8b5gh43…` | +2m | correct | 0.02x | 97.7% |
-| 08-02 20:03 | $GOONER `F8shSPpv…` | +3m | ungradable | — | — |
 
 ## Backtest reference (NOT the live record)
 

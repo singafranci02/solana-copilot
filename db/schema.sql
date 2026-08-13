@@ -802,3 +802,15 @@ CREATE TABLE IF NOT EXISTS wallet_follow_stats (
     win_rate         REAL,
     updated_at       INTEGER NOT NULL
 );
+
+-- Attribution confidence for the team-exit label (src/analyzer/attribution.py).
+-- 'held' vs 'uncertain' separates "no team sell and no ungated funding-graph seller"
+-- from "no team sell but an ungated BC buyer sold" — the latter is a blind spot, not
+-- a measurement, and is excluded from labels rather than counted as loyalty.
+CREATE TABLE IF NOT EXISTS coin_attribution (
+    token_mint         TEXT PRIMARY KEY,
+    state              TEXT NOT NULL,      -- observed | held | uncertain
+    n_ungated_sellers  INTEGER NOT NULL DEFAULT 0,
+    computed_at        INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_coin_attr_state ON coin_attribution(state);
