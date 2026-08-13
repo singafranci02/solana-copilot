@@ -1,4 +1,20 @@
-"""Background service — polls Helius for tracked wallet activity."""
+"""Background service — polls Helius for tracked wallet activity.
+
+STATUS 2026-08-13: functional but producing nothing, and that is understood.
+Helius's free tier is exhausted (CLAUDE.md records it as deprecated; a direct
+probe refuses every call), so every sweep rate-limits and backs off. The service
+is safe in that state — capped watchlist, capped concurrency, geometric backoff,
+early abort — after a period in which it made 40.3 million consecutive refused
+calls and wrote a 7.9 GB log.
+
+Before porting it to the free RPC path, note that its output is largely REDUNDANT:
+post_grad_swaps already flags smart-money wallets on every tracked coin (1,863
+rows), because the tape captures every trade on a graduated coin regardless of who
+made it. The unique value here is smart-money activity on coins we are NOT
+tracking — i.e. pre-graduation. That is a product decision, not an ops repair, and
+porting it means writing a raw-RPC swap parser (parse_swap expects Helius's
+enhanced shape, not getTransaction's).
+"""
 
 import asyncio
 import logging
