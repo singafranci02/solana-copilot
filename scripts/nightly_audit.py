@@ -16,6 +16,13 @@ sys.path.insert(0, str(ROOT))
 
 
 def main() -> int:
+    # Derived tables first. Attribution is a pure recompute from stored data, but it
+    # only ran with the WEEKLY retrain, so between runs freshly-settled coins sat
+    # unclassified and the audit's coverage check failed on them — a scheduling gap
+    # reported as a data fault. Nightly matches the cadence coins actually settle at.
+    subprocess.run([sys.executable, "scripts/rebuild_attribution.py"],
+                   cwd=ROOT, capture_output=True, timeout=1800)
+
     r = subprocess.run(
         [sys.executable, "-m", "eval.audit"],
         cwd=ROOT, capture_output=True, text=True, timeout=1800,
