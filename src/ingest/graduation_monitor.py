@@ -108,7 +108,7 @@ async def _oldest_signature_multi(session, mint: str) -> str | None:
         try:
             before = None
             oldest = None
-            for _page in range(6):                 # bound the walk (<=6000 sigs)
+            for _page in range(MAX_SIGNATURE_PAGES):
                 params = [mint, {"limit": 1000, **({"before": before} if before else {})}]
                 async with session.post(url, json={"jsonrpc": "2.0", "id": 1,
                         "method": "getSignaturesForAddress", "params": params},
@@ -123,8 +123,17 @@ async def _oldest_signature_multi(session, mint: str) -> str | None:
                 if len(sigs) < 1000:
                     return oldest                  # last page — this is creation
                 before = oldest
-            if oldest:
-                return oldest
+            # TRUNCATED: the walk hit its page bound with a full page still coming,
+            # so we never reached the tail and `oldest` is an ARBITRARY mid-history
+            # transaction, not the creation. Returning it made the caller classify
+            # whatever that tx happened to touch — and a Mayhem-routed swap on a
+            # classic coin then read as a Mayhem launch. Measured 2026-08-13..15:
+            # 12.5% of skipped coins re-resolved as genuine pump.fun, and classic
+            # capture fell from 21.8% of flow to ~2%. Fail closed instead: None
+            # means unverified, the re-resolver retries, and nothing is discarded
+            # on a guess. The old comment assumed "a freshly-graduated coin has few
+            # enough txs" — that stopped being true as volume rose.
+            continue                              # try the next endpoint
         except Exception:
             continue
     return None
@@ -167,6 +176,14 @@ def _platform_from_tx(tx: dict | None) -> str | None:
 # stable: 'https://pump.fun', 'pump.fun', 'pump', 'pump_v2', 'pumpfun' all appear.
 # Requiring the literal 'pump.fun' discarded 146 real coins (verified on-chain) before
 # the authoritative check could run.
+# Pages of 1000 signatures walked back looking for a mint's creation tx. This runs
+# in the LIVE gate, so it is a latency budget as much as a depth limit: 25 pages
+# made a 30-coin re-resolve exceed 10 minutes. Ten bounds the live path; coins too
+# busy to resolve inside it fail closed to 'unverified' and the background
+# re-resolver picks them up, where it can also fall back to the authoritative
+# created_tx from token metadata. Fast path live, expensive path offline.
+MAX_SIGNATURE_PAGES = 10
+
 _PUMP_CREATED_ON = {"pump", "pump_v2", "pumpfun", "pump.fun", "pumpdotfun"}
 
 

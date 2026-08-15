@@ -1,6 +1,6 @@
 # Live track record
 
-*Auto-generated 2026-08-12 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
+*Auto-generated 2026-08-14 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
 
 ## Pre-warnings (at graduation: “team exits within 10 min”)
 
@@ -11,12 +11,20 @@ fired **0** · graded 0 · precision **—** · pending 0 · ungradable 0
 
 ## Exit alarms (live: “team is exiting — price not yet broken”)
 
-fired **664** · graded 163 · price lower 1h later 95% · median saved **81.8%** of position · pending 448
+fired **672** · graded 172 · price lower 1h later 95% · median saved **81.2%** of position · pending 447
 
 | time (UTC) | coin | alarm at | outcome | 1h later | saved |
 |---|---|---|---|---|---|
-| 08-12 16:02 | $$STORM `HpRhaYxh…` | +10m | pending | — | — |
-| 08-12 15:24 | $hmm `JBQtnQNx…` | +0m | pending | — | — |
+| 08-14 17:41 | $Horny `C1p9vn1S…` | +1m | pending | — | — |
+| 08-14 07:49 | $PCA `Cc6Synbt…` | +5m | correct | 0.94x | 6.3% |
+| 08-14 07:16 | $Mcgregor `32JYTad9…` | +2m | correct | 0.00x | 100.0% |
+| 08-13 18:25 | $CGOD `oifaZPGp…` | +0m | correct | 0.03x | 96.8% |
+| 08-13 17:50 | $Grox `8V46FRzF…` | +3m | wrong | 1.09x | -8.8% |
+| 08-13 16:41 | $Sorajiro `Ec8mupKg…` | +1m | correct | 0.37x | 62.9% |
+| 08-13 10:23 | $WHALEHATE `FfuuTdsQ…` | +3m | correct | 0.05x | 95.4% |
+| 08-13 06:50 | $Chōjū `BmPtTQbP…` | +12m | correct | 0.33x | 67.5% |
+| 08-12 16:02 | $$STORM `HpRhaYxh…` | +10m | correct | 0.78x | 22.1% |
+| 08-12 15:24 | $hmm `JBQtnQNx…` | +0m | correct | 0.75x | 25.0% |
 | 08-12 14:31 | $Bani `8DWa3umS…` | +2m | correct | 0.51x | 48.6% |
 | 08-12 01:58 | $JOEVER `4YYbeJsQ…` | +2m | correct | 0.24x | 75.6% |
 | 08-12 00:18 | $NSC `9HMox2J4…` | +3m | correct | 0.06x | 93.6% |
@@ -57,14 +65,6 @@ fired **664** · graded 163 · price lower 1h later 95% · median saved **81.8%*
 | 08-03 17:39 | $Ishi `HjMu2uiU…` | +2m | correct | 0.08x | 91.9% |
 | 08-03 17:31 | $HENRY `FpDah6v5…` | +2m | ungradable | — | — |
 | 08-03 17:10 | $Queefcoin `8G4XEHtN…` | +2m | ungradable | — | — |
-| 08-03 16:54 | $helia `2tnppbXS…` | +8m | correct | 0.34x | 66.4% |
-| 08-03 15:55 | $Lucky `875ZTr1D…` | +2m | correct | 0.36x | 64.0% |
-| 08-03 13:45 | $Buythis `DDuSafJV…` | +2m | ungradable | — | — |
-| 08-03 12:49 | $Pussy `WtYLuDYa…` | +2m | ungradable | — | — |
-| 08-03 12:23 | $BULLE `E4XcM3x3…` | +2m | ungradable | — | — |
-| 08-03 11:42 | $Meme `9QsrVeW7…` | +2m | correct | 0.35x | 64.9% |
-| 08-03 06:09 | $Haerin `Cq3YrfEa…` | +2m | correct | 0.95x | 5.1% |
-| 08-03 04:18 | $KITE `CRQqyc4L…` | +5m | ungradable | — | — |
 
 ## Backtest reference (NOT the live record)
 
