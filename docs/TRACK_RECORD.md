@@ -1,6 +1,6 @@
 # Live track record
 
-*Auto-generated 2026-08-14 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
+*Auto-generated 2026-08-16 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
 
 ## Pre-warnings (at graduation: “team exits within 10 min”)
 
@@ -11,11 +11,20 @@ fired **0** · graded 0 · precision **—** · pending 0 · ungradable 0
 
 ## Exit alarms (live: “team is exiting — price not yet broken”)
 
-fired **672** · graded 172 · price lower 1h later 95% · median saved **81.2%** of position · pending 447
+fired **681** · graded 182 · price lower 1h later 93% · median saved **80.5%** of position · pending 446
 
 | time (UTC) | coin | alarm at | outcome | 1h later | saved |
 |---|---|---|---|---|---|
-| 08-14 17:41 | $Horny `C1p9vn1S…` | +1m | pending | — | — |
+| 08-16 14:24 | $SOL-CHAN `G8fPzYYk…` | +3m | correct | 0.46x | 54.2% |
+| 08-16 10:21 | $SOLDOG `4gUquUfH…` | +6m | correct | 0.81x | 19.0% |
+| 08-16 05:10 | $CAESAR `9RrSrcy2…` | +10m | correct | 0.64x | 36.5% |
+| 08-15 21:59 | $BMD `9sjRpz9k…` | +1m | correct | 0.26x | 74.3% |
+| 08-15 11:38 | $TEST `A5r8xvCm…` | +0m | correct | 0.04x | 95.8% |
+| 08-15 11:34 | $yee `6n9wscGt…` | +2m | wrong | 1.98x | -97.7% |
+| 08-15 10:46 | $WOFL `6NbNGVT2…` | +1m | wrong | 2.78x | -177.7% |
+| 08-15 07:42 | $USER `5wpvCAWG…` | +1m | wrong | 3.43x | -242.8% |
+| 08-14 19:57 | $PSQH `EeGYuujK…` | +0m | correct | 0.11x | 89.3% |
+| 08-14 17:41 | $Horny `C1p9vn1S…` | +1m | wrong | 1.32x | -31.6% |
 | 08-14 07:49 | $PCA `Cc6Synbt…` | +5m | correct | 0.94x | 6.3% |
 | 08-14 07:16 | $Mcgregor `32JYTad9…` | +2m | correct | 0.00x | 100.0% |
 | 08-13 18:25 | $CGOD `oifaZPGp…` | +0m | correct | 0.03x | 96.8% |
@@ -56,15 +65,6 @@ fired **672** · graded 172 · price lower 1h later 95% · median saved **81.2%*
 | 08-04 05:00 | $pibble `FSeq1HJN…` | +2m | correct | 0.04x | 96.3% |
 | 08-04 03:08 | $KITTY `D2CpiYSG…` | +2m | wrong | 1.45x | -45.2% |
 | 08-04 02:04 | $venoom `FnWFkhQL…` | +2m | correct | 0.66x | 34.3% |
-| 08-04 01:05 | $Telegone `7f3hE4qw…` | +5m | ungradable | — | — |
-| 08-03 23:18 | $BINGUS `Ed2yA1ZW…` | +2m | correct | 0.02x | 98.0% |
-| 08-03 22:33 | $OHSHIT `FrQpP6Mb…` | +2m | correct | 0.76x | 23.8% |
-| 08-03 19:25 | $DORKL `4TeY4yMA…` | +2m | ungradable | — | — |
-| 08-03 18:14 | $APE `31tzk5GS…` | +2m | correct | 0.04x | 95.6% |
-| 08-03 17:45 | $Rich `uWxjAWXB…` | +2m | correct | 0.19x | 81.1% |
-| 08-03 17:39 | $Ishi `HjMu2uiU…` | +2m | correct | 0.08x | 91.9% |
-| 08-03 17:31 | $HENRY `FpDah6v5…` | +2m | ungradable | — | — |
-| 08-03 17:10 | $Queefcoin `8G4XEHtN…` | +2m | ungradable | — | — |
 
 ## Backtest reference (NOT the live record)
 

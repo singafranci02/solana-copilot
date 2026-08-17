@@ -179,3 +179,46 @@ for zero measured gain. The literature's topological recommendation is effective
 already satisfied. Keep `eval/topology.py` as a research tool — it is the natural
 place to re-test if the coordination features are ever changed or evaded (topology
 would then be an independent fallback encoding).
+
+---
+
+## Exit-timing at the 30s checkpoint — the first positive prediction result (2026-08-17)
+
+Every binary head in this system is saturated (rug 96.9%, team_exit10 96.5%,
+survive60 5.6%, moon10x 5.1%), which is why they were retired: a question that
+answers itself cannot be improved by a model. The 30-second hazard checkpoint is
+the exception, and it is the reason the early checkpoints were added.
+
+    checkpoint    n   base rate    ROC
+        30s     116      39.7%    0.743
+        60s     116      46.6%    0.702
+        90s     114      51.8%    0.681
+       120s     320      68.1%    0.703
+       900s     317      82.6%    0.539
+
+ROC decays monotonically with checkpoint, as it did on the earlier measurement.
+But the headline is the BASE RATE: 39.7% at 30s against 68-86% later. The same ROC
+is worth far more where there is something to discriminate — by 120s roughly 76%
+of teams have already exited and the question is nearly settled.
+
+Actionable form, alarming on p_exit at 30s:
+
+    alarm on top   fires   precision    lift   recall
+            10%      12       66.7%   +27.0%   17.4%
+            20%      24       66.7%   +27.0%   34.8%
+            30%      35       62.9%   +23.2%   47.8%
+            50%      58       55.2%   +15.5%   69.6%
+
+Top-20% is the operating point: same precision as the top decile at double the
+recall. Bootstrapped top-decile lift +26.9%, 95% CI [+0.1%, +51.6%],
+P(lift <= 0) = 2.5%.
+
+NOT YET ESTABLISHED, and the CI says why: the lower bound is +0.1%, i.e. barely
+distinguishable from nothing, on n=116. This is promising, not proven. The
+interval will tighten as the early checkpoints accumulate — they only began
+recording on 2026-08-10 and went from 57 to 500 observations in a week.
+
+Read alongside NEGATIVE_RESULTS #19: following the team's trades LOSES money
+(0.948x per round trip, and latency is not why). So this is not an entry signal.
+It is a "the team is about to leave" alarm — the risk instrument this dataset
+keeps proving it is, now with a measured lift instead of an assumed one.
