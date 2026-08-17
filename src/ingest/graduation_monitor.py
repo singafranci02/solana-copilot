@@ -507,16 +507,29 @@ async def _handle_graduation(
                             break
                         await asyncio.sleep(1.0)
             if platform == "mayhem":
-                logger.info("skipping MAYHEM token %s (creation tx contains %s)",
-                            mint[:8], MAYHEM_PROGRAM[:8])
+                # COLLECTED, NOT ACTED ON (owner decision 2026-08-17). Mayhem is
+                # pump.fun's own enhanced launch mode and now carries ~89% of
+                # graduations, measured against an independent feed — excluding it
+                # cost roughly 10x the data and left every model head short of the
+                # 500 rows needed to make any claim. It is now analysed and stored
+                # like any other coin, tagged platform='mayhem' so it forms a
+                # SEPARATE population that can be selected, compared, or combined
+                # deliberately rather than by accident.
+                #
+                # It must never reach a recommendation. Both coin-level alerts gate
+                # on platform == 'pump.fun' (this file's pre-warn, and
+                # distribution's exit alarm), and the audit asserts that no alert
+                # ever fires for a non-classic coin.
+                logger.info("MAYHEM token %s — collecting as data, not alerting",
+                            mint[:8])
                 conn.execute(
                     """INSERT OR IGNORE INTO skipped_graduations
                            (token_mint, skipped_at, created_on) VALUES (?,?,'mayhem')""",
                     (mint, now))
                 conn.commit()
-                return
-            # 'pump.fun' = tx-confirmed classic; 'unverified' = tx unresolvable after
-            # retries (metadata says pump.fun). Never 'pump.fun*' from a failed check —
+            # 'pump.fun' = tx-confirmed classic; 'mayhem' = tx-confirmed enhanced
+            # mode (data only); 'unverified' = tx unresolvable after retries
+            # (metadata says pump.fun). Never 'pump.fun*' from a failed check —
             # 'unverified' is a distinct state the audit flags and the sweep re-resolves.
             resolved_platform = platform or "unverified"
 

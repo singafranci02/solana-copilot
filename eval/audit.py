@@ -307,12 +307,47 @@ def stage_data(conn) -> list[Check]:
     # a backlog; only fresh unverified count toward the re-resolver's health
     out.append(Check("data", "no unverified BACKLOG (<=3 transient in 48h)",
                      unresolved <= 3, f"{unresolved} NULL/unverified"))
+    # FOREIGN LAUNCHPADS remain out of scope entirely. 'mayhem' is NOT foreign — it
+    # is pump.fun's own enhanced mode, collected as a separate population from
+    # 2026-08-17. This check therefore excludes it while still catching rapidlaunch,
+    # bonk.fun and anything else that is a different product.
     bad_lp = conn.execute("""SELECT COUNT(*) FROM graduation_events ge
         JOIN tokens t ON t.mint = ge.token_mint
         WHERE ge.graduated_at > strftime('%s','now') - 172800
-          AND t.platform NOT IN ('pump.fun','pump.fun*','unverified','unresolvable')""").fetchone()[0]
-    out.append(Check("data", "no CONFIRMED-foreign (mayhem/launchpad) analysed (48h)",
+          AND t.platform NOT IN
+              ('pump.fun','pump.fun*','mayhem','unverified','unresolvable')""").fetchone()[0]
+    out.append(Check("data", "no FOREIGN launchpad analysed (48h)",
                      bad_lp == 0, f"{bad_lp} rows"))
+
+    # ── THE INVERSION ────────────────────────────────────────────────────────────
+    # Mayhem used to be excluded at ingest, so "was it analysed?" was the safety
+    # question. It is now collected deliberately, and the question becomes whether
+    # it stays DATA: it must never reach a recommendation, and never enter the
+    # classic training population by accident. These two checks replace the
+    # ingest-time guarantee that including it gave up.
+    leaked_alerts = conn.execute("""
+        SELECT COUNT(*) FROM (
+            SELECT token_mint FROM prewarn_alerts
+            UNION ALL SELECT token_mint FROM team_dump_alerts
+        ) a JOIN tokens t ON t.mint = a.token_mint
+        WHERE t.platform != 'pump.fun'""").fetchone()[0]
+    out.append(Check("data", "no alert ever fired for a non-classic coin",
+                     leaked_alerts == 0,
+                     f"{leaked_alerts} alerts on non-classic tokens"))
+
+    from eval._common import CLASSIC, load_samples
+    classic_pop = load_samples(conn, CLASSIC)
+    mints = {s.token_mint for s in classic_pop}
+    leaked_pop = 0
+    if mints:
+        marks = ",".join("?" * len(mints))
+        leaked_pop = conn.execute(
+            f"""SELECT COUNT(*) FROM tokens
+                WHERE mint IN ({marks}) AND platform != 'pump.fun'""",
+            tuple(mints)).fetchone()[0]
+    out.append(Check("data", "classic training population contains only classic",
+                     leaked_pop == 0,
+                     f"{leaked_pop} non-classic of {len(mints)} samples"))
     return out
 
 
@@ -595,8 +630,16 @@ def stage_calibration(conn) -> list[Check]:
     # retired in favor of v5; this guards against real miscalibration, not saturation.
     base_rate = float(yc.mean())
     tol = 0.02 if base_rate >= 0.88 else 0.0
-    out.append(Check("calibration", "calibrated p_rug ~ base-rate Brier (saturating ok)",
-                     b_model <= b_base + tol,
+    # rug is a RETIRED head (NEGATIVE_RESULTS #16): its base rate saturated, so it
+    # was dropped from the blocking ROC bands. Leaving it blocking HERE was an
+    # inconsistency — a head cannot be retired from one gate and still able to
+    # freeze the retrain from another, which is the deadlock that stranded the
+    # models on stale labels for six days. Reported, not enforced.
+    retired = "rug" in RETIRED_HEADS
+    out.append(Check("calibration",
+                     "calibrated p_rug ~ base-rate Brier"
+                     + (" [RETIRED — reported only]" if retired else " (saturating ok)"),
+                     retired or b_model <= b_base + tol,
                      f"model {b_model:.4f} vs base {b_base:.4f} (base rate {base_rate:.0%})"))
 
     worst = 0.0

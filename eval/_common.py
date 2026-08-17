@@ -41,8 +41,21 @@ class Sample:
 MAX_ANCHOR_LAG_S = 120
 
 
-def load_samples(conn=None) -> list[Sample]:
-    """Every pipeline-v2 snapshot joined to its graduation time + all labels."""
+# Selectable populations. Mayhem is pump.fun's own enhanced launch mode and carries
+# ~89% of graduations; it is collected from 2026-08-17 as a SEPARATE population so
+# the two can be compared before anyone trains on the union. CLASSIC stays the
+# default: every existing caller keeps the population it was written against, and
+# combining is an explicit act rather than a silent change of meaning.
+CLASSIC = ("pump.fun",)
+MAYHEM = ("mayhem",)
+BOTH = ("pump.fun", "mayhem")
+
+
+def load_samples(conn=None, platforms: tuple[str, ...] = CLASSIC) -> list[Sample]:
+    """Every pipeline-v2 snapshot joined to its graduation time + all labels.
+
+    `platforms` selects the population — CLASSIC (default), MAYHEM, or BOTH.
+    Anything outside these is a foreign launchpad and is never eligible."""
     own = conn is None
     conn = conn or get_connection()
     try:
@@ -56,7 +69,7 @@ def load_samples(conn=None) -> list[Sample]:
                  -- NULL/'unverified' platform = a gate that never resolved (old
                  -- outage-era coins, or a future leak) — keep them out of the model,
                  -- not just the live path. Mayhem/foreign already carry other labels.
-                 AND t.platform = 'pump.fun'   -- tx-verified classic only; 'unverified'
+                 AND t.platform IN (__PLATFORMS__)  -- tx-verified; 'unverified'
                  -- and legacy 'pump.fun*' are NOT trusted (Mayhem also
                  -- declares createdOn=pump.fun; only the tx confirms)
                  -- manufactured graduations (one entity bought the curve) have no
@@ -74,7 +87,9 @@ def load_samples(conn=None) -> list[Sample]:
                  AND (SELECT MIN(p.ts) FROM post_grad_swaps p
                       WHERE p.token_mint = ge.token_mint)
                      BETWEEN ge.graduated_at AND ge.graduated_at + ?
-               ORDER BY ge.graduated_at""", (MAX_ANCHOR_LAG_S,)
+               ORDER BY ge.graduated_at""".replace(
+                   "__PLATFORMS__", ",".join("?" * len(platforms))),
+            (*platforms, MAX_ANCHOR_LAG_S)
         ).fetchall()
 
         # bulk-load labels once

@@ -110,11 +110,14 @@ def main() -> None:
                      [(p, m) for m, p in resolved.items()])
     conn.commit()
 
-    mayhem = [m for m, p in resolved.items() if p not in ("pump.fun",)
-              and not p.startswith("pump.fun")]
-    # purge anything that resolved to mayhem/foreign
+    # Mayhem is KEPT from 2026-08-17 — it is pump.fun's own enhanced mode and is
+    # collected as a separate population (platform='mayhem'), never alerted on.
+    # Purging still applies to genuinely FOREIGN launchpads (rapidlaunch, bonk.fun,
+    # ...), which are a different product and were never in scope.
+    foreign = [m for m, p in resolved.items()
+               if p != "mayhem" and not str(p).startswith("pump.fun")]
     purged = 0
-    for m in mayhem:
+    for m in foreign:
         for tbl in PURGE_TABLES:
             try:
                 purged += conn.execute(f"DELETE FROM {tbl} WHERE token_mint=?", (m,)).rowcount
@@ -124,9 +127,10 @@ def main() -> None:
     conn.close()
 
     n_pump = sum(1 for p in resolved.values() if p == "pump.fun")
+    n_may = sum(1 for p in resolved.values() if p == "mayhem")
     print(f"re-resolved {len(resolved)}/{len(mints)}: {n_pump} classic, "
-          f"{len(mayhem)} foreign/mayhem purged ({purged} rows)")
-    if mayhem:                       # rebuild aggregates only when something was removed
+          f"{n_may} mayhem kept, {len(foreign)} foreign purged ({purged} rows)")
+    if foreign:                       # rebuild aggregates only when something was removed
         import subprocess
         subprocess.run([sys.executable, "scripts/rebuild_funder_lineage.py"],
                        cwd=Path(__file__).parent.parent, capture_output=True)

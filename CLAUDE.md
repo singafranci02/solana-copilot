@@ -7,7 +7,7 @@ early buyer clusters. It produces structural reads on tokens — never trades.
 
 **Do NOT implement trade execution. This is analysis only.**
 
-## Scope: CLASSIC pump.fun launches only (owner decision, 2026-07-13)
+## Scope: classic pump.fun ALERTS; classic + Mayhem DATA (owner decision, 2026-08-17)
 
 Pump.fun's **Mayhem mode** (its own enhanced-launch mode, program
 `MAyhSmzXzV1pTf7LsNkrNwkWKTo4ougAJ1PPg47MD4e`) carried ~90% of graduation flow and
@@ -16,7 +16,25 @@ decided to target classic pump.fun only. All Mayhem history was purged (backup a
 `db/pre_mayhem_purge.backup.db`); the live gate skips Mayhem creations on-chain
 (creation tx contains the MAyh program). Consequences to keep in mind:
 
-- classic flow is ~10-40 graduations/day, so samples grow ~10x slower
+**UPDATE 2026-08-17 — Mayhem is collected again, as data only.** Measured against
+an independent graduated feed, **89 of 100 pump.fun graduations are Mayhem-mode**,
+so classic-only had fallen to ~20 coins/day and left every model head below the
+500 rows needed to make any claim. Mayhem coins are now analysed and stored with
+`platform='mayhem'`, forming a SEPARATE population:
+
+- `eval._common.load_samples(conn, platforms=...)` selects CLASSIC (the default),
+  MAYHEM, or BOTH. Existing callers keep classic; combining is explicit.
+- **Mayhem never reaches a recommendation.** Both coin-level alerts gate on
+  `platform == 'pump.fun'`, and the audit asserts no alert has ever fired for a
+  non-classic coin and that the classic training population contains only classic.
+- foreign launchpads (rapidlaunch, bonk.fun, ...) remain excluded and purged —
+  Mayhem is not foreign, it is pump.fun's own mode.
+- the pre-purge backup is still `db/pre_mayhem_purge.backup.db`; post-purge Mayhem
+  history was destroyed, so the new population accumulates from 2026-08-17.
+
+Remaining consequences of the original decision:
+
+- classic flow is ~20 graduations/day, so the classic-only samples grow slowly
 - every pre-purge metric (ROCs, precisions, base rates) was measured on the MIXED
   population and must be re-measured before being quoted
 - model heads below their n-gates stay untrained until classic data accumulates
