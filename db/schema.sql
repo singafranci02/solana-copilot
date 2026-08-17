@@ -814,3 +814,10 @@ CREATE TABLE IF NOT EXISTS coin_attribution (
     computed_at        INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_coin_attr_state ON coin_attribution(state);
+
+-- Graduations recovered by scripts/graduation_backstop.py rather than seen live.
+-- Their structural snapshot is read from CURRENT chain state, so it is stale by the
+-- poll delay; the tape and its labels are anchored on the true pool-creation
+-- timestamp and are not. Flagged so a population can include or exclude them
+-- deliberately instead of discovering the difference later.
+ALTER TABLE graduation_events ADD COLUMN recovered INTEGER NOT NULL DEFAULT 0;
