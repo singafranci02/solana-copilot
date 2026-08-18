@@ -76,14 +76,20 @@ def _lift(p: np.ndarray, y: np.ndarray) -> float | None:
 
 
 def _load(conn, platform: str):
-    rows = conn.execute(
-        """SELECT h.p_exit p, h.team_exited y FROM hazard_predictions h
-           JOIN tokens t ON t.mint = h.token_mint
-           WHERE t.platform = ? AND h.checkpoint_s = ?
-             AND h.p_exit IS NOT NULL AND h.team_exited IS NOT NULL""",
-        (platform, CHECKPOINT_S)).fetchall()
-    return (np.array([r["p"] for r in rows], dtype=float),
-            np.array([r["y"] for r in rows], dtype=float))
+    """SPECIFICATION CORRECTION, 2026-08-18, before any data reached the required n.
+
+    As first written this read hazard_predictions.team_exited, which records whether
+    the team had ALREADY sold before the checkpoint rather than whether it sells in
+    the interval being scored (NEGATIVE_RESULTS #21). The pre-registered endpoint
+    would have compared two populations on the wrong quantity.
+
+    Correcting a specification error before the data arrives is not p-hacking — the
+    test has never been run to a verdict, both arms remain far below N_REQUIRED
+    (176 and 615 against 1,600), and the change makes the endpoint stricter rather
+    than easier. Recording it here so the edit is auditable rather than silent.
+    """
+    from eval.exit_alarm import at_risk_rows
+    return at_risk_rows(conn, platform, CHECKPOINT_S)
 
 
 def evaluate(conn) -> dict:

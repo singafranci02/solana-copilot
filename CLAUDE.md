@@ -197,10 +197,14 @@ WATCH: everything else (insufficient signal or mixed)
 
 Read `eval/NEGATIVE_RESULTS.md` before proposing a new signal. In short:
 
-**Works** (the surviving claim, adversarially audited): the **30s exit alarm** —
-alarming on the top 20% of p_exit gives 69-71% precision against a ~40% base rate,
-**lift +29.7%, 95% CI [+15.9%, +43.6%]**, P(no effect) 0.00%. This is the deployment
-gate and the only validated predictive result.
+**Nothing is currently validated.** The 30s exit alarm was reported as the first
+established result on 2026-08-17 and withdrawn on 2026-08-18: it had been scored
+against `hazard_predictions.team_exited`, which records whether the team had ALREADY
+sold before the checkpoint (70 of 70 such rows have exit <30s), not whether it sells
+in the interval being predicted. Corrected, it reads **lift +2.1%, 95% CI
+[-14.3%, +19.6%]**, P(no effect) 41.1% — indistinguishable from nothing.
+NEGATIVE_RESULTS #21. The deployment gate reports this and does not block; the audit
+prints `GATE: UNARMED` and that is accurate.
 
 **Retired, with the reasons** — the old headline numbers do not survive scrutiny:
 - *team will distribute ROC 0.937* — mostly mechanical. The label needs the team to

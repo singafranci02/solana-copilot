@@ -602,3 +602,46 @@ THE GENERAL LESSON, which is #18's in a new costume: check whether your label is
 ATTAINABLE for every row before believing a model predicts it. A feature that
 gates label eligibility will look like a brilliant predictor, and the more
 mechanical the gate, the better it looks.
+
+---
+
+## #21 — the exit alarm was scored against a past event (2026-08-18)
+
+Reported one day earlier as the system's first established predictive result, and
+made its blocking deployment gate: "30s exit alarm, top-20% lift +29.7%, 95% CI
+[+15.9%, +43.6%], P(no effect) 0.00%". It was measuring the wrong quantity.
+
+`landmark_row` sets `b_team_exited` when a team sell occurred STRICTLY BEFORE the
+checkpoint; `persist_landmark` stores that as `hazard_predictions.team_exited`.
+Verified: of rows at checkpoint 30 carrying team_exited=1, **70 of 70** have
+`time_to_team_exit_s < 30`. The column records a PAST event. `p_exit` is model_a's
+hazard for the NEXT interval. Scoring one against the other measures detection of
+something already visible in the covariates — tv_trades, tv_drawdown and
+tv_net_flow_recent all reflect the selling that already happened.
+
+Corrected — at-risk rows only, against the interval the model actually predicts:
+
+                        wrong label      correct
+        ROC                   0.749        0.568
+        top-20% lift        +29.7%        +2.1%
+        95% CI    [+15.9%, +43.6%]  [-14.3%, +19.6%]
+        P(no effect)          0.00%        41.1%
+
+There is no established predictive result in this system.
+
+WHY NOTHING CAUGHT IT. model_a does not take b_team_exited as a feature, so this
+was never a feature-is-label leak and the single-feature canary could not see it:
+no individual feature was suspicious, the TARGET was. Every existing guard checks
+features against a label and assumes the label means what it is named.
+
+Three things now carry the fix: the label lives in one place (eval/exit_alarm.py)
+so the audit gate and the pre-registered pooling test cannot drift apart; the gate
+reports rather than blocks, because a permanently failing gate deadlocks the
+weekly retrain; and the pre-registration endpoint was corrected before either arm
+approached its required n, recorded in the file so the edit is auditable.
+
+THE GENERAL LESSON, and it is the third variant of the same mistake in three days
+(#18 precision vs base rate, #20 label attainability, #21 label semantics): verify
+what a label MEANS by recomputing it from raw records before believing any metric
+built on it. A column named team_exited is not a definition. This is why the
+standing rule says never compute a metric and interpret it in the same turn.

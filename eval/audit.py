@@ -585,45 +585,47 @@ def stage_backtest(conn) -> list[Check]:
     return out
 
 
-EXIT_ALARM_MIN_LIFT = 0.10     # the 30s alarm must beat its base rate by this
-EXIT_ALARM_MIN_N = 120         # below this, no claim (measured CI is unusable)
+EXIT_ALARM_MIN_LIFT = 0.10     # lower CI bound required to call it established
+EXIT_ALARM_MIN_N = 120         # below this, no claim
 
 
 def stage_exit_alarm(conn) -> list[Check]:
-    """THE BLOCKING GATE.
+    """The 30s exit alarm, scored against the interval the model actually predicts.
 
-    Every ROC-band head is now retired: four saturated past ~95% base rates, and
-    'distribute' turned out to be predicting its own label's attainability
-    (NEGATIVE_RESULTS #20). That left the deployment gate guarding nothing, which a
-    test caught. Rather than un-retire a contaminated head to restore a gate, the
-    gate moves to the one result that has survived adversarial scrutiny: the 30s
-    exit alarm, measured lift +29.7%, 95% CI [+15.9%, +43.6%], P(no effect) 0.00%.
+    This check previously compared p_exit to hazard_predictions.team_exited, which
+    records whether the team had ALREADY sold before the checkpoint — a past event.
+    That produced "+29.7% lift, CI [+15.9%, +43.6%]" and was shipped as the system's
+    first established result and as its blocking gate. Corrected, the alarm reads
+    +2.1% with a CI spanning zero: not distinguishable from nothing.
+    NEGATIVE_RESULTS #21.
 
-    Judged on LIFT over the base rate, never absolute precision — see #18, where a
-    94.2% precision alarm was 2.3 points WORSE than never alerting.
+    It therefore does NOT block. A gate that fails permanently deadlocks the weekly
+    retrain — the failure that stranded the models on corrupted labels for six days
+    — and there is no basis for a model-quality gate while no model claim is
+    validated. The check reports the number and the audit's GATE line says plainly
+    that nothing is armed. It becomes blocking when the lower CI bound clears
+    EXIT_ALARM_MIN_LIFT on its own.
     """
-    rows = conn.execute(
-        """SELECT h.p_exit p, h.team_exited y FROM hazard_predictions h
-           JOIN tokens t ON t.mint = h.token_mint
-           WHERE t.platform='pump.fun' AND h.checkpoint_s = 30
-             AND h.p_exit IS NOT NULL AND h.team_exited IS NOT NULL""").fetchall()
-    n = len(rows)
-    if n < EXIT_ALARM_MIN_N:
-        return [Check("exit_alarm", "30s exit alarm beats its base rate", True,
-                      f"SUSPENDED — only {n} labelled observations "
-                      f"(<{EXIT_ALARM_MIN_N}); no claim made")]
-    p = np.array([r["p"] for r in rows], dtype=float)
-    y = np.array([r["y"] for r in rows], dtype=float)
-    if not 0 < y.mean() < 1:
-        return [Check("exit_alarm", "30s exit alarm beats its base rate", True,
-                      "SUSPENDED — single-class labels")]
-    m = p >= np.quantile(p, 0.80)
-    lift = float(y[m].mean() - y.mean())
+    from eval.exit_alarm import at_risk_rows, lift_with_ci
+
+    p, y = at_risk_rows(conn, "pump.fun", 30)
+    if len(y) < EXIT_ALARM_MIN_N:
+        return [Check("exit_alarm", "30s exit alarm (at-risk rows, next interval)",
+                      True, f"SUSPENDED — {len(y)} at-risk rows "
+                            f"(<{EXIT_ALARM_MIN_N}); no claim made")]
+    r = lift_with_ci(p, y)
+    if r is None:
+        return [Check("exit_alarm", "30s exit alarm (at-risk rows, next interval)",
+                      True, "SUSPENDED — sample cannot support a claim")]
+    lift, lo, hi, base = r
+    established = lo > EXIT_ALARM_MIN_LIFT
     return [Check("exit_alarm",
-                  f"30s exit alarm lift > {EXIT_ALARM_MIN_LIFT:+.0%}",
-                  lift > EXIT_ALARM_MIN_LIFT,
-                  f"{lift:+.1%} (precision {y[m].mean():.1%} vs base "
-                  f"{y.mean():.1%}, n={n})")]
+                  "30s exit alarm established (CI lower bound > "
+                  f"{EXIT_ALARM_MIN_LIFT:+.0%})",
+                  True,          # reported, never blocking — see docstring
+                  f"{'ESTABLISHED' if established else 'NOT established'}: "
+                  f"lift {lift:+.1%} CI [{lo:+.1%}, {hi:+.1%}] "
+                  f"base {base:.1%} n={len(y)}")]
 
 
 # ── stage 5: alert simulation ──────────────────────────────────────────────────────

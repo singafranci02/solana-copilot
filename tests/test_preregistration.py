@@ -10,6 +10,16 @@ which is the point. It should require an explicit, reviewable edit, not a quiet 
 from eval import preregistration as pre
 
 
+def test_endpoint_uses_the_forward_looking_label():
+    """The endpoint must score the interval being predicted, not whether the team
+    had already sold. Reading hazard_predictions.team_exited compares populations
+    on a past event — the error corrected in NEGATIVE_RESULTS #21."""
+    import inspect
+    src = inspect.getsource(pre._load)
+    assert "at_risk_rows" in src
+    assert "team_exited" not in src.split('"""')[-1], "reverted to the past-event label"
+
+
 def test_constants_are_unchanged_since_registration():
     assert pre.REGISTERED_ON == "2026-08-18"
     assert pre.CHECKPOINT_S == 30
