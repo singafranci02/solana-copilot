@@ -7,6 +7,64 @@ early buyer clusters. It produces structural reads on tokens — never trades.
 
 **Do NOT implement trade execution. This is analysis only.**
 
+## Commands
+
+```
+uv run pytest                          # tests (must pass before any commit)
+uv run python -m eval.audit            # full audit — non-zero exit means DO NOT deploy
+uv run python -m eval.audit --quick    # stages 1-3 only, seconds, pre-deploy
+uv run python scripts/weekly_retrain.py   # retrain all 3 artifacts, auto-rollback on audit fail
+uv run python -m eval.preregistration  # the frozen classic-vs-Mayhem pooling rule
+```
+
+## Standing rules — never violate, never soften
+
+- **Fail closed.** "Can't verify" is never "safe". Unverified platform = excluded
+  from alerts, training and the record.
+- **Out-of-time only.** Train past, test future, never random splits. Group by coin:
+  a coin never appears in both train and test.
+- **Lift over base rate, never absolute precision.** A 94.2%-precision alert was
+  once WORSE than doing nothing (base rate 96.5%) — NEGATIVE_RESULTS #18.
+- **Quote the mean, never the win rate or median.** This asset class is defined by
+  its left tail: a 55.4% win rate carried a 0.963 mean — #19.
+- **No claim below 500 rows** (120 for the exit alarm). Report "suspended", not a
+  number.
+- **Labels recompute from the raw tape or they do not exist.** Peaks must be
+  sustained (>=3 prints). The tape must OPEN within 120s of graduation or every
+  label on that coin is discarded — a label measured from the wrong zero is not a
+  weak label, it is a wrong one.
+- **Check whether the label is ATTAINABLE for every row** before believing a model
+  predicts it. A feature that gates label eligibility looks like a brilliant
+  predictor; that is how the thesis head survived unexamined for weeks — #20.
+- **Alerts fire only for `platform = 'pump.fun'`** (the literal value for classic;
+  there is no 'classic' string in the schema). Mayhem is data-only.
+- **Never compute a metric and interpret it in the same turn.** Emit
+  `{metric, base_rate, bootstrap_CI, n}` first, then interpret separately. Two
+  numbers this session looked publishable for one turn and were artifacts: a 31.95x
+  take-profit mean (single-print fills) and a 1.56x post-rebuy lift (raw MAX price).
+
+## Do not retry without a new written argument
+
+Predicting price is closed. Six independent tests, all out-of-time:
+
+| attempt | result |
+|---|---|
+| 10x from graduation structure | ROC 0.583 |
+| 10x from early order flow | ROC 0.517 |
+| time to collapse | rho 0.003 |
+| peak multiple | rho 0.049 |
+| time to peak | rho -0.065 |
+| price from chart shape | ROC 0.525 |
+| copying team trades | 0.948x, even at 0s latency |
+
+The tape's early shape carries nothing about price. Candlestick geometry adds
+nothing over trade count (#17). Do not add a moon/10x head, and do not add a
+social/attention layer — on-chain crowd arrival is a free, unfakeable measure of
+the same quantity and it fails.
+
+**Retired heads keep their ceilings.** A head we concluded is uninformative
+suddenly scoring well is a leak alarm, not a discovery.
+
 ## Scope: classic pump.fun ALERTS; classic + Mayhem DATA (owner decision, 2026-08-17)
 
 Pump.fun's **Mayhem mode** (its own enhanced-launch mode, program
