@@ -645,3 +645,47 @@ THE GENERAL LESSON, and it is the third variant of the same mistake in three day
 what a label MEANS by recomputing it from raw records before believing any metric
 built on it. A column named team_exited is not a definition. This is why the
 standing rule says never compute a metric and interpret it in the same turn.
+
+---
+
+## #22 — funder reputation does not convert into a trading edge (2026-08-18)
+
+The most promising version of the follow-the-team thesis, and the only one with a
+mechanism: same operator, same playbook. It had real supporting structure —
+
+  * exit timing is a persistent FUNDER trait: split-half Spearman +0.437 (p=0.008)
+    across 36 repeat funders, stronger than the wallet-level +0.249
+  * ranking funders on their EARLY coins predicts their LATER ones out-of-time:
+    slow-exit funders peak 2.68x vs 1.48x for fast, difference +1.26x with 95% CI
+    [+0.50, +1.92], P(no advantage) 0.0%
+  * repeat funders cover 51% of coins, so it is not a niche
+
+Tested with point-in-time reputation (a funder's class for a coin uses only their
+strictly earlier coins), the slow/fast boundary fixed on the training era and
+applied unchanged, fills/lag/fees inherited from the shared follow_return
+machinery, and bootstrapping BY FUNDER:
+
+    all team buys (control)   n=7699  mean 1.022  CI [0.964, 1.102]
+    repeat funders only       n=3504  mean 1.027  CI [0.993, 1.046]
+    slow-exit funders         n=3036  mean 1.021  CI [0.990, 1.036]
+    fast-exit funders         n= 468  mean 1.067  CI [0.971, 1.253]
+
+Conditioning does nothing (1.027 vs 1.022), and the slow/fast split runs BACKWARDS
+— fast-exit funders scored nominally higher, on overlapping intervals.
+
+So a +1.26x peak advantage that is real, persistent and out-of-time does NOT
+convert into return. That is the sharpest statement yet of this dataset's shape:
+structure is measurable and predictable; the money is not.
+
+TWO METHOD NOTES, both of which nearly produced a false positive:
+
+1. I first compared 1.027 against the 0.948x from #19 and it looked like a clear
+   edge. Wrong baseline: 0.948x is the exit-when-they-exit rule, while this uses
+   +20%/600s. Recomputed like-for-like the control is 1.022 and the edge vanishes.
+   Always regenerate the control with the same machinery; never quote a stored
+   number from a different rule.
+
+2. The same +20%/600s measurement read 0.963 in #19 and 1.022 here, on a corpus
+   that has since grown and now includes anchor-ungated and recovered coins. A
+   figure that moves 6 points on a population redefinition is not a constant, and
+   any strategy claim built on it inherits that instability.
