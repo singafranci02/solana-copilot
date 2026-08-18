@@ -125,3 +125,39 @@ def test_gate_creator_funding_needs_a_position():
     assert passes_member_gate({"overlap": 0.3, "funding": "creator_linked"})
     assert not passes_member_gate({"overlap": 0.0, "funding": "creator_linked"})
     assert not passes_member_gate({"overlap": 0.3, "funding": "shared_funder"})
+
+
+# ── unexplained large positions (2026-08-18) ─────────────────────────────────
+# A holder with no purchase record was GIVEN its tokens. At a double-digit share
+# of supply that is not an airdrop to a stranger: measured median first sell 29s,
+# 95% CI [27s, 29s], against 219s for buyers and 605-817s for smaller transfer-in
+# holders. Averaging the classes cancels it (+2.8pp); only the large ones carry it.
+
+from src.analyzer.team_detect import UNEXPLAINED_POSITION_PCT
+
+
+def test_large_unexplained_position_carries_full_overlap_evidence():
+    """The rule lives in the evidence builder, not as a gate exception: a gate
+    branch alone left these wallets below the 0.35 score threshold (only 12%
+    passed). Carrying full overlap makes the score reflect the fact too."""
+    assert passes_member_gate({"overlap": 1.0})
+
+
+def test_a_bare_gate_exception_is_not_enough():
+    """Guards the design: holding_pct on its own must not admit a wallet, because
+    that path would bypass the score entirely."""
+    assert not passes_member_gate({"overlap": 0.0,
+                                   "holding_pct": UNEXPLAINED_POSITION_PCT + 1})
+
+
+def test_the_addition_still_requires_skin_in_the_game():
+    """Coordination edges must never CARRY membership on their own — the failure
+    that produced 86 'team' wallets per coin at 9.8% insider precision."""
+    assert not passes_member_gate({"overlap": 0.0, "coord_edges": ["same_slot"]})
+    assert not passes_member_gate({"overlap": 0.0, "slot_offset": 1})
+
+
+def test_threshold_stays_high_enough_to_stay_narrow():
+    """This admits ~0.4 wallets per coin. A materially lower bar re-opens the
+    over-inclusion failure the gate exists to prevent."""
+    assert UNEXPLAINED_POSITION_PCT >= 5.0

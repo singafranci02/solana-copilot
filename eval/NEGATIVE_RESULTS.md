@@ -689,3 +689,60 @@ TWO METHOD NOTES, both of which nearly produced a false positive:
    that has since grown and now includes anchor-ungated and recovered coins. A
    figure that moves 6 points on a population redefinition is not a constant, and
    any strategy claim built on it inherits that instability.
+
+---
+
+## #23 — the transfer-in gap is real, but only at size (2026-08-18)
+
+A gmgn holder scan flagged a wallet that RECEIVED 20.4M tokens and had already
+sold 21.78% of them. Our membership gate requires buyer-and-holder overlap, so a
+wallet that never bought cannot be a team member — a whole class of insider we
+could not see. Sized and, unusually for this log, partly CONFIRMED.
+
+FIRST MEASUREMENT WAS WRONG, twice over, and both errors flattered the idea:
+
+1. 48.6% of holders had no purchase record and sold at 55.6% vs 48.9% for buyers.
+   But buyer capture COLLAPSED to 0.0% for 2026-08-06..09 (the outage window) —
+   387 coins with zero buyers recorded, because BC reconstruction runs on Helius,
+   whose free tier is exhausted. Restricted to coins with healthy capture the gap
+   is 32.5% of holders and the sell difference is +2.8pp: nothing.
+2. "Do they sell" is the wrong question. An insider sells FAST. On timing, holders
+   with no purchase record sell LATER than buyers — median 465s vs 219s, difference
+   +247s, 95% CI [+194s, +301s], P(earlier) 0.0%. As a class they are the opposite
+   of insiders.
+
+THE SIGNAL IS ENTIRELY IN THE SIZE, and averaging destroys it:
+
+    holder class                  n      median first sell
+    bought (reference)         6962                   219s
+    no purchase, <1%            385                   197s
+    no purchase, 1-3%          2867                   605s
+    no purchase, 3-10%          201                   817s
+    no purchase, >=10%           93                    29s   <- the team median
+
+29s, 95% CI [27s, 29s], P(slower than buyers) 0.0%. A double-digit share of supply
+with no purchase record is a gifted position, and it behaves exactly like the team.
+
+LABEL IMPACT: of 139 coins recording NO team exit, 66 (47%) have such a holder that
+did sell — matching the 46% blind spot measured for low-supply teams. This is that
+blind spot.
+
+IMPLEMENTED as evidence, not as a gate exception. A gate branch alone left the
+wallets below the 0.35 score threshold (only 12% of 255 cleared it), and the
+overlap component conflates "bought" with "is a top-5 holder" so an `overlap == 0`
+test was nearly inert. Carrying full E_overlap is both the honest encoding — the
+same fact by a different route — and the one that lets the score reflect it. The
+weights are calibrated so this lands exactly at the member threshold, identical to
+a plain buyer-and-holder.
+
+Deliberately narrow: ~0.4 wallets per coin, max team size unchanged at 23. The
+last time this gate was loosened it produced 86 "team" wallets per coin at 9.8%
+insider precision.
+
+APPLIES FORWARD ONLY. 1,547 stored coins keep evidence written before holding_pct
+existed. A retroactive backfill was written and DISCARDED: re-evaluating the gate
+on stored evidence would have demoted 4,958 rows carrying the legacy
+'fallback_top_holder' shape, which the audit explicitly exempts and whose stored
+decision the evidence cannot reproduce. A widening change that removes members is
+a bug; the correct monotone version promoted 7 rows, which is not worth
+re-running the label chain for.

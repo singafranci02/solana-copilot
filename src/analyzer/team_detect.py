@@ -191,7 +191,25 @@ def score_team_membership(
         ev: dict = {}
 
         # E_overlap
+        _hp = holder_map.get(w)
         if w in buyer_set and w in holder_map:
+            e_overlap = 1.0
+        elif (_hp is not None and float(_hp) >= UNEXPLAINED_POSITION_PCT
+              and w not in buyer_set):
+            # UNEXPLAINED LARGE POSITION. No purchase record and a double-digit
+            # share of supply: the tokens were given, and at this size not to a
+            # stranger. This carries the SAME weight as buyer-and-holder because it
+            # is the same fact — a real position tied to the launch — reached by a
+            # different route, and the weights are calibrated so that lands exactly
+            # at the member threshold.
+            #
+            # Measured 2026-08-18 on 1,104 coins with healthy buyer capture, median
+            # first sell after graduation:
+            #     bought (reference)  219s | no purchase <1%   197s
+            #     no purchase 1-3%    605s | no purchase 3-10%  817s
+            #     no purchase >=10%    29s  <- the team median, CI [27s, 29s]
+            # Small transfer-in holders sell LATER and are passive recipients;
+            # averaging the classes cancels the signal (+2.8pp). Only size carries it.
             e_overlap = 1.0
         elif w in top5:
             e_overlap = 0.5
@@ -200,6 +218,13 @@ def score_team_membership(
         else:
             e_overlap = 0.0
         ev["overlap"] = e_overlap
+
+        # Holding size, recorded so the gate can see an UNEXPLAINED LARGE POSITION.
+        # A wallet cannot accumulate a double-digit share of supply by accident: it
+        # either bought (and then overlap covers it) or it was given the tokens.
+        _pct = holder_map.get(w)
+        if _pct is not None:
+            ev["holding_pct"] = round(float(_pct), 2)
 
         # E_coord — noisy-OR over the wallet's launch-entity edge sources
         edges = entity_edges.get(w, set())
@@ -250,6 +275,12 @@ def score_team_membership(
     return scores
 
 
+# Supply share above which a holding with no purchase record is itself evidence of
+# team membership. Below this the class behaves like passive recipients — see the
+# table in passes_member_gate.
+UNEXPLAINED_POSITION_PCT = 10.0
+
+
 def passes_member_gate(ev: dict) -> bool:
     """Skin-in-the-game requirement for full membership (see comment on thresholds).
 
@@ -260,6 +291,34 @@ def passes_member_gate(ev: dict) -> bool:
     ovl = ev.get("overlap", 0.0)
     if ovl >= 1.0:
         return True
+
+    # UNEXPLAINED LARGE POSITION. A holder with no purchase record was given its
+    # tokens, and at this size that is not an airdrop to a stranger. Measured
+    # 2026-08-18 on 1,104 coins with healthy buyer capture:
+    #
+    #   holder class                  n      median first sell
+    #   bought (reference)         6962                   219s
+    #   no purchase, <1%            385                   197s
+    #   no purchase, 1-3%          2867                   605s
+    #   no purchase, 3-10%          201                   817s
+    #   no purchase, >=10%           93                    29s   <- team median
+    #
+    # 29s, 95% CI [27s, 29s], P(slower than the buyer reference) 0.0%. Small
+    # transfer-in holders behave like passive recipients and sell LATER; averaging
+    # the classes together cancels the signal entirely (+2.8pp, indistinguishable).
+    # Only the large ones carry it.
+    #
+    # This is a NARROW addition on purpose. Loosening this gate once produced 86
+    # "team" wallets per coin at 9.8% insider precision; this admits 93 wallets
+    # across 218 coins (~0.4 per coin) and recovers a team exit on 47% of the coins
+    # that currently record none — which matches the 46% blind spot measured for
+    # low-supply teams.
+    # NOTE: an unexplained large position is admitted upstream, by carrying full
+    # E_overlap in the evidence builder, so it arrives here as ovl >= 1.0 and is
+    # accepted by the branch above. Encoding it as evidence rather than as a gate
+    # exception keeps one definition and lets the score reflect it too — a gate
+    # branch alone left the wallets below the 0.35 score threshold (12% passed).
+
     corroborated = (bool(ev.get("coord_edges")) or "funding" in ev
                     or ev.get("slot_offset", 99) <= 3)
     if ovl >= 0.5 and corroborated:
