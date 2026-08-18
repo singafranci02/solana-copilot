@@ -46,6 +46,7 @@ excluded from any population deliberately.
 """
 
 import asyncio
+import logging
 import sys
 import time
 from pathlib import Path
@@ -53,6 +54,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.common.db import get_connection
+
+logger = logging.getLogger(__name__)
 
 POLL_INTERVAL_S = 300          # see the table above; 5 min buys ~92% reach
 ANCHOR_WINDOW_S = 120          # must match eval._common.MAX_ANCHOR_LAG_S
@@ -124,10 +127,28 @@ async def recover(mint: str, grad_ts: int, st, conn) -> str:
     conn.execute(
         """INSERT OR IGNORE INTO graduation_events
                (token_mint, graduated_at, detection_lag_seconds, pipeline_version,
-                bc_top_holders_json, recovered)
-           VALUES (?,?,?,2,'[]',1)""",
+                bc_top_holders_json, recovered, detection_source)
+           VALUES (?,?,?,2,'[]',1,'poll')""",
         (mint, grad_ts, int(time.time()) - grad_ts))
     upsert_swaps(conn, mint, swaps, sniper_wallets=set(), team_wallets=set())
+
+    # RUN THE LABELER. Storing tape is not ingestion: without this the coin has a
+    # graduation row and a tape and contributes NOTHING, because every population
+    # joins through coin_trajectory. Measured before this was added: 198 recovered
+    # coins, 198 with tape, 0 with a trajectory — the backstop was producing rows
+    # the labeler never saw.
+    #
+    # LIMIT, stated rather than hidden: trajectory_from_db derives team-exit timing
+    # from post_grad_swaps.is_team, and a recovered coin has no team cluster because
+    # the cluster is a graduation-MOMENT holder read that cannot be reconstructed
+    # afterwards. So these coins yield price-trajectory labels (collapse, peak,
+    # n_price_points) and a NULL team exit. They count toward base rates and the
+    # Mayhem comparison; they cannot contribute team-behaviour labels.
+    from src.analyzer.trajectory import trajectory_from_db, upsert_trajectory
+    try:
+        upsert_trajectory(conn, trajectory_from_db(conn, mint, grad_ts))
+    except Exception:
+        logger.debug("trajectory computation failed for %s", mint[:8])
     conn.commit()
     return "recovered"
 

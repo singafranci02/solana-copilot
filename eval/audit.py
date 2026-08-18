@@ -628,6 +628,30 @@ def stage_exit_alarm(conn) -> list[Check]:
                   f"base {base:.1%} n={len(y)}")]
 
 
+def stage_source_parity(conn) -> list[Check]:
+    """Poll-recovered coins must not be a biased subpopulation.
+
+    Recovery only succeeds when the tape can be walked back to the anchor, which
+    favours quieter coins — a selection effect with a known direction. Both
+    populations feed training and are indistinguishable once stored, so without
+    this nothing would notice.
+    """
+    from eval.source_parity import MIN_PER_ARM, compare
+
+    out = []
+    for r in compare(conn):
+        detail = (f"ws {r['ws']:.3f} vs poll {r['poll']:.3f} "
+                  f"(n {r['n_ws']}/{r['n_poll']}) — {r['verdict']}")
+        if r["verdict"] == "SUSPENDED":
+            out.append(Check("parity", f"detection-source parity: {r['metric']}",
+                             True, f"SUSPENDED — under {MIN_PER_ARM} per arm; "
+                                   f"no claim. {detail}"))
+        else:
+            out.append(Check("parity", f"detection-source parity: {r['metric']}",
+                             r["verdict"] != "DIVERGENT", detail))
+    return out
+
+
 # ── stage 5: alert simulation ──────────────────────────────────────────────────────
 
 def stage_alerts(conn) -> list[Check]:
@@ -756,6 +780,7 @@ def stage_calibration(conn) -> list[Check]:
 STAGES = [("1 DATA", stage_data), ("2 LABELS", stage_labels), ("3 LEAKS", stage_leaks),
           ("4 BACKTEST", stage_backtest), ("5 ALERTS", stage_alerts),
           ("5b EXIT ALARM", stage_exit_alarm),
+          ("5c SOURCE PARITY", stage_source_parity),
           ("6 CALIBRATION", stage_calibration)]
 
 

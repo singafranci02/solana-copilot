@@ -621,11 +621,12 @@ async def _handle_graduation(
                 """INSERT OR REPLACE INTO graduation_events
                    (token_mint, graduated_at, detection_lag_seconds,
                     pumpswap_pool_address, migration_venue, amm_pool_address,
-                    pool_accounts_json, pipeline_version, bc_top_holders_json)
+                    pool_accounts_json, pipeline_version, bc_top_holders_json,
+                    detection_source)
                    VALUES (?,
                            COALESCE((SELECT graduated_at FROM graduation_events
                                      WHERE token_mint = ?), ?),
-                           ?, ?, ?, ?, ?, 2, '[]')""",
+                           ?, ?, ?, ?, ?, 2, '[]', 'websocket')""",
                 (mint, mint, now, detection_lag, amm_pool_address, pool_address,
                  amm_pool_address, json.dumps(sorted(pool_accounts))),
             )

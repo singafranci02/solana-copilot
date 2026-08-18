@@ -821,3 +821,9 @@ CREATE INDEX IF NOT EXISTS idx_coin_attr_state ON coin_attribution(state);
 -- timestamp and are not. Flagged so a population can include or exclude them
 -- deliberately instead of discovering the difference later.
 ALTER TABLE graduation_events ADD COLUMN recovered INTEGER NOT NULL DEFAULT 0;
+
+-- How a graduation reached us. The WebSocket misses ~27% of graduations; those are
+-- recovered by scripts/graduation_backstop.py. Both populations enter training, so
+-- if recovery selects a biased subpopulation it biases the models — and nothing
+-- would notice without this column. The audit compares base rates across the two.
+ALTER TABLE graduation_events ADD COLUMN detection_source TEXT NOT NULL DEFAULT 'websocket';
