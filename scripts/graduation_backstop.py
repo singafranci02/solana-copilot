@@ -46,6 +46,7 @@ excluded from any population deliberately.
 """
 
 import asyncio
+import json
 import logging
 import sys
 import time
@@ -144,13 +145,75 @@ async def recover(mint: str, grad_ts: int, st, conn) -> str:
     # afterwards. So these coins yield price-trajectory labels (collapse, peak,
     # n_price_points) and a NULL team exit. They count toward base rates and the
     # Mayhem comparison; they cannot contribute team-behaviour labels.
+    # STRUCTURAL ANALYSIS through the SAME path the live monitor uses. Without it a
+    # recovered coin had a tape and a trajectory but no holders, no bonding-curve
+    # buyers and no team cluster — measured 0 of 207 — so its team-exit label was
+    # structurally NULL and it could never contribute the one kind of label this
+    # system predicts. analyse_graduation is invoked directly rather than
+    # reimplemented, so recovery cannot drift from live behaviour.
+    #
+    # Safe on alerts: the coin is still platform='unverified' here, and both
+    # coin-level alerts gate on platform == 'pump.fun'.
+    try:
+        await _structural(conn, mint, grad_ts, st)
+    except Exception as exc:
+        logger.debug("structural analysis failed for %s: %s", mint[:8], exc)
+
+    # LABEL LAST. time_to_team_exit_s is the first sell where is_team=1, so the
+    # trajectory must be computed AFTER the team cluster exists and its flags are
+    # stamped — otherwise the exit label is NULL for exactly the reason this
+    # structural pass was added to fix.
+    from src.analyzer.distribution import _apply_tape_flags
     from src.analyzer.trajectory import trajectory_from_db, upsert_trajectory
     try:
+        row = conn.execute(
+            "SELECT member_addresses FROM team_clusters WHERE token_mint = ? LIMIT 1",
+            (mint,)).fetchone()
+        members = set(json.loads(row["member_addresses"] or "[]")) if row else set()
+        _apply_tape_flags(conn, mint, members, set(), set())
         upsert_trajectory(conn, trajectory_from_db(conn, mint, grad_ts))
-    except Exception:
-        logger.debug("trajectory computation failed for %s", mint[:8])
-    conn.commit()
+        conn.commit()
+    except Exception as exc:
+        logger.debug("labelling failed for %s: %s", mint[:8], exc)
     return "recovered"
+
+
+async def _structural(conn, mint: str, grad_ts: int, st) -> None:
+    """Holders + BC reconstruction + team clustering, via the live code path."""
+    import aiohttp
+
+    from src.common.models import GraduationEvent
+    from src.ingest.graduation_monitor import (
+        _BC_RECONSTRUCT_TOP_N, _parse_bc_holders, _reconstruct_bc, analyse_graduation,
+    )
+    from src.ingest.rpc_holders import get_token_holders_resilient, get_token_supply_rpc
+
+    async with aiohttp.ClientSession() as s:
+        accounts, _src = await get_token_holders_resilient(s, mint, st)
+        supply = await get_token_supply_rpc(s, mint)
+    if not accounts:
+        return
+
+    # Holder state is read NOW, so it is stale by the poll delay (~5 min). The
+    # membership gate still requires bonding-curve accumulation or an unexplained
+    # large position, which bounds what a post-graduation buyer can become.
+    bc_top_holders = _parse_bc_holders(accounts, supply)
+    if not bc_top_holders:
+        return
+
+    bc_swaps = await _reconstruct_bc(
+        st, mint, bc_top_holders, 0, grad_ts, conn, structural=frozenset())
+
+    buyers = [r for r in conn.execute(
+        """SELECT wallet_address, bought_at, sol_amount, tokens_received
+           FROM token_buyers WHERE token_mint = ?""", (mint,))]
+    from src.common.models import TokenBuyer
+    buyer_objs = [TokenBuyer(token_mint=mint, wallet_address=b[0], bought_at=b[1],
+                             sol_amount=b[2], tokens_received=b[3]) for b in buyers]
+
+    event = GraduationEvent(token_mint=mint, graduated_at=grad_ts,
+                            bc_top_holders=bc_top_holders)
+    await analyse_graduation(event, buyer_objs, conn, symbol=mint[:6])
 
 
 async def main() -> None:

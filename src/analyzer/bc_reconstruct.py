@@ -3,11 +3,15 @@
 The thesis is that HOW a team accumulates during the bonding curve predicts how
 they behave post-graduation. We only had a holder snapshot AT graduation, never
 the accumulation timeline. This reconstructs each top holder's BC buy/sell history
-by reusing parse_swap + get_transactions_for_address (same engine as post_grad_swaps).
+by reusing the same trade-tape engine as post_grad_swaps.
 
-TIMING-CRITICAL: must run AT graduation. Helius get_transactions_for_address returns
-only the recent ~100 txs per wallet; a token's BC trades are only still in that window
-right after graduation. Backfilling old tokens yields sparse/incomplete data.
+The client is Solana Tracker, NOT Helius — an earlier refactor left the parameter
+named `helius` and it has already caused one misdiagnosis (a buyer-capture collapse
+blamed on an exhausted Helius tier when it was the Solana Tracker outage of
+2026-08-06..09). Named honestly now.
+
+The mint-level ASC query is historical, so this is NOT timing-critical the way the
+old per-wallet Helius walk was: it can be run for a coin discovered late.
 """
 
 import asyncio

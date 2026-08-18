@@ -1091,11 +1091,11 @@ async def _classify_and_notify(token_mint: str, symbol: str, read, conn, meta=No
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-_BC_RECONSTRUCT_TOP_N = 8   # cap holders reconstructed per graduation (Helius budget)
+_BC_RECONSTRUCT_TOP_N = 8   # cap holders reconstructed per graduation (API budget)
 
 
 async def _reconstruct_bc(
-    helius, mint: str, bc_top_holders: list[dict],
+    st, mint: str, bc_top_holders: list[dict],
     token_created_at: int, graduated_at: int, conn,
     structural: frozenset[str] = frozenset(),
 ) -> list:
@@ -1112,7 +1112,7 @@ async def _reconstruct_bc(
         return []
     try:
         profiles, bc_swaps = await reconstruct_bc_holders(
-            helius, mint, wallets, token_created_at, graduated_at,
+            st, mint, wallets, token_created_at, graduated_at,
             structural=structural,
         )
     except Exception as exc:

@@ -703,8 +703,13 @@ FIRST MEASUREMENT WAS WRONG, twice over, and both errors flattered the idea:
 
 1. 48.6% of holders had no purchase record and sold at 55.6% vs 48.9% for buyers.
    But buyer capture COLLAPSED to 0.0% for 2026-08-06..09 (the outage window) —
-   387 coins with zero buyers recorded, because BC reconstruction runs on Helius,
-   whose free tier is exhausted. Restricted to coins with healthy capture the gap
+   387 coins with zero buyers recorded. CORRECTION 2026-08-18: I attributed this to
+   Helius. Wrong — _reconstruct_bc is passed the Solana Tracker client; the
+   parameter is merely NAMED `helius` and the cap comment says "Helius budget",
+   both leftovers from a refactor, and I read them as the dependency. The collapse
+   was the Solana Tracker outage. BC reconstruction is healthy today (83.9% of
+   websocket coins carry buyers). Identifiers renamed so the next reader is not
+   misled the same way. Restricted to coins with healthy capture the gap
    is 32.5% of holders and the sell difference is +2.8pp: nothing.
 2. "Do they sell" is the wrong question. An insider sells FAST. On timing, holders
    with no purchase record sell LATER than buyers — median 465s vs 219s, difference
