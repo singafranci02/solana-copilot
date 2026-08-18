@@ -556,3 +556,49 @@ numbers is the entire distance between a backtest and a trade.
 CONCLUSION: the team's path is DESCRIPTIVE, not tradable. Consistent with #15 and
 #17 — the structure is real and measurable, and it does not convert into an entry.
 Do not retest without a mechanism that is not "follow the insider".
+
+---
+
+## #20 — the thesis head was predicting its own label's precondition (2026-08-18)
+
+"Team will distribute, ROC 0.937" was the system's headline positive result and
+sat at the top of CLAUDE.md's "what works". Audited as adversarially as the
+pre-warning alert in #18, it does not survive.
+
+The label is computed as `team_sold_pct = grad_team_pct - current_team_pct`, and
+DISTRIBUTING requires that to exceed 30. So a team holding under 30% of supply
+CANNOT receive the label — not unlikely, arithmetically impossible. Measured:
+
+    team supply < 30%   n=231   labelled DISTRIBUTE:  0.4%
+    team supply >= 30%  n=291   labelled DISTRIBUTE: 70.8%
+
+team_supply_pct is a model FEATURE. Alone it scores ROC 0.944 against the label.
+The model's apparent skill is largely reading off whether the label is reachable.
+
+Restricted to the population where the question is genuinely open — teams holding
+>=30%, where distribution is possible either way — the model scores **0.618**.
+Real, weak, and not the thesis-confirming number it was quoted as for weeks.
+
+THREE PROCESS FAILURES MADE THIS INVISIBLE, and each is now fixed:
+
+1. The single-feature leak canary only tested `survive60` and `moon10x`. The head
+   that leaked was never examined. It now tests every head.
+2. The threshold was 0.95, above the 0.944 this would have registered. Now 0.90.
+3. A comment in the audit excused team_supply_pct at 0.939 as "the thesis itself".
+   That is the exact rationalisation a canary exists to overrule, written into the
+   canary. Removed.
+
+Known structural couplings are now listed explicitly in KNOWN_LABEL_COUPLINGS
+rather than tolerated by a loose threshold — the list records that scrutiny
+happened and the head was retired, and anything NOT on it still blocks.
+
+CONSEQUENCE: `distribute` is retired from the blocking bands, which left every
+ROC-band head retired and the deployment gate guarding nothing. Rather than
+un-retire a contaminated head to restore a gate, the gate moved to the one result
+that has survived adversarial scrutiny — the 30s exit alarm, +29.7% lift, 95% CI
+[+15.9%, +43.6%], judged on lift over base rate rather than absolute precision.
+
+THE GENERAL LESSON, which is #18's in a new costume: check whether your label is
+ATTAINABLE for every row before believing a model predicts it. A feature that
+gates label eligibility will look like a brilliant predictor, and the more
+mechanical the gate, the better it looks.

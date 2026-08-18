@@ -139,9 +139,22 @@ WATCH: everything else (insufficient signal or mixed)
 
 Read `eval/NEGATIVE_RESULTS.md` before proposing a new signal. In short:
 
-**Works** (leak-audited, out-of-time): team will distribute ROC **0.937**; coin will rug
-ROC **0.912**; survives ≥60min ROC **0.806** from graduation structure, **0.904** from
-order flow at T+5min (top-5% survive 100%).
+**Works** (the surviving claim, adversarially audited): the **30s exit alarm** —
+alarming on the top 20% of p_exit gives 69-71% precision against a ~40% base rate,
+**lift +29.7%, 95% CI [+15.9%, +43.6%]**, P(no effect) 0.00%. This is the deployment
+gate and the only validated predictive result.
+
+**Retired, with the reasons** — the old headline numbers do not survive scrutiny:
+- *team will distribute ROC 0.937* — mostly mechanical. The label needs the team to
+  shed >30% of supply, so below 30% it is unreachable (0.4% labelled vs 70.8%
+  above). Where the question is genuinely open it scores **0.618**. NEGATIVE_RESULTS #20.
+- *coin will rug ROC 0.912* — base rate saturated to 96.9%; now ~0.64 with ~17
+  negatives in 582 coins. NEGATIVE_RESULTS #16.
+- *survives ≥60min* and *team_exit10* — saturated at 5.6% and 96.5% base rates.
+
+Quote **lift over the base rate**, never absolute precision or win rate: a 94.2%
+precision alarm was 2.3 points WORSE than never alerting (#18), and a 55.4% win-rate
+strategy had a 0.963 mean (#19).
 
 **Does not work — do not retry without a new argument:** the **10× is unpredictable**,
 from graduation structure (ROC 0.583) *and* from early order flow (0.592). An early pass

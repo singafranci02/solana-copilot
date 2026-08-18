@@ -62,6 +62,7 @@ RETIRED_HEADS = {
     "team_exit10": "96.5% base rate — 'will they exit' answers itself; timing is the "
                    "live question and the hazard model owns it",
     "moon10x":     "measured unpredictable (NEGATIVE_RESULTS #1); ceiling-only already",
+    "distribute":  "label unreachable below 30% team supply — 0.618 where it is not",
     "survive60":   "5.6% base rate — saturated the other way; ~21 positives in 389",
 }
 
@@ -71,9 +72,17 @@ ROC_BANDS = {
     # 2026-08-05 as the market accelerated (median collapse 5.8min): a 4h label is
     # increasingly a corpse-measurement, so these drift. NOT leak-loosening — the
     # single-feature ROC canary (blocking, <0.95) is the real guard and it passes;
-    # distribute's rise is team_supply_pct (0.939, the thesis itself), not a leak.
-    "distribute":  (0.88, 0.99),   # was 0.937, now ~0.97 (more determinative in a
-                                   # faster market — team structure -> 4h outcome)
+    # NOTE 2026-08-18: this comment previously excused team_supply_pct at 0.939 as
+    # "the thesis itself". That was wrong and is exactly the failure this canary
+    # exists to catch — see NEGATIVE_RESULTS #20.
+    "distribute":  (None, 0.99),   # RETIRED 2026-08-18 (NEGATIVE_RESULTS #20). The
+                                   # 0.937-0.98 headline was largely mechanical: the
+                                   # label needs the team to shed >30% of supply, so
+                                   # below 30% it is unreachable (0.4% labelled) and
+                                   # above it common (70.8%). Restricted to the
+                                   # population where the question is actually open,
+                                   # the model scores 0.618. Real but weak, and not
+                                   # the thesis-confirming number it was quoted as.
     "rug":         (None, 0.96),   # RETIRED as a signal 2026-08-11 (NEGATIVE_RESULTS
                                    # #16): 0.912 -> ~0.64 at a 97.1% base rate. ~17
                                    # negatives in 581 coins leave nothing to
@@ -122,7 +131,29 @@ BASE_RATE_BANDS = {
     "rug":         (0.75, 0.97),   # 89%
 }
 REPLAY_FIDELITY_MIN = 0.995        # rules replayed from snapshots vs stored verdicts
-SINGLE_FEATURE_ROC_MAX = 0.95      # any lone snapshot feature this good = leaked label
+# Couplings that are STRUCTURAL, documented, and already acted on. Listing one here
+# is not an exemption from scrutiny — it is the record that scrutiny happened and the
+# head was retired as a result. Any pair NOT on this list breaching the threshold is
+# an unexamined leak and blocks.
+KNOWN_LABEL_COUPLINGS = {
+    # DISTRIBUTING requires the team to shed >30% of supply, so a team holding less
+    # than that cannot receive the label at all (0.4% do, vs 70.8% above 30%). The
+    # feature predicts label ATTAINABILITY, not behaviour. 'distribute' is retired
+    # from blocking as a result — NEGATIVE_RESULTS #20.
+    ("team_supply_pct", "distribute"),
+}
+
+SINGLE_FEATURE_ROC_MAX = 0.90      # any lone snapshot feature this good = leaked label
+                                   # Lowered from 0.95 on 2026-08-18. team_supply_pct
+                                   # scored 0.944 against 'distribute' and was waved
+                                   # through with a comment calling it "the thesis
+                                   # itself". It is not: DISTRIBUTING requires the team
+                                   # to shed >30% of supply, so a team holding <30%
+                                   # CANNOT receive the label (measured: 0.4% do, vs
+                                   # 70.8% above 30%). The feature was predicting
+                                   # whether the label was attainable. 0.95 is too
+                                   # loose to catch a precondition masquerading as a
+                                   # signal — see NEGATIVE_RESULTS #20.
 PREWARN_THRESHOLD = 0.90
 PREWARN_PRECISION_MIN = 0.85       # legacy absolute floor, kept for reference only
 PREWARN_MIN_LIFT = 0.0             # the alert must beat always-saying-yes. Absolute
@@ -173,11 +204,15 @@ def stage_data(conn) -> list[Check]:
              AND t.platform IN ('pump.fun','pump.fun*')  -- verified coins get snapshots;
              -- unverified/unresolvable are pending, not analysed, so no snapshot is
              -- correct and must not count as a pipeline failure
+             AND COALESCE(ge.recovered, 0) = 0
              AND ge.graduated_at > strftime('%s','now') - 86400""").fetchone()
     cov = (n_snap or 0) / max(n_v2, 1)
     # 24h scope: the purge concentrated old outage-era gaps into the surviving
     # classic population; this check asks "is the pipeline healthy NOW"
-    out.append(Check("data", "v2 graduations have a snapshot (last 24h)",
+    # Backstop-recovered coins are exempt: their tape is correctly anchored, but the
+    # structural snapshot is a graduation-MOMENT reading and cannot be reconstructed
+    # after the fact. Requiring one would either fail forever or invite a fake.
+    out.append(Check("data", "v2 graduations have a snapshot (last 24h, excl. recovered)",
                      cov >= 0.90 or n_v2 < 5, f"{cov:.1%} of {n_v2}"))
 
     bad_ts = conn.execute(
@@ -209,12 +244,22 @@ def stage_data(conn) -> list[Check]:
     sizes = [r[0] for r in conn.execute(
         "SELECT COUNT(*) FROM team_members WHERE is_member=1 GROUP BY token_mint")]
     mx = max(sizes) if sizes else 0
-    # supply_pct > 100% is physically impossible and means a non-wallet (AMM pool,
-    # program vault) was counted as a holder. 0 of 1,015 historical coins ever did;
-    # it appeared the moment holder sourcing changed, so it is a live tripwire.
+    # Detects a non-wallet (AMM pool, program vault) counted as a holder. 0 of 1,015
+    # historical coins ever exceeded 100%; it appeared the moment holder sourcing
+    # changed, so it stays a live tripwire.
+    #
+    # Threshold is 102%, not 100%: supply and holder balances are read in separate
+    # calls, so a small burn between them shows up as a fraction of a percent of
+    # apparent over-allocation. Verified on the one coin that sat at 101.7% — the
+    # AMM pool was NOT in its cluster and every member was a real on-curve wallet.
+    # Every genuine contamination case measured 110.8% to 196.1%, so this bound is
+    # far below anything the check exists to catch and is not a loosening toward
+    # green.
+    SUPPLY_READ_SKEW_MAX = 102.0
     over = conn.execute("SELECT COUNT(*) FROM team_clusters "
-                        "WHERE supply_pct_at_graduation > 100").fetchone()[0]
-    out.append(Check("data", "no team supply_pct > 100% (pool counted as holder)",
+                        "WHERE supply_pct_at_graduation > ?",
+                        (SUPPLY_READ_SKEW_MAX,)).fetchone()[0]
+    out.append(Check("data", "no team supply_pct > 102% (pool counted as holder)",
                      over == 0, f"{over} impossible rows"))
 
     out.append(Check("data", "no team exceeds 40 members (bloat regression)",
@@ -302,7 +347,12 @@ def stage_data(conn) -> list[Check]:
     unresolved = conn.execute("""SELECT COUNT(*) FROM graduation_events ge
         LEFT JOIN tokens t ON t.mint = ge.token_mint
         WHERE ge.graduated_at > strftime('%s','now') - 172800
-          AND (t.platform IS NULL OR t.platform = 'unverified')""").fetchone()[0]
+          AND (t.platform IS NULL OR t.platform = 'unverified')
+          -- backstop-recovered coins enter as 'unverified' by design and are drained
+          -- by the re-resolver on its normal cadence; a coin recovered in the last
+          -- hour is pending, not a backlog
+          AND NOT (COALESCE(ge.recovered,0) = 1
+                   AND ge.graduated_at > strftime('%s','now') - 3600)""").fetchone()[0]
     # 'unresolvable' (ancient, creation tx pruned everywhere) is a terminal state, not
     # a backlog; only fresh unverified count toward the re-resolver's health
     out.append(Check("data", "no unverified BACKLOG (<=3 transient in 48h)",
@@ -485,7 +535,12 @@ def stage_leaks(conn) -> list[Check]:
     if len(ss) >= 300:
         keys = feature_names(ss, set())
         X = build_matrix_nan(ss, keys)
-        for target in ("survive60", "moon10x"):
+        # ALL heads. This previously tested only survive60 and moon10x, so the
+        # head that actually leaked was never examined: team_supply_pct scores
+        # 0.944 against 'distribute' because DISTRIBUTING requires shedding >30%
+        # of supply, which a team holding <30% cannot do. A canary that skips
+        # heads is not a canary. See NEGATIVE_RESULTS #20.
+        for target in ("survive60", "moon10x", "distribute", "rug", "team_exit10"):
             y = np.array([_label(s, 4, target) for s in ss], dtype=float)
             m = ~np.isnan(y)
             for j, k in enumerate(keys):
@@ -494,6 +549,8 @@ def stage_leaks(conn) -> list[Check]:
                 if mm.sum() < 200 or y[m][mm].std() == 0:
                     continue
                 r = roc_auc(col[mm], y[m][mm])
+                if (k, target) in KNOWN_LABEL_COUPLINGS:
+                    continue                  # documented above; head already retired
                 r = max(r, 1 - r)
                 if r > worst:
                     worst, worst_name = r, f"{k}→{target}"
@@ -526,6 +583,47 @@ def stage_backtest(conn) -> list[Check]:
                          f"{head} ROC in [{lo if lo is not None else '—'}, {hi}]{tag}",
                          ok, f"{roc:.3f} (n={len(yy)}) — {why}"))
     return out
+
+
+EXIT_ALARM_MIN_LIFT = 0.10     # the 30s alarm must beat its base rate by this
+EXIT_ALARM_MIN_N = 120         # below this, no claim (measured CI is unusable)
+
+
+def stage_exit_alarm(conn) -> list[Check]:
+    """THE BLOCKING GATE.
+
+    Every ROC-band head is now retired: four saturated past ~95% base rates, and
+    'distribute' turned out to be predicting its own label's attainability
+    (NEGATIVE_RESULTS #20). That left the deployment gate guarding nothing, which a
+    test caught. Rather than un-retire a contaminated head to restore a gate, the
+    gate moves to the one result that has survived adversarial scrutiny: the 30s
+    exit alarm, measured lift +29.7%, 95% CI [+15.9%, +43.6%], P(no effect) 0.00%.
+
+    Judged on LIFT over the base rate, never absolute precision — see #18, where a
+    94.2% precision alarm was 2.3 points WORSE than never alerting.
+    """
+    rows = conn.execute(
+        """SELECT h.p_exit p, h.team_exited y FROM hazard_predictions h
+           JOIN tokens t ON t.mint = h.token_mint
+           WHERE t.platform='pump.fun' AND h.checkpoint_s = 30
+             AND h.p_exit IS NOT NULL AND h.team_exited IS NOT NULL""").fetchall()
+    n = len(rows)
+    if n < EXIT_ALARM_MIN_N:
+        return [Check("exit_alarm", "30s exit alarm beats its base rate", True,
+                      f"SUSPENDED — only {n} labelled observations "
+                      f"(<{EXIT_ALARM_MIN_N}); no claim made")]
+    p = np.array([r["p"] for r in rows], dtype=float)
+    y = np.array([r["y"] for r in rows], dtype=float)
+    if not 0 < y.mean() < 1:
+        return [Check("exit_alarm", "30s exit alarm beats its base rate", True,
+                      "SUSPENDED — single-class labels")]
+    m = p >= np.quantile(p, 0.80)
+    lift = float(y[m].mean() - y.mean())
+    return [Check("exit_alarm",
+                  f"30s exit alarm lift > {EXIT_ALARM_MIN_LIFT:+.0%}",
+                  lift > EXIT_ALARM_MIN_LIFT,
+                  f"{lift:+.1%} (precision {y[m].mean():.1%} vs base "
+                  f"{y.mean():.1%}, n={n})")]
 
 
 # ── stage 5: alert simulation ──────────────────────────────────────────────────────
@@ -655,6 +753,7 @@ def stage_calibration(conn) -> list[Check]:
 
 STAGES = [("1 DATA", stage_data), ("2 LABELS", stage_labels), ("3 LEAKS", stage_leaks),
           ("4 BACKTEST", stage_backtest), ("5 ALERTS", stage_alerts),
+          ("5b EXIT ALARM", stage_exit_alarm),
           ("6 CALIBRATION", stage_calibration)]
 
 

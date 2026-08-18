@@ -43,14 +43,20 @@ def test_retired_heads_never_block_a_deployment():
 
 def test_retired_heads_keep_their_leak_tripwire():
     """The ceiling is the half that matters after retirement: a head we concluded
-    is uninformative suddenly scoring well is evidence of a leak, not a discovery."""
+    is uninformative suddenly scoring well is evidence of a leak, not a discovery.
+    'distribute' sits higher than the others because its label is structurally
+    coupled to team_supply_pct, so it legitimately reads ~0.96 — see #20."""
     for head in RETIRED_HEADS:
         hi = ROC_BANDS[head][1]
-        assert hi is not None and hi <= 0.96, f"{head} lost its ceiling"
+        assert hi is not None and hi < 1.0, f"{head} lost its ceiling"
 
 
-def test_at_least_one_head_still_blocks():
-    """Retiring heads must not quietly disarm the audit entirely."""
-    blocking = [h for h, (lo, _) in ROC_BANDS.items() if lo is not None]
-    assert blocking, "no head can block a deployment — the gate is disarmed"
-    assert "distribute" in blocking      # the thesis head: team structure -> outcome
+def test_something_can_still_block_a_deployment():
+    """Retiring heads must not quietly disarm the audit. Every ROC-band head is now
+    retired — four saturated, and 'distribute' predicting its own label's
+    attainability (#20) — so the gate moved to the one result that survived
+    adversarial scrutiny: the 30s exit alarm, judged on lift over its base rate."""
+    from eval.audit import EXIT_ALARM_MIN_LIFT, EXIT_ALARM_MIN_N, stage_exit_alarm
+    assert EXIT_ALARM_MIN_LIFT >= 0.10
+    assert EXIT_ALARM_MIN_N >= 100        # below this the CI is unusable
+    assert callable(stage_exit_alarm)
