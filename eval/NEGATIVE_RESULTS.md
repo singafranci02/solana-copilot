@@ -751,3 +751,58 @@ on stored evidence would have demoted 4,958 rows carrying the legacy
 decision the evidence cannot reproduce. A widening change that removes members is
 a bug; the correct monotone version promoted 7 rows, which is not worth
 re-running the label chain for.
+
+---
+
+## #24 — the wallet graph is real and predicts nothing (2026-08-19)
+
+The pair-level wallet graph was built because coordination.analyze_coin had been
+computing a typed edge list on every coin and discarding it. Persisted, it does
+show genuine structure:
+
+  * wallet PAIRS recur across coins — 906 of 5,030 funder pairs (18.0%) appear on
+    more than one coin, one on 26; same_slot has a pair spanning 56 coins.
+    Persistent operator infrastructure is visible at the pair level.
+  * selectivity is strongly scale-dependent. Median share of all possible wallet
+    pairs each signal links, in the 10-minute window: funder 0.02%, buy_size 0.6%,
+    same_slot 1.1%, lockstep_sell 4.6% (to 11.9%). The edge definitions were tuned
+    on bonding-curve tapes and two of them degenerate on the post-graduation crowd
+    — lockstep_sell at a 2s window is a restatement of "many wallets sold in this
+    period", not a coordination signal.
+
+NONE OF THE SHAPE PREDICTS OUTCOME. Graph features over the coordination window
+against peak multiple (n=77-78), raw and after removing what early buy count
+already explains:
+
+    feature                raw rho      p     partial rho      p
+    n_components            +0.105  0.362        +0.267    0.019
+    largest_comp_share      +0.051  0.659        -0.201    0.080
+    clustered_share         +0.105  0.363        -0.152    0.188
+    sel_density             -0.119  0.303        -0.180    0.117
+    max_degree_ratio        +0.255  0.025        +0.191    0.097
+    funder_edges            +0.387  0.001        +0.353    0.002
+
+funder_edges looked like the exception — it survived the activity control at
+p=0.002, clearing Bonferroni for six tests. It is an artifact of our own data
+collection:
+
+    funder_edges vs traced-wallet count   rho = +0.890
+    traced-wallet count vs peak           rho = +0.385
+    funder_edges vs peak, controlling activity AND coverage
+                                          rho = +0.098, p = 0.392
+
+A funder edge can only form between two wallets whose funder we happen to have
+cached. Coins where more wallets have been traced show more funder edges AND higher
+peaks, because both track how much attention the coin has already received. The
+feature was measuring the pipeline, not the market.
+
+THE LESSON, which is new: control for your own COLLECTION COVERAGE, not just for
+market activity. #17 established that activity confounds structural claims; this
+adds that the completeness of your own data does too, and it is easier to miss
+because it looks like a feature rather than a bias. Any feature derived from an
+enrichment we perform selectively (funding traces, behavioral vectors, holder
+snapshots) inherits the selection of that enrichment.
+
+CONCLUSION: the graph is worth keeping as DESCRIPTION — it answers "who moves with
+whom" and the pairs recur — and it is not an entry signal. Consistent with #19 and
+#22: structure in this market is measurable, persistent, and does not convert.
