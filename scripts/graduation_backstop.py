@@ -63,6 +63,18 @@ ANCHOR_WINDOW_S = 120          # must match eval._common.MAX_ANCHOR_LAG_S
 MAX_RECOVERY_AGE_S = 3600      # older than this, the tape is out of reach anyway
 PUMP_MARKETS = {"pumpfun", "pumpfun-amm"}
 
+# Pages of ~250 trades walked back from now to reach the graduation anchor. The
+# global default is 6 (an API-budget cap for routine fetches) and it was silently
+# rejecting the most valuable coins: a busy launch prints thousands of trades in
+# its first minutes, so 1,500 trades only reaches ~350s back and the anchor check
+# fails. Observed live on 98Jxwygc: rejected at +349s with 6 pages, +245s with 12,
+# and +67s with 25 — the same coin, PASSING the 120s gate once paged deep enough.
+#
+# This costs nothing on quiet coins: the DESC walk early-stops as soon as a page
+# predates since_ts, so the cap is only reached by coins that genuinely need it —
+# which are exactly the ones worth recovering.
+ANCHOR_SEEK_PAGES = 30
+
 
 def _true_graduation_ts(pools: list[dict]) -> int | None:
     """The AMM pool is created AT migration, so its createdAt is the true zero."""
@@ -103,7 +115,8 @@ async def recover(mint: str, grad_ts: int, st, conn) -> str:
     """Returns a one-word outcome for the run summary."""
     from src.analyzer.post_grad_swaps import upsert_swaps
 
-    swaps = await st.get_token_trades(mint, since_ts=grad_ts)
+    swaps = await st.get_token_trades(mint, since_ts=grad_ts,
+                                      max_pages=ANCHOR_SEEK_PAGES)
     if not swaps:
         return "no-tape"
 
