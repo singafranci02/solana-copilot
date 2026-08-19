@@ -121,3 +121,50 @@ async def test_unfunded_wallet_is_kept():
     s = FakeSession({"getTokenLargestAccounts": LARGEST, "getMultipleAccounts": OWNERS})
     rows = await get_token_holders_rpc(s, "mint", ["http://x"])
     assert len(rows) == 2      # owner lookup returns OWNERS shape (no 'owner' key) -> kept
+
+
+# ── circuit breaker (2026-08-19) ─────────────────────────────────────────────
+# getTokenLargestAccounts is throttled per-method on free tiers. As volume grew,
+# every endpoint began refusing it — 0 of 12 successes — and each coin burned ~10s
+# on four doomed endpoints before falling back to the paid API.
+
+from src.ingest import rpc_holders as rh
+
+
+def _reset():
+    rh._BREAKER["consecutive_failures"] = 0
+    rh._BREAKER["open_until"] = 0.0
+
+
+def test_breaker_starts_closed():
+    _reset()
+    assert not rh._breaker_open()
+
+
+def test_breaker_trips_only_after_repeated_failure():
+    """A single blip must not disable the free path."""
+    _reset()
+    for _ in range(rh._BREAKER_TRIP_AT - 1):
+        rh._breaker_record(False)
+    assert not rh._breaker_open()
+    rh._breaker_record(False)
+    assert rh._breaker_open()
+    _reset()
+
+
+def test_success_resets_the_counter():
+    """Intermittent failures must never accumulate into a trip."""
+    _reset()
+    for _ in range(rh._BREAKER_TRIP_AT - 1):
+        rh._breaker_record(False)
+    rh._breaker_record(True)
+    for _ in range(rh._BREAKER_TRIP_AT - 1):
+        rh._breaker_record(False)
+    assert not rh._breaker_open()
+    _reset()
+
+
+def test_cooldown_is_bounded_so_the_free_path_returns():
+    """The breaker must re-probe: a permanent skip would silently make the paid
+    API the only source even after the free one recovers."""
+    assert 60 <= rh._BREAKER_COOLDOWN_S <= 3600

@@ -1,6 +1,6 @@
 # Live track record
 
-*Auto-generated 2026-08-17 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
+*Auto-generated 2026-08-18 19:10 UTC. Every fired alert appears — correct, wrong, pending or ungradable. Nothing is removed. Each row carries the mint so anyone can replay it against the chain. Live record began 2026-07-13.*
 
 ## Pre-warnings (at graduation: “team exits within 10 min”)
 
@@ -11,60 +11,60 @@ fired **0** · graded 0 · precision **—** · pending 0 · ungradable 0
 
 ## Exit alarms (live: “team is exiting — price not yet broken”)
 
-fired **707** · graded 183 · price lower 1h later 93% · median saved **80.6%** of position · pending 471
+fired **733** · graded 233 · price lower 1h later 88% · median saved **74.3%** of position · pending 447
 
 | time (UTC) | coin | alarm at | outcome | 1h later | saved |
 |---|---|---|---|---|---|
-| 08-17 18:47 | $PAWSE `EbtdB3Td…` | +1m | pending | — | — |
-| 08-17 18:05 | $AIRDROPZ `7T77BSJR…` | +8m | pending | — | — |
-| 08-17 18:02 | $SEMAN `Dqwb5WQT…` | +6m | pending | — | — |
-| 08-17 17:48 | $ZION `7RTVnPY8…` | +5m | pending | — | — |
-| 08-17 17:39 | $Z `7MQSupJT…` | +3m | pending | — | — |
-| 08-17 17:31 | $BANKS `9eJZqRfX…` | +40m | pending | — | — |
-| 08-17 17:30 | $COBY `DECCvbB1…` | +2m | pending | — | — |
-| 08-17 17:30 | $CHROME `2RKs2oLA…` | +0m | pending | — | — |
-| 08-17 17:20 | $ZION `29NosDnN…` | +20m | pending | — | — |
-| 08-17 17:17 | $BULL `8HqqP7Q8…` | +5m | pending | — | — |
-| 08-17 17:16 | $NIGGACOIN `3Tduqu6k…` | +15m | pending | — | — |
-| 08-17 17:07 | $Z `4oeYGL7g…` | +20m | pending | — | — |
-| 08-17 16:58 | $GOOFRECK `EtEJENNX…` | +15m | pending | — | — |
-| 08-17 16:57 | $ANSEMWHEEL `6663cnWk…` | +15m | pending | — | — |
-| 08-17 16:39 | $3027470556 `GEJWAvG6…` | +6m | pending | — | — |
-| 08-17 16:37 | $NIGGABUTT `8Do5g718…` | +6m | pending | — | — |
-| 08-17 16:24 | $GUT `3eY3fYwq…` | +6m | pending | — | — |
-| 08-17 16:20 | $2TEST `8g877NyJ…` | +1m | pending | — | — |
-| 08-17 16:19 | $TEST `79FdxGu8…` | +1m | pending | — | — |
-| 08-17 16:17 | $VIBESHIFT `2DLbVPRN…` | +6m | pending | — | — |
-| 08-17 16:07 | $HORNET `DArD62B1…` | +2m | pending | — | — |
-| 08-17 16:06 | $ZEUS `H4ciemPv…` | +0m | pending | — | — |
-| 08-17 16:05 | $MENSА `BkZRcXRg…` | +0m | pending | — | — |
-| 08-17 15:57 | $PEPE `9a2atVSj…` | +0m | pending | — | — |
-| 08-17 11:12 | $Inkky `GEGGX5zH…` | +6m | pending | — | — |
-| 08-16 22:43 | $AIBULL `3imTUGdp…` | +3m | correct | 0.03x | 97.2% |
-| 08-16 14:24 | $SOL-CHAN `G8fPzYYk…` | +3m | correct | 0.46x | 54.2% |
-| 08-16 10:21 | $SOLDOG `4gUquUfH…` | +6m | correct | 0.81x | 19.0% |
-| 08-16 05:10 | $CAESAR `9RrSrcy2…` | +10m | correct | 0.64x | 36.5% |
-| 08-15 21:59 | $BMD `9sjRpz9k…` | +1m | correct | 0.26x | 74.3% |
-| 08-15 11:38 | $TEST `A5r8xvCm…` | +0m | correct | 0.04x | 95.8% |
-| 08-15 11:34 | $yee `6n9wscGt…` | +2m | wrong | 1.98x | -97.7% |
-| 08-15 10:46 | $WOFL `6NbNGVT2…` | +1m | wrong | 2.78x | -177.7% |
-| 08-15 07:42 | $USER `5wpvCAWG…` | +1m | wrong | 3.43x | -242.8% |
-| 08-14 19:57 | $PSQH `EeGYuujK…` | +0m | correct | 0.11x | 89.3% |
-| 08-14 17:41 | $Horny `C1p9vn1S…` | +1m | wrong | 1.32x | -31.6% |
-| 08-14 07:49 | $PCA `Cc6Synbt…` | +5m | correct | 0.94x | 6.3% |
-| 08-14 07:16 | $Mcgregor `32JYTad9…` | +2m | correct | 0.00x | 100.0% |
-| 08-13 18:25 | $CGOD `oifaZPGp…` | +0m | correct | 0.03x | 96.8% |
-| 08-13 17:50 | $Grox `8V46FRzF…` | +3m | wrong | 1.09x | -8.8% |
-| 08-13 16:41 | $Sorajiro `Ec8mupKg…` | +1m | correct | 0.37x | 62.9% |
-| 08-13 10:23 | $WHALEHATE `FfuuTdsQ…` | +3m | correct | 0.05x | 95.4% |
-| 08-13 06:50 | $Chōjū `BmPtTQbP…` | +12m | correct | 0.33x | 67.5% |
-| 08-12 16:02 | $$STORM `HpRhaYxh…` | +10m | correct | 0.78x | 22.1% |
-| 08-12 15:24 | $hmm `JBQtnQNx…` | +0m | correct | 0.75x | 25.0% |
-| 08-12 14:31 | $Bani `8DWa3umS…` | +2m | correct | 0.51x | 48.6% |
-| 08-12 01:58 | $JOEVER `4YYbeJsQ…` | +2m | correct | 0.24x | 75.6% |
-| 08-12 00:18 | $NSC `9HMox2J4…` | +3m | correct | 0.06x | 93.6% |
-| 08-11 23:09 | $Lenny `7QHEYQXw…` | +6m | correct | 0.74x | 26.0% |
-| 08-11 22:54 | $64 `5b3Rc9j1…` | +1m | correct | 0.13x | 87.3% |
+| 08-18 11:24 | $GATE `7ip9UNFK…` | +1m | correct | 0.48x | 51.8% |
+| 08-18 10:38 | $Flip `GoY3hMdi…` | +1m | correct | 0.94x | 6.1% |
+| 08-18 07:02 | $HTS `GAgdCzpV…` | +8m | correct | 0.10x | 89.9% |
+| 08-18 05:50 | $Groyper `ZrziJMBJ…` | +2m | correct | 0.17x | 83.4% |
+| 08-18 01:51 | $ATN `tZtrc9zS…` | +0m | wrong | 1.32x | -32.2% |
+| 08-18 00:47 | $RVF `GEfRTjtS…` | +0m | correct | 0.12x | 88.3% |
+| 08-17 23:47 | $BULLHEART `899rGNLA…` | +1m | wrong | 1.06x | -6.5% |
+| 08-17 23:09 | $ANSEM.IO `xhmaxtbq…` | +0m | correct | 0.41x | 59.5% |
+| 08-17 22:42 | $DBULL `6EEfLQnj…` | +3m | correct | 0.10x | 89.7% |
+| 08-17 22:31 | $CALVIN `9C2cdz9s…` | +1m | wrong | 1.80x | -79.8% |
+| 08-17 22:05 | $WINNIE `CTFaKHRf…` | +12m | correct | 0.38x | 62.3% |
+| 08-17 22:05 | $ANSEMAI `Cm9V32Ru…` | +6m | correct | 0.17x | 82.9% |
+| 08-17 21:35 | $S500 `FtvybnZJ…` | +1m | correct | 0.09x | 91.2% |
+| 08-17 21:29 | $TESTIBULL `Ezyc1EfU…` | +1m | wrong | 1.51x | -50.7% |
+| 08-17 21:22 | $BULLION `4uC16DfJ…` | +1m | correct | 0.16x | 83.9% |
+| 08-17 21:16 | $.BULL `CYdLv3C7…` | +1m | correct | 0.80x | 20.0% |
+| 08-17 21:15 | $BULLDOG `7JYedZx9…` | +0m | correct | 0.14x | 85.9% |
+| 08-17 21:09 | $BEEP `H7hmp9Kg…` | +1m | correct | 0.46x | 54.5% |
+| 08-17 21:08 | $FK3LfcsP `FK3LfcsP…` | +2m | correct | 0.06x | 93.7% |
+| 08-17 21:01 | $HYPNOTOAD `CzTrgCFa…` | +6m | correct | 0.48x | 52.4% |
+| 08-17 20:59 | $SAMO `CRrHwTQd…` | +2m | correct | 0.47x | 52.8% |
+| 08-17 20:11 | $.BULL `DHnsJxTh…` | +6m | correct | 0.69x | 30.9% |
+| 08-17 19:45 | $MEIMEI `Eme822mu…` | +5m | correct | 0.39x | 61.2% |
+| 08-17 19:33 | $BOBWB `ARqq2Z23…` | +10m | correct | 0.42x | 57.7% |
+| 08-17 19:32 | $LAYOOOSEM `3RUXCjJy…` | +20m | correct | 0.31x | 69.1% |
+| 08-17 19:31 | $CONSEM `GfU6Ec5p…` | +1m | correct | 0.12x | 88.5% |
+| 08-17 18:47 | $PAWSE `EbtdB3Td…` | +1m | correct | 0.42x | 58.2% |
+| 08-17 18:05 | $AIRDROPZ `7T77BSJR…` | +8m | wrong | 1.05x | -4.9% |
+| 08-17 18:02 | $SEMAN `Dqwb5WQT…` | +6m | correct | 0.17x | 82.6% |
+| 08-17 17:48 | $ZION `7RTVnPY8…` | +5m | wrong | 4.47x | -347.5% |
+| 08-17 17:39 | $Z `7MQSupJT…` | +3m | wrong | 4.34x | -334.2% |
+| 08-17 17:31 | $BANKS `9eJZqRfX…` | +40m | correct | 0.85x | 15.4% |
+| 08-17 17:30 | $COBY `DECCvbB1…` | +2m | correct | 0.11x | 88.8% |
+| 08-17 17:30 | $CHROME `2RKs2oLA…` | +0m | correct | 0.36x | 64.1% |
+| 08-17 17:20 | $ZION `29NosDnN…` | +20m | correct | 0.57x | 42.5% |
+| 08-17 17:17 | $BULL `8HqqP7Q8…` | +5m | correct | 0.20x | 80.5% |
+| 08-17 17:16 | $NIGGACOIN `3Tduqu6k…` | +15m | correct | 0.43x | 57.4% |
+| 08-17 17:07 | $Z `4oeYGL7g…` | +20m | correct | 0.40x | 60.3% |
+| 08-17 16:58 | $GOOFRECK `EtEJENNX…` | +15m | correct | 0.79x | 21.5% |
+| 08-17 16:57 | $ANSEMWHEEL `6663cnWk…` | +15m | correct | 0.32x | 68.3% |
+| 08-17 16:39 | $3027470556 `GEJWAvG6…` | +6m | correct | 0.08x | 91.6% |
+| 08-17 16:37 | $NIGGABUTT `8Do5g718…` | +6m | correct | 0.58x | 41.7% |
+| 08-17 16:24 | $GUT `3eY3fYwq…` | +6m | wrong | 1.10x | -10.0% |
+| 08-17 16:20 | $2TEST `8g877NyJ…` | +1m | correct | 0.13x | 86.9% |
+| 08-17 16:19 | $TEST `79FdxGu8…` | +1m | wrong | 9.62x | -861.5% |
+| 08-17 16:17 | $VIBESHIFT `2DLbVPRN…` | +6m | wrong | 1.02x | -1.9% |
+| 08-17 16:07 | $HORNET `DArD62B1…` | +2m | wrong | 5.00x | -400.1% |
+| 08-17 16:06 | $ZEUS `H4ciemPv…` | +0m | wrong | 2.13x | -113.5% |
+| 08-17 16:05 | $MENSА `BkZRcXRg…` | +0m | wrong | 1.37x | -36.7% |
+| 08-17 15:57 | $PEPE `9a2atVSj…` | +0m | wrong | 1.82x | -82.2% |
 
 ## Backtest reference (NOT the live record)
 

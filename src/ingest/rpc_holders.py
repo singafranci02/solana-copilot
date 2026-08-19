@@ -125,14 +125,47 @@ async def get_token_holders_rpc(session, mint: str,
             for a, v in sorted(merged.items(), key=lambda kv: -kv[1])]
 
 
+# CIRCUIT BREAKER. getTokenLargestAccounts is throttled PER METHOD on free tiers,
+# and as volume grew (Mayhem collection + the backstop) every endpoint began
+# refusing it: measured 2026-08-19 as 0 of 12 successes, with each coin burning
+# ~10s walking four doomed endpoints before falling back to the paid API. Failing
+# fast costs nothing when the free path is down and restores it automatically when
+# it recovers — the alternative is paying the latency on every coin forever.
+_BREAKER = {"consecutive_failures": 0, "open_until": 0.0}
+_BREAKER_TRIP_AT = 5          # consecutive failures before skipping the free path
+_BREAKER_COOLDOWN_S = 900     # then re-probe every 15 min
+
+
+def _breaker_open() -> bool:
+    import time
+    return time.time() < _BREAKER["open_until"]
+
+
+def _breaker_record(ok: bool) -> None:
+    import time
+    if ok:
+        _BREAKER["consecutive_failures"] = 0
+        _BREAKER["open_until"] = 0.0
+        return
+    _BREAKER["consecutive_failures"] += 1
+    if _BREAKER["consecutive_failures"] >= _BREAKER_TRIP_AT:
+        _BREAKER["open_until"] = time.time() + _BREAKER_COOLDOWN_S
+        _BREAKER["consecutive_failures"] = 0
+        logger.warning("free-RPC holders unavailable — skipping it for %ds",
+                       _BREAKER_COOLDOWN_S)
+
+
 async def get_token_holders_resilient(session, mint: str, st_client=None) -> tuple[list[dict], str]:
     """RPC first, paid API only as fallback. Returns (holders, source_used)."""
-    try:
-        rows = await get_token_holders_rpc(session, mint)
-        if rows:
-            return rows, "rpc"
-    except Exception as exc:
-        logger.debug("rpc holders failed for %s: %s", mint[:8], exc)
+    if not _breaker_open():
+        try:
+            rows = await get_token_holders_rpc(session, mint)
+            _breaker_record(bool(rows))
+            if rows:
+                return rows, "rpc"
+        except Exception as exc:
+            _breaker_record(False)
+            logger.debug("rpc holders failed for %s: %s", mint[:8], exc)
 
     if st_client is not None:
         try:
