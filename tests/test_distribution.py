@@ -154,3 +154,38 @@ def test_wallets_absent_from_the_tape_cost_nothing():
     _apply_tape_flags(conn, "M", set(), set(), {f"sm{i}" for i in range(5000)})
     assert conn.execute(
         "SELECT COUNT(*) FROM post_grad_swaps WHERE is_smart_money=1").fetchone()[0] == 0
+
+
+# ── checkpoint economics (2026-08-19) ────────────────────────────────────────
+# The 24h distribution check opens with a holder read, and free RPC now throttles
+# getTokenLargestAccounts per-method so every one falls back to the paid API
+# (~1,500/day against a 200k/month budget projected at 98%). By 24h it measures a
+# corpse twice over: median collapse is 5.8 minutes, 89.6% dead inside the hour.
+
+def test_24h_distribution_check_is_skipped():
+    import inspect
+
+    from src.analyzer import distribution
+    src = inspect.getsource(distribution._deferred_check)
+    assert "if offset_h < 24:" in src, "the 24h holder read must not run"
+
+
+def test_24h_trajectory_finalize_still_runs():
+    """The finalize is the LABEL OF RECORD and must survive the skip — it recomputes
+    the trajectory from the persisted tape so stored labels always match what the DB
+    can reproduce. A previous outage killed it for two days and the audit caught it."""
+    import inspect
+
+    from src.analyzer import distribution
+    src = inspect.getsource(distribution._deferred_check)
+    assert "_finalize_trajectory" in src
+    # and it must sit OUTSIDE the skipped branch
+    after = src.split("if offset_h < 24:")[1]
+    assert "if offset_h == 24:" in after
+
+
+def test_earlier_checkpoints_are_untouched():
+    """1h and 4h still run: 4h carries the funder-reputation update and the
+    coordination pass."""
+    from src.analyzer.distribution import CHECK_OFFSETS_H
+    assert 1 in CHECK_OFFSETS_H and 4 in CHECK_OFFSETS_H

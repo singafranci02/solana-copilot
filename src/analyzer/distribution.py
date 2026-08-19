@@ -337,12 +337,23 @@ async def _deferred_check(
     delay = fire_at - time.time()
     if delay > 0:
         await asyncio.sleep(delay)
-    try:
-        await _do_check(token_mint, offset_h)
-    except Exception:
-        logger.exception(
-            "distribution check failed for %s at %dh", token_mint[:8], offset_h
-        )
+    # The 24h DISTRIBUTION check is skipped; the 24h trajectory finalize below is
+    # not. The check opens with a holder read, which is the whole expense: free RPC
+    # now throttles getTokenLargestAccounts per-method, so every one falls back to
+    # the paid API (~1,500/day, ~45k/month against a 200k budget projected at 98%).
+    #
+    # By 24h it is measuring a corpse twice over — the median coin collapses at 5.8
+    # minutes and 89.6% are dead inside the hour — and the head that consumed it
+    # (`distribute`) is retired (NEGATIVE_RESULTS #20). What is lost is sold_pct_24h
+    # and the 24h post_grad_behavior row, on a population where 1h and 4h already
+    # answer the question.
+    if offset_h < 24:
+        try:
+            await _do_check(token_mint, offset_h)
+        except Exception:
+            logger.exception(
+                "distribution check failed for %s at %dh", token_mint[:8], offset_h
+            )
     if offset_h == 24:
         # label of record — must run even when the check above failed (a network
         # error during a wake-from-sleep killed both for 2 days; audit caught it)
