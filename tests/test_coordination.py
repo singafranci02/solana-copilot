@@ -248,3 +248,46 @@ def test_phases_are_stored_separately():
     upsert_coordination(conn, cc, phase="postgrad")
     phases = {r[0] for r in conn.execute("SELECT DISTINCT phase FROM wallet_edges")}
     assert phases == {"launch", "postgrad"}
+
+
+# ── post-graduation edge maps (2026-08-19) ───────────────────────────────────
+# The postgrad pass ran without funder/fresh maps, so it could only form entities
+# from same_slot, buy_size and lockstep_sell — missing the strongest signal
+# (funder carries 0.90 in _COORD_EDGE_WEIGHT, against 0.70/0.35/0.35).
+
+def test_postgrad_maps_are_cache_only():
+    """Resolving funders over RPC here would add a call per wallet on every
+    checkpoint — on the one pass whose appeal is that the tape is already in
+    memory. It must read wallet_funding / wallets, never the network."""
+    import inspect
+    from src.analyzer import distribution
+    src = inspect.getsource(distribution._postgrad_edge_maps)
+    assert "wallet_funding" in src and "first_seen" in src
+    # Look for a CALL, not a mention: the docstring names _resolve_wallet_funding
+    # precisely to record why it is not used here.
+    assert "_resolve_wallet_funding(" not in src, "postgrad must not trigger RPC"
+    assert "await " not in src, "the postgrad pass is synchronous by design"
+
+
+def test_postgrad_excludes_behavioral_edges():
+    """edges_behavioral is calibrated for bonding-curve buyers. On the whole
+    post-graduation crowd its 0.92 cosine links unrelated retail: measured, it
+    merged one coin's largest entity from 2 wallets to 112. An edge type that
+    collapses the graph is worse than a missing one."""
+    import inspect
+    from src.analyzer import distribution
+    src = inspect.getsource(distribution._postgrad_edge_maps)
+    assert "load_behavior_vectors" not in src
+    caller = inspect.getsource(distribution._detect_postgrad_coordination)
+    assert "behavior_vectors" not in caller
+
+
+def test_funder_edges_do_not_collapse_components():
+    """Guards the property that made funder safe to add: it links wallets that
+    genuinely share a funder, not everything to everything."""
+    sw = [_swap("aaa", slot=1), _swap("bbb", slot=2), _swap("ccc", slot=3),
+          _swap("ddd", slot=4)]
+    base = analyze_coin(MINT, sw, total_supply=1000.0)
+    with_funder = analyze_coin(MINT, sw, total_supply=1000.0,
+                               funder_by_wallet={"aaa": "F1", "bbb": "F1"})
+    assert with_funder.largest_entity_wallet_count <= max(base.largest_entity_wallet_count, 2)

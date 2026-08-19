@@ -718,6 +718,64 @@ def _record_exit_choreography(
             update_funder_choreography(conn, row["funding_source"], choreo)
 
 
+def _postgrad_edge_maps(token_mint: str, swaps, conn):
+    """(funder_by_wallet, fresh) for the post-graduation pass.
+
+    The post-graduation coordination pass ran WITHOUT these maps, so it could only
+    ever form entities from same_slot, buy_size and lockstep_sell — three of the six
+    signals, and missing the strongest. In team_detect._COORD_EDGE_WEIGHT the funder
+    edge carries 0.90 and behavioral 0.50, against 0.70/0.35/0.35 for the three it
+    had. Exit bundles after migration were being detected on the weak half of the
+    evidence.
+
+    CACHE-ONLY BY DESIGN. The launch path resolves funders over RPC
+    (_resolve_wallet_funding); doing that here would add an API call per wallet on
+    every checkpoint, on the one pass whose whole appeal is that the tape is already
+    in memory. wallet_funding already holds 58k traced wallets and wallets.first_seen
+    the ages, so this is two indexed reads and no network.
+
+    BEHAVIORAL EDGES ARE DELIBERATELY EXCLUDED. edges_behavioral links wallets whose
+    cross-coin fingerprints are within 0.92 cosine, which is calibrated for the launch
+    path's bonding-curve buyers — a small, self-selected set. The post-graduation tape
+    is the whole crowd, hundreds of wallets, and at that scale the threshold links
+    unrelated retail: measured on 6 coins, adding it merged one coin's largest entity
+    from 2 wallets to 112, and another from 126 to 171. funder and fresh do not do
+    this (172->172, 2->2, 194->198). An edge type that collapses the graph is worse
+    than a missing one, because everything downstream reads component structure.
+    """
+    from src.analyzer.coordination import fresh_flags
+
+    wallets = sorted({s.signer for s in swaps if s.signer})
+    if not wallets:
+        return {}, {}
+    marks = ",".join("?" * len(wallets))
+
+    funder_map = {
+        r[0]: r[1] for r in conn.execute(
+            f"""SELECT wallet, funder FROM wallet_funding
+                WHERE hop = 1 AND funder IS NOT NULL AND wallet IN ({marks})""",
+            wallets)
+    }
+    first_seen = {
+        r[0]: r[1] for r in conn.execute(
+            f"""SELECT address, first_seen FROM wallets
+                WHERE first_seen IS NOT NULL AND address IN ({marks})""", wallets)
+    }
+    # Freshness is relative to each wallet's first BUY on this coin, matching the
+    # launch path's construction so the two phases stay comparable.
+    first_buy: dict[str, float] = {}
+    base = min((s.timestamp for s in swaps), default=0)
+    for s in swaps:
+        if s.side != "buy":
+            continue
+        off = float(max(0, s.timestamp - base))
+        if off < first_buy.get(s.signer, float("inf")):
+            first_buy[s.signer] = off
+    now_ts = max((s.timestamp for s in swaps), default=0)
+    fresh_map = fresh_flags(first_seen, first_buy, now_ts) if first_seen else {}
+    return funder_map, fresh_map
+
+
 def _detect_postgrad_coordination(
     token_mint: str, swaps, total_supply: float | None, conn
 ) -> None:
@@ -730,7 +788,9 @@ def _detect_postgrad_coordination(
     if not swaps:
         return
     try:
-        cc = analyze_coin(token_mint, swaps, total_supply=total_supply)
+        funder_map, fresh_map = _postgrad_edge_maps(token_mint, swaps, conn)
+        cc = analyze_coin(token_mint, swaps, total_supply=total_supply,
+                          funder_by_wallet=funder_map, fresh=fresh_map)
         upsert_coordination(conn, cc, source="live", phase="postgrad")
     except Exception as exc:
         logger.debug("postgrad coordination failed for %s: %s", token_mint[:8], exc)
