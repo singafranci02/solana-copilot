@@ -35,6 +35,13 @@ def migrate() -> None:
         _add_column_if_missing(conn, "graduation_events", "smart_money_count", "INTEGER NOT NULL DEFAULT 0")
         _add_column_if_missing(conn, "graduation_events", "dominant_factors_json", "TEXT NOT NULL DEFAULT '[]'")
         # Pipeline v2: real created_at + structural-account capture (see structural_accounts.py)
+        # How a graduation reached us, and whether it came via the polling backstop.
+        # These live here rather than as bare ALTERs in schema.sql so the schema stays
+        # re-runnable (see the note there).
+        _add_column_if_missing(conn, "graduation_events", "recovered",
+                               "INTEGER NOT NULL DEFAULT 0")
+        _add_column_if_missing(conn, "graduation_events", "detection_source",
+                               "TEXT NOT NULL DEFAULT 'websocket'")
         _add_column_if_missing(conn, "tokens", "created_at_source", "TEXT")
         _add_column_if_missing(conn, "tokens", "created_on", "TEXT")
         # on-chain platform verdict ('pump.fun'/'mayhem'/foreign createdOn/'pump.fun*');

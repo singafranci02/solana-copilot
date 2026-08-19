@@ -162,3 +162,89 @@ def test_analyze_coin_end_to_end():
     assert cc.largest_entity_wallet_count == 2
     assert cc.bundle_stats.bundled_supply_pct == 20.0
     assert cc.largest_entity_supply_pct == 20.0
+
+
+# ── typed edge persistence (2026-08-19) ──────────────────────────────────────
+# analyze_coin computed the pairwise labeled edge list on every coin and discarded
+# it: assemble_entities flattens it to a per-component union of label strings, so
+# coordinated_entities recorded THAT a group was linked by {same_slot, funder} but
+# never WHICH members the funder edge joined. These pin the recovered pairs.
+
+import sqlite3
+
+
+def test_analyze_coin_carries_the_typed_edges():
+    sw = [_swap("aaa", slot=1), _swap("bbb", slot=1), _swap("ccc", slot=9)]
+    cc = analyze_coin(MINT, sw, total_supply=1000.0)
+    assert cc.edges, "the pairwise edge list must survive analyze_coin"
+    assert ("aaa", "bbb") in cc.edges
+    assert "same_slot" in cc.edges[("aaa", "bbb")]
+
+
+def test_edges_are_canonically_ordered():
+    """The DB CHECK relies on _pair() sorting a < b; a violation would fail the
+    insert rather than store a mirrored duplicate."""
+    sw = [_swap("zzz", slot=1), _swap("aaa", slot=1)]
+    cc = analyze_coin(MINT, sw, total_supply=1000.0)
+    for a, b in cc.edges:
+        assert a < b
+
+
+def test_a_pair_can_carry_several_signals():
+    """Two wallets in the same slot with identical buy sizes are linked twice; both
+    labels must survive, because which signal linked them is the point."""
+    sw = [_swap("aaa", slot=1, sol=5.0), _swap("bbb", slot=1, sol=5.0)]
+    cc = analyze_coin(MINT, sw, total_supply=1000.0)
+    assert len(cc.edges[("aaa", "bbb")]) >= 2
+
+
+def _edge_db():
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    c.execute("""CREATE TABLE coin_coordination (token_mint TEXT, phase TEXT, computed_at INT,
+        source TEXT, entity_count INT, bundled_supply_pct REAL, bundle_wallet_count INT,
+        largest_bundle_size INT, largest_entity_supply_pct REAL, largest_entity_wallet_count INT,
+        largest_entity_fresh_ratio REAL, largest_entity_state TEXT,
+        PRIMARY KEY (token_mint, phase))""")
+    c.execute("""CREATE TABLE coordinated_entities (token_mint TEXT, phase TEXT, entity_id TEXT,
+        member_addresses TEXT, wallet_count INT, supply_pct REAL, fresh_ratio REAL, state TEXT,
+        edge_sources TEXT, computed_at INT, PRIMARY KEY (token_mint, phase, entity_id))""")
+    c.execute("""CREATE TABLE wallet_edges (token_mint TEXT, phase TEXT, wallet_a TEXT,
+        wallet_b TEXT, edge_type TEXT, computed_at INT,
+        PRIMARY KEY (token_mint, phase, wallet_a, wallet_b, edge_type),
+        CHECK (wallet_a < wallet_b))""")
+    return c
+
+
+def test_upsert_persists_every_typed_pair():
+    from src.analyzer.coordination import upsert_coordination
+    conn = _edge_db()
+    sw = [_swap("aaa", slot=1), _swap("bbb", slot=1)]
+    cc = analyze_coin(MINT, sw, total_supply=1000.0)
+    upsert_coordination(conn, cc, phase="launch")
+    rows = conn.execute("SELECT wallet_a, wallet_b, edge_type FROM wallet_edges").fetchall()
+    assert rows
+    assert {r["edge_type"] for r in rows} == {lbl for lbls in cc.edges.values() for lbl in lbls}
+
+
+def test_rerun_replaces_rather_than_accumulates():
+    """A signal that stops being detected must not leave a stale pair behind."""
+    from src.analyzer.coordination import upsert_coordination
+    conn = _edge_db()
+    cc = analyze_coin(MINT, [_swap("aaa", slot=1), _swap("bbb", slot=1)], total_supply=1000.0)
+    upsert_coordination(conn, cc, phase="launch")
+    first = conn.execute("SELECT COUNT(*) FROM wallet_edges").fetchone()[0]
+    upsert_coordination(conn, cc, phase="launch")
+    assert conn.execute("SELECT COUNT(*) FROM wallet_edges").fetchone()[0] == first
+
+
+def test_phases_are_stored_separately():
+    """Launch and post-graduation edges describe different windows and must not
+    overwrite each other."""
+    from src.analyzer.coordination import upsert_coordination
+    conn = _edge_db()
+    cc = analyze_coin(MINT, [_swap("aaa", slot=1), _swap("bbb", slot=1)], total_supply=1000.0)
+    upsert_coordination(conn, cc, phase="launch")
+    upsert_coordination(conn, cc, phase="postgrad")
+    phases = {r[0] for r in conn.execute("SELECT DISTINCT phase FROM wallet_edges")}
+    assert phases == {"launch", "postgrad"}

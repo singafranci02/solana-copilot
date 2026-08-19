@@ -820,10 +820,32 @@ CREATE INDEX IF NOT EXISTS idx_coin_attr_state ON coin_attribution(state);
 -- poll delay; the tape and its labels are anchored on the true pool-creation
 -- timestamp and are not. Flagged so a population can include or exclude them
 -- deliberately instead of discovering the difference later.
-ALTER TABLE graduation_events ADD COLUMN recovered INTEGER NOT NULL DEFAULT 0;
+-- (added idempotently in src/common/db.py via _add_column_if_missing — a bare
+--  ALTER here makes schema.sql non-re-runnable, which broke it on 2026-08-19)
 
 -- How a graduation reached us. The WebSocket misses ~27% of graduations; those are
 -- recovered by scripts/graduation_backstop.py. Both populations enter training, so
 -- if recovery selects a biased subpopulation it biases the models — and nothing
 -- would notice without this column. The audit compares base rates across the two.
-ALTER TABLE graduation_events ADD COLUMN detection_source TEXT NOT NULL DEFAULT 'websocket';
+-- (added idempotently in src/common/db.py via _add_column_if_missing)
+
+-- The typed wallet-pair edge list. coordination.analyze_coin computes this on every
+-- coin and, until 2026-08-19, discarded it: assemble_entities flattened it to a
+-- per-component union of label strings, so coordinated_entities records THAT a group
+-- was linked by {same_slot, funder} but not WHICH members the funder edge joined.
+-- This is the queryable wallet graph — who moves with whom, by which signal, on which
+-- coin. Zero extra computation and zero API cost; the data was already in memory.
+CREATE TABLE IF NOT EXISTS wallet_edges (
+    token_mint  TEXT NOT NULL REFERENCES tokens(mint),
+    phase       TEXT NOT NULL,              -- 'launch' | 'postgrad'
+    wallet_a    TEXT NOT NULL,
+    wallet_b    TEXT NOT NULL,
+    edge_type   TEXT NOT NULL,              -- same_slot|same_slot_real|buy_size|
+                                            -- lockstep_sell|funder|behavioral
+    computed_at INTEGER NOT NULL,
+    PRIMARY KEY (token_mint, phase, wallet_a, wallet_b, edge_type),
+    CHECK (wallet_a < wallet_b)             -- coordination._pair guarantees this
+);
+CREATE INDEX IF NOT EXISTS idx_wallet_edges_a ON wallet_edges(wallet_a);
+CREATE INDEX IF NOT EXISTS idx_wallet_edges_b ON wallet_edges(wallet_b);
+CREATE INDEX IF NOT EXISTS idx_wallet_edges_type ON wallet_edges(edge_type, phase);

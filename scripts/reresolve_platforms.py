@@ -69,6 +69,23 @@ async def _resolve(mints):
     return out
 
 
+
+def _stale_foreign(conn) -> list[str]:
+    """Coins ALREADY labelled foreign that still have a graduation row.
+
+    The candidate query only selects unverified/NULL coins, so a coin resolved to a
+    foreign launchpad on an earlier pass was labelled and then never revisited — it
+    sat in graduation_events failing the audit's foreign-launchpad tripwire forever,
+    which blocks the weekly retrain. Observed after the backstop recovered a
+    meteora.ag coin: correctly labelled, never removed.
+    """
+    return [r[0] for r in conn.execute(
+        """SELECT ge.token_mint FROM graduation_events ge
+           JOIN tokens t ON t.mint = ge.token_mint
+           WHERE t.platform NOT IN
+                 ('pump.fun','pump.fun*','mayhem','unverified','unresolvable')""")]
+
+
 def main() -> None:
     limit = int(sys.argv[sys.argv.index("--limit") + 1]) if "--limit" in sys.argv else 60
     conn = get_connection()
@@ -101,9 +118,18 @@ def main() -> None:
               AND ge.graduated_at < strftime('%s','now') - 21600)""").rowcount
 
     if not resolved:
-        conn.commit(); conn.close()
+        stale = _stale_foreign(conn)
+        for m in stale:
+            for tbl in PURGE_TABLES:
+                try:
+                    conn.execute(f"DELETE FROM {tbl} WHERE token_mint=?", (m,))
+                except Exception:
+                    pass
+        conn.commit()
+        conn.close()
         print(f"re-resolved 0 of {len(mints)} (transient — retry next run); "
-              f"retired {retired} coins >6h to unresolvable")
+              f"retired {retired} coins >6h to unresolvable; "
+              f"purged {len(stale)} stale-foreign")
         return
 
     conn.executemany("UPDATE tokens SET platform = ? WHERE mint = ?",
@@ -116,6 +142,8 @@ def main() -> None:
     # ...), which are a different product and were never in scope.
     foreign = [m for m, p in resolved.items()
                if p != "mayhem" and not str(p).startswith("pump.fun")]
+
+    foreign += _stale_foreign(conn)
     purged = 0
     for m in foreign:
         for tbl in PURGE_TABLES:

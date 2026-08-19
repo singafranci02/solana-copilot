@@ -69,6 +69,12 @@ class CoinCoordination:
     largest_entity_state: str | None
     bundle_stats: BundleStats
     entities: list[Entity] = field(default_factory=list)
+    # The typed pairwise edge list: (wallet_a, wallet_b) -> {signal, ...}, canonically
+    # ordered a < b by _pair(). This was computed on every coin and discarded —
+    # assemble_entities flattens it to a per-component union of label strings, so
+    # nothing recorded WHICH wallet was linked to WHICH by WHICH signal. Carrying it
+    # here costs no extra computation; upsert_coordination persists it.
+    edges: dict[tuple[str, str], set[str]] = field(default_factory=dict)
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -392,6 +398,7 @@ def analyze_coin(
         largest_entity_state=largest.state if largest else None,
         bundle_stats=bundle_stats,
         entities=entities,
+        edges=labeled,
     )
 
 
@@ -438,4 +445,20 @@ def upsert_coordination(conn, cc: CoinCoordination, source: str = "batch", phase
                 e.supply_pct, e.fresh_ratio, e.state, json.dumps(list(e.edge_sources)), now,
             ),
         )
+
+    # THE PAIRS. coordinated_entities records that a component was linked by, say,
+    # {same_slot, funder} — but not which of its members the funder edge actually
+    # joined. Persisting the typed pairs is what makes the wallet graph queryable:
+    # who moves with whom, by which signal, on which coin.
+    #
+    # Replace-then-insert per (mint, phase) so a re-run cannot leave stale pairs
+    # behind when an edge stops being detected.
+    conn.execute("DELETE FROM wallet_edges WHERE token_mint = ? AND phase = ?",
+                 (cc.token_mint, phase))
+    conn.executemany(
+        """INSERT OR IGNORE INTO wallet_edges
+               (token_mint, phase, wallet_a, wallet_b, edge_type, computed_at)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        [(cc.token_mint, phase, a, b, label, now)
+         for (a, b), labels in cc.edges.items() for label in sorted(labels)])
     conn.commit()
