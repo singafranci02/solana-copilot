@@ -105,3 +105,24 @@ def test_to_token_buyers_aggregates_per_wallet():
 def test_to_token_buyers_empty_when_no_buys():
     swaps = [_swap("W1", "sell", 1.0, 200, 1500, 50)]
     assert to_token_buyers(swaps, MINT) == []
+
+
+# ── walk depth (2026-08-19) ──────────────────────────────────────────────────
+
+def test_bc_walk_has_its_own_page_budget():
+    """reconstruct_bc_holders was the only caller that never set max_pages, so it
+    inherited the global default of 6 (~1500 trades). The walk is ASC FROM LAUNCH,
+    so truncation drops the tail CLOSEST TO GRADUATION — the accumulation the thesis
+    rests on. Measured: 234 of 1,506 coins (15.5%) had bonding-curve data ending
+    more than an hour before graduation."""
+    from src.analyzer.bc_reconstruct import BC_WALK_PAGES
+    from src.common.config import settings
+    assert BC_WALK_PAGES > settings.trades_max_pages
+
+
+def test_bc_walk_passes_its_budget_to_the_client():
+    import inspect
+
+    from src.analyzer import bc_reconstruct
+    src = inspect.getsource(bc_reconstruct.reconstruct_bc_holders)
+    assert "max_pages=BC_WALK_PAGES" in src

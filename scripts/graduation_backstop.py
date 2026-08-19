@@ -76,10 +76,28 @@ PUMP_MARKETS = {"pumpfun", "pumpfun-amm"}
 ANCHOR_SEEK_PAGES = 30
 
 
+# The AMM pool is created AT migration; the curve pool is created at LAUNCH. Only
+# the former is the graduation moment.
+AMM_MARKET = "pumpfun-amm"
+
+
 def _true_graduation_ts(pools: list[dict]) -> int | None:
-    """The AMM pool is created AT migration, so its createdAt is the true zero."""
+    """The AMM pool's createdAt — the migration moment, and the label anchor.
+
+    This must select the AMM pool EXPLICITLY. It previously returned the first pool
+    whose market was in PUMP_MARKETS, which includes "pumpfun" — the bonding-curve
+    pool, whose createdAt is the LAUNCH time. It was correct only because the feed
+    happens to list the AMM first (40/40 checked). If that order ever flips, a coin
+    is anchored to its launch instead of its migration, the 120s gate then passes
+    trivially because the first trade lands seconds after launch, and every label on
+    that coin is measured from the wrong zero — the exact corruption that produced a
+    25.1% survival rate against a true 5.2% in August.
+
+    Harmless today on instant graduations (curve and AMM within ~1s) and severe on
+    long ones: a 31-hour bonding curve would be anchored 31 hours early.
+    """
     for p in pools or []:
-        if p.get("market") in PUMP_MARKETS and p.get("createdAt"):
+        if p.get("market") == AMM_MARKET and p.get("createdAt"):
             return int(p["createdAt"] / 1000)
     return None
 
@@ -201,9 +219,26 @@ async def _structural(conn, mint: str, grad_ts: int, st) -> None:
     )
     from src.ingest.rpc_holders import get_token_holders_resilient, get_token_supply_rpc
 
+    from src.analyzer.structural_accounts import structural_set
+    from src.common.cex_wallets import get_all_cex_addresses
+
     async with aiohttp.ClientSession() as s:
         accounts, _src = await get_token_holders_resilient(s, mint, st)
         supply = await get_token_supply_rpc(s, mint)
+    if not accounts:
+        return
+
+    # PARITY WITH THE LIVE PATH. Recovery previously passed structural=frozenset()
+    # and did not pre-filter accounts, so the AMM pool, the bonding curve and program
+    # vaults could become token_buyers and then team members on recovered coins —
+    # while the same coin captured live would have excluded them. token_info is the
+    # source of the per-mint pool accounts, exactly as graduation_monitor does it.
+    try:
+        info = await st.get_token_info(mint)
+    except Exception:
+        info = None
+    structural = structural_set(info, get_all_cex_addresses(conn))
+    accounts = [a for a in accounts if a.get("address") not in structural]
     if not accounts:
         return
 
@@ -215,7 +250,7 @@ async def _structural(conn, mint: str, grad_ts: int, st) -> None:
         return
 
     bc_swaps = await _reconstruct_bc(
-        st, mint, bc_top_holders, 0, grad_ts, conn, structural=frozenset())
+        st, mint, bc_top_holders, 0, grad_ts, conn, structural=structural)
 
     buyers = [r for r in conn.execute(
         """SELECT wallet_address, bought_at, sol_amount, tokens_received

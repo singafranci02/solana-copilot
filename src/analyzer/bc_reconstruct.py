@@ -26,6 +26,18 @@ logger = logging.getLogger(__name__)
 
 _SNIPER_THRESHOLD_S = 30.0   # matches team_detect.py sniper definition
 
+# Pages of ~250 trades walked forward from launch. This was the only caller that
+# never set max_pages, so it inherited the global default of 6 (~1500 trades) — an
+# API-budget cap meant for routine fetches. Because the walk is ASC FROM LAUNCH,
+# truncation drops the tail CLOSEST TO GRADUATION: exactly the accumulation the
+# thesis rests on. Measured 2026-08-19: 234 of 1,506 coins with >100 recorded buyers
+# (15.5%) had their bonding-curve data ending more than an hour before graduation,
+# one a full 27 hours short on a 31-hour curve.
+#
+# Costs nothing on short curves — the ASC walk early-stops as soon as a page's
+# newest trade passes until_ts, so only genuinely long curves reach the cap.
+BC_WALK_PAGES = 25
+
 
 @dataclass
 class BcAccumulation:
@@ -122,7 +134,7 @@ async def reconstruct_bc_holders(
     IS the launch; token_created_at only tightens the window when it's earlier.
     """
     raw = await client.get_token_trades(
-        token_mint, until_ts=graduated_at, sort="ASC",
+        token_mint, until_ts=graduated_at, sort="ASC", max_pages=BC_WALK_PAGES,
     )
     effective_created = token_created_at
     if raw:

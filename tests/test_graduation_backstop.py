@@ -51,3 +51,40 @@ def test_recovery_age_cap_is_bounded():
 
 def test_only_pump_markets_are_in_scope():
     assert PUMP_MARKETS == {"pumpfun", "pumpfun-amm"}
+
+
+# ── anchor pool selection (2026-08-19) ───────────────────────────────────────
+
+def test_anchor_selects_the_amm_pool_not_the_curve():
+    """PUMP_MARKETS contains "pumpfun" — the bonding-CURVE pool, whose createdAt is
+    the LAUNCH time. Returning the first match was correct only because the feed
+    happens to list the AMM first (40/40 checked). If that order flips, a coin is
+    anchored to its launch, the 120s gate passes trivially because the first trade
+    lands seconds after launch, and every label is measured from the wrong zero."""
+    from scripts.graduation_backstop import _true_graduation_ts
+    curve_first = [{"market": "pumpfun", "createdAt": 1_000_000},
+                   {"market": "pumpfun-amm", "createdAt": 9_000_000}]
+    assert _true_graduation_ts(curve_first) == 9_000
+
+
+def test_no_amm_pool_yields_no_anchor():
+    """A curve pool alone is not a graduation — fail closed rather than anchor on
+    the launch."""
+    from scripts.graduation_backstop import _true_graduation_ts
+    assert _true_graduation_ts([{"market": "pumpfun", "createdAt": 1_000_000}]) is None
+
+
+def test_recovery_excludes_structural_accounts():
+    """Recovery passed structural=frozenset(), so the AMM pool, curve and program
+    vaults could become token_buyers and then team members on recovered coins —
+    while the same coin captured live would have excluded them."""
+    import inspect
+
+    from scripts import graduation_backstop as gb
+    src = inspect.getsource(gb._structural)
+    assert "structural_set(" in src
+    # Assert the CALL, not the absence of a phrase — the comment above the fix names
+    # structural=frozenset() precisely to record what it replaced. (Second time this
+    # session a test matched explanatory prose instead of code.)
+    assert "structural=structural" in src
+    assert "a.get(\"address\") not in structural" in src
