@@ -46,6 +46,10 @@ CHECK_OFFSETS_H = (1, 4, 24)
 # checkpoints see real data. 30/60/90 are already edges in the v5 hazard grid, so live
 # sampling now aligns exactly with the intervals the model reasons about, and the
 # incremental tape fetch makes each extra checkpoint cost ~1 API call.
+# Coordination is computed over this window after graduation, not the whole tape.
+# See _detect_postgrad_coordination for the measurement behind it.
+COORD_WINDOW_S = 600
+
 EARLY_CHECK_SECONDS = (30, 60, 90, 120, 210, 300, 390, 480, 600, 720, 900, 1200, 2400)
 
 # Classification thresholds
@@ -787,6 +791,20 @@ def _detect_postgrad_coordination(
     from src.analyzer.coordination import analyze_coin, upsert_coordination
     if not swaps:
         return
+
+    # BOUND TO THE WINDOW THAT MATTERS. Measured on the anchor-gated population:
+    # 90% of peaks, 87% of collapses and 95% of team exits happen inside 10 minutes.
+    # Running coordination over the full 4h tape adds hours of unrelated retail flow
+    # and produces a mesh rather than a graph — one coin yielded 1.3M pairs over the
+    # full tape against 128k over the first 10 minutes, and the extra pairs are
+    # almost entirely lockstep_sell, which at this scale says "many wallets sold in
+    # the same period", not "these two act together".
+    grad = _load_graduated_at(token_mint, conn)
+    if grad:
+        window = [s for s in swaps if grad <= s.timestamp <= grad + COORD_WINDOW_S]
+        if len(window) >= 20:
+            swaps = window
+
     try:
         funder_map, fresh_map = _postgrad_edge_maps(token_mint, swaps, conn)
         cc = analyze_coin(token_mint, swaps, total_supply=total_supply,
